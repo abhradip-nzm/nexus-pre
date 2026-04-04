@@ -283,7 +283,7 @@ export default function AdminUsers() {
                     {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : 'Never'}
                   </td>
                   <td>
-                    <div className="user-actions table-actions">
+                    <div className="user-actions">
                       <button className="btn btn-ghost btn-xs" onClick={() => openEdit(user)}>Edit</button>
                       <button
                         className={`btn btn-xs ${user.is_active ? 'btn-ghost' : 'btn-primary'}`}
@@ -291,7 +291,7 @@ export default function AdminUsers() {
                       >
                         {user.is_active ? 'Deactivate' : 'Activate'}
                       </button>
-                      <button className="btn btn-ghost btn-icon btn-xs" onClick={() => regeneratePassword(user)} title="Reset Password">
+                      <button className="btn btn-ghost btn-xs" onClick={() => regeneratePassword(user)} title="Reset Password">
                         <KeyRound size={12} />
                       </button>
                     </div>
@@ -299,7 +299,7 @@ export default function AdminUsers() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr className="table-empty-row"><td colSpan={5}>No users found</td></tr>
+                <tr><td colSpan={5} className="table-empty">No users found</td></tr>
               )}
             </tbody>
           </table>
