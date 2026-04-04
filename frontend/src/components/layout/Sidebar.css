@@ -88,7 +88,7 @@
   transition: color 0.15s ease;
 }
 
-/* Hover — neutral slate, no blue */
+/* Hover */
 .nav-item:hover {
   background: #f1f5f9;
   color: #0f172a;
@@ -98,16 +98,16 @@
   color: #475569;
 }
 
-/* Active — dark filled pill */
+/* Active — soft gradient pill inspired by primary button, much lighter */
 .nav-item.active {
-  background: #1a2332;
-  color: #ffffff;
+  background: linear-gradient(135deg, #deeaf8 0%, #d4eeea 100%);
+  color: #1e4976;
   font-weight: 600;
-  box-shadow: 0 2px 10px rgba(15,23,42,0.18);
+  border: 1px solid rgba(62, 114, 174, 0.14);
 }
 
 .nav-item.active svg {
-  color: rgba(255, 255, 255, 0.85);
+  color: #1e6e58;
 }
 
 .nav-group-trigger {
@@ -121,42 +121,43 @@
 }
 
 .nav-item.active .nav-chevron {
-  color: rgba(255,255,255,0.4) !important;
+  color: rgba(30, 73, 118, 0.4) !important;
 }
 
-/* Submenu tree line */
+/* Submenu wrapper — tree connector line */
 .nav-children {
-  margin: 2px 0 2px 22px;
-  padding-left: 14px;
-  border-left: 1.5px solid #e2e8f0;
+  margin: 8px 0 8px 22px;
+  padding: 4px 0 4px 14px;
+  border-left: 1.5px solid #dde5ef;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .nav-child {
   display: block;
-  padding: 7px 10px;
+  padding: 8px 10px;
   border-radius: var(--radius-sm);
   color: #64748b;
   font-size: 12.5px;
   font-weight: 500;
   text-decoration: none;
-  transition: background 0.15s ease, color 0.15s ease, font-weight 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
   position: relative;
 }
 
-/* Hover submenu — neutral */
+/* Hover submenu */
 .nav-child:hover {
   color: #0f172a;
   background: #f1f5f9;
 }
 
-/* Active submenu — dark text, charcoal accent dot */
+/* Active submenu — light gradient tint + accent bar */
 .nav-child.active {
-  color: #0f172a;
-  background: #f1f5f9;
+  color: #1e4976;
+  background: linear-gradient(135deg, #e8f2fc 0%, #e2f3ef 100%);
   font-weight: 700;
+  border: 1px solid rgba(62, 114, 174, 0.1);
 }
 
 .nav-child.active::before {
@@ -165,9 +166,9 @@
   left: -16px;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
-  height: 18px;
-  background: #1a2332;
+  width: 2.5px;
+  height: 16px;
+  background: linear-gradient(to bottom, #3e72ae, #16a085);
   border-radius: 2px;
 }
 

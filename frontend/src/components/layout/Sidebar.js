@@ -133,7 +133,7 @@ export default function Sidebar() {
           <div
             className="avatar"
             style={{
-              background: '#1a2332',
+              background: 'linear-gradient(135deg, #3e72ae 0%, #16a085 100%)',
               color: 'white',
               fontSize: '13px'
             }}
