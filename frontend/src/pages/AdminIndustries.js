@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Building2, Pencil, Trash2, X } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -70,9 +70,6 @@ export default function AdminIndustries() {
           <div className="ind-list-panel">
             <div className="ind-list-header">
               <span className="ind-count">{industries.length} industries</span>
-              <button className="btn btn-primary btn-sm" onClick={cancelEdit}>
-                <Plus size={14} /> New Industry
-              </button>
             </div>
             {industries.length === 0 ? (
               <div className="ind-empty">
@@ -118,7 +115,7 @@ export default function AdminIndustries() {
             <div className="ind-form-actions">
               {editing && <button className="btn btn-secondary" onClick={cancelEdit}>Cancel</button>}
               <button className="btn btn-primary" onClick={save} disabled={saving}>
-                {saving ? 'Saving...' : editing ? 'Update' : 'Add Industry'}
+                {saving ? <><span className="btn-spinner" /> Saving...</> : editing ? 'Update' : 'Add Industry'}
               </button>
             </div>
           </div>

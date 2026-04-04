@@ -135,7 +135,17 @@
 .notif-item.unread { background: var(--primary-50); }
 .notif-item.unread:hover { background: var(--primary-100); }
 
-.notif-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+.notif-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+}
 
 .notif-content { flex: 1; min-width: 0; }
 

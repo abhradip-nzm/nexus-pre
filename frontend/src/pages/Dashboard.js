@@ -120,7 +120,7 @@ export default function Dashboard() {
   return (
     <>
       <Header
-        title={`Good ${new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}, ${user?.first_name} 👋`}
+        title={`Good ${new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}, ${user?.first_name}`}
         subtitle="Here's what's happening with your pre-sales pipeline"
       />
       <div className="page-content">

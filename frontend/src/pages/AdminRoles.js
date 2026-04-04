@@ -196,7 +196,7 @@ export default function AdminRoles() {
                     <p>Configure feature access for this role</p>
                   </div>
                   <button className="btn btn-primary btn-sm" onClick={saveAccessControls} disabled={saving}>
-                    <Save size={14} /> {saving ? 'Saving...' : 'Save Changes'}
+                    {saving ? <><span className="btn-spinner" /> Saving...</> : <><Save size={14} /> Save Changes</>}
                   </button>
                 </div>
 

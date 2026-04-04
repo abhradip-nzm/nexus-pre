@@ -266,10 +266,13 @@ function IntegrationsSettings({ settings, onSave, saving, isAdmin }) {
             <h3>Microsoft 365 — Teams Meeting Sync</h3>
             <p>Automatically sync Microsoft Teams meetings into the Nexus Pre calendar. Meetings scheduled via Teams will appear in the Calendar module for all linked users.</p>
           </div>
-          <label className="toggle-switch">
-            <input type="checkbox" checked={msEnabled} onChange={e => setMsEnabled(e.target.checked)} disabled={!isAdmin} />
-            <span className="toggle-slider" />
-          </label>
+          <button
+            className={`toggle-switch ${msEnabled ? 'on' : 'off'}`}
+            onClick={() => isAdmin && setMsEnabled(v => !v)}
+            disabled={!isAdmin}
+          >
+            <span className="toggle-thumb" />
+          </button>
         </div>
 
         <div className="integration-config">
@@ -346,10 +349,13 @@ function IntegrationsSettings({ settings, onSave, saving, isAdmin }) {
             <h3>WhatsApp Business — Lead Auto-Creation</h3>
             <p>Automatically create leads in Nexus Pre when your pre-sales team is tagged in monitored WhatsApp Business groups.</p>
           </div>
-          <label className="toggle-switch">
-            <input type="checkbox" checked={waEnabled} onChange={e => setWaEnabled(e.target.checked)} disabled={!isAdmin} />
-            <span className="toggle-slider" />
-          </label>
+          <button
+            className={`toggle-switch ${waEnabled ? 'on' : 'off'}`}
+            onClick={() => isAdmin && setWaEnabled(v => !v)}
+            disabled={!isAdmin}
+          >
+            <span className="toggle-thumb" />
+          </button>
         </div>
 
         <div className="integration-config">

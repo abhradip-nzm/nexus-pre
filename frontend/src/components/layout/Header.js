@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Search, X, Check, CheckCheck } from 'lucide-react';
+import { Bell, Search, X, Check, CheckCheck, MessageSquare, Calendar, Info, AlertTriangle, XCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { timeAgo } from '../../utils/helpers';
 import api from '../../utils/api';
@@ -53,8 +53,14 @@ export default function Header({ title, subtitle }) {
   };
 
   const getNotifIcon = (type) => {
-    const map = { whatsapp: '💬', meeting: '📅', info: 'ℹ️', warning: '⚠️', error: '❌' };
-    return map[type] || '🔔';
+    const iconMap = {
+      whatsapp: <MessageSquare size={14} color="#25D366" />,
+      meeting: <Calendar size={14} color="var(--primary)" />,
+      info: <Info size={14} color="var(--info)" />,
+      warning: <AlertTriangle size={14} color="var(--warning)" />,
+      error: <XCircle size={14} color="var(--error)" />,
+    };
+    return iconMap[type] || <Bell size={14} color="var(--text-muted)" />;
   };
 
   return (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tag, Plus, Pencil, Trash2, X, Check } from 'lucide-react';
+import { Tag, Pencil, Trash2, X } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -72,9 +72,6 @@ export default function AdminTags() {
           <div className="tag-list-panel">
             <div className="tag-list-header">
               <span className="tag-count">{tags.length} tags</span>
-              <button className="btn btn-primary btn-sm" onClick={cancelEdit}>
-                <Plus size={14} /> New Tag
-              </button>
             </div>
             {tags.length === 0 ? (
               <div className="tag-empty">
@@ -138,7 +135,7 @@ export default function AdminTags() {
             <div className="tag-form-actions">
               {editing && <button className="btn btn-secondary" onClick={cancelEdit}>Cancel</button>}
               <button className="btn btn-primary" onClick={save} disabled={saving}>
-                {saving ? 'Saving...' : editing ? 'Update Tag' : 'Create Tag'}
+                {saving ? <><span className="btn-spinner" /> Saving...</> : editing ? 'Update Tag' : 'Create Tag'}
               </button>
             </div>
           </div>

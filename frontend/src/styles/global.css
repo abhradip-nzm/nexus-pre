@@ -122,6 +122,8 @@ select {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .page-content {
@@ -518,6 +520,63 @@ select.form-control:focus {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Button spinner (used on all save/submit buttons) */
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+/* Toggle switch — unified button pattern */
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  transition: background 0.25s;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.toggle-switch.on {
+  background: linear-gradient(135deg, #3e72ae 0%, #16a085 100%);
+  box-shadow: 0 2px 8px rgba(62, 114, 174, 0.4);
+}
+
+.toggle-switch.off {
+  background: var(--border-dark);
+}
+
+.toggle-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  transition: left 0.25s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+
+.toggle-switch.on .toggle-thumb {
+  left: 23px;
+}
+
+.toggle-switch.off .toggle-thumb {
+  left: 3px;
 }
 
 /* Utility */
