@@ -127,7 +127,7 @@ export default function Team() {
                 {filtered.map(u => (
                   <tr key={u.id}>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="user-cell-team">
                         <div
                           className="avatar"
                           style={{ background: getAvatarColor(`${u.first_name} ${u.last_name}`), color: 'white', fontSize: '12px' }}
@@ -135,11 +135,11 @@ export default function Team() {
                           {getInitials(`${u.first_name} ${u.last_name}`)}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>
+                          <div className="team-user-name">
                             {u.first_name} {u.last_name}
                             {u.id === currentUser.id && <span className="you-badge">You</span>}
                           </div>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{u.email}</div>
+                          <div className="team-user-email">{u.email}</div>
                         </div>
                       </div>
                     </td>
@@ -148,28 +148,26 @@ export default function Team() {
                         {roleLabel[u.role_name] || u.role_name}
                       </span>
                     </td>
-                    <td>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        {u.phone || '—'}
-                      </div>
+                    <td className="team-cell-muted">
+                      {u.phone || <span className="team-dash">—</span>}
                     </td>
                     <td>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{u.total_stories || 0}</div>
+                      <span className="team-story-count">{u.total_stories || 0}</span>
                       {u.won_stories > 0 && (
-                        <div style={{ fontSize: 11, color: 'var(--success)' }}>{u.won_stories} won</div>
+                        <div className="team-won-label">{u.won_stories} won</div>
                       )}
                     </td>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    <td className="team-cell-muted">
                       {u.last_login ? timeAgo(u.last_login) : 'Never'}
                     </td>
                     <td>
-                      <span className={`badge ${u.is_active ? 'badge-success' : 'badge-error'}`}>
+                      <span className={`badge ${u.is_active ? 'badge-success' : 'badge-muted'}`}>
                         {u.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     {isSystemAdmin() && (
                       <td>
-                        <div style={{ display: 'flex', gap: 4 }}>
+                        <div className="table-actions">
                           <button className="btn btn-ghost btn-icon btn-sm" title="Edit" onClick={() => setEditUser(u)}>
                             <Pencil size={14} />
                           </button>
@@ -186,7 +184,9 @@ export default function Team() {
                             title={u.is_active ? 'Deactivate' : 'Activate'}
                             onClick={() => toggleActive(u)}
                           >
-                            {u.is_active ? <ToggleRight size={16} style={{ color: 'var(--success)' }} /> : <ToggleLeft size={16} />}
+                            {u.is_active
+                              ? <ToggleRight size={16} style={{ color: '#22c55e' }} />
+                              : <ToggleLeft size={16} style={{ color: '#94a3b8' }} />}
                           </button>
                         </div>
                       </td>
@@ -194,10 +194,8 @@ export default function Team() {
                   </tr>
                 ))}
                 {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={isSystemAdmin() ? 7 : 6} style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-                      No users found
-                    </td>
+                  <tr className="table-empty-row">
+                    <td colSpan={isSystemAdmin() ? 7 : 6}>No team members found</td>
                   </tr>
                 )}
               </tbody>
@@ -445,28 +443,28 @@ function PermissionsModal({ user, onClose, onSaved }) {
           <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
             Configure granular permissions for this Super Admin user.
           </p>
-          <table className="table">
+          <table className="table perm-table">
             <thead>
               <tr>
                 <th>Module</th>
-                <th style={{ textAlign: 'center' }}>Create</th>
-                <th style={{ textAlign: 'center' }}>Read</th>
-                <th style={{ textAlign: 'center' }}>Update</th>
-                <th style={{ textAlign: 'center' }}>Delete</th>
+                <th>Create</th>
+                <th>Read</th>
+                <th>Update</th>
+                <th>Delete</th>
               </tr>
             </thead>
             <tbody>
               {MODULES.map(m => (
                 <tr key={m}>
-                  <td style={{ fontWeight: 600, textTransform: 'capitalize' }}>{m.replace(/_/g, ' ')}</td>
+                  <td className="perm-module-name">{m.replace(/_/g, ' ')}</td>
                   {['can_create', 'can_read', 'can_update', 'can_delete'].map(field => (
-                    <td key={field} style={{ textAlign: 'center' }}>
+                    <td key={field} className="perm-check-cell">
                       <input
                         type="checkbox"
+                        className="perm-checkbox"
                         checked={perms[m]?.[field] || false}
                         onChange={() => toggle(m, field)}
                         disabled={field === 'can_read'}
-                        style={{ cursor: 'pointer', width: 16, height: 16 }}
                       />
                     </td>
                   ))}

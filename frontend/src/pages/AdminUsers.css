@@ -90,104 +90,177 @@
   color: var(--success);
 }
 
-/* Table */
+/* ── Users Table ─────────────────────────────────────────────────────── */
 .users-table-wrap {
   background: white;
-  border: 1.5px solid var(--border);
+  border: 1px solid #dce8f5;
   border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: 0 1px 8px rgba(62,114,174,0.07), 0 0 0 1px rgba(62,114,174,0.04);
 }
 
 .users-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 13px;
+}
+
+/* Header */
+.users-table thead tr {
+  background: linear-gradient(to bottom, #f0f6ff 0%, #eaf1fb 100%);
+  border-bottom: 2px solid #d6e4f7;
 }
 
 .users-table th {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  padding: 12px 16px;
-  background: var(--bg-secondary);
-  border-bottom: 1.5px solid var(--border-light);
+  padding: 12px 20px;
   text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  background: transparent;
+}
+
+.users-table th:last-child { text-align: right; }
+
+/* Body rows */
+.users-table tbody tr {
+  transition: background 0.15s ease;
 }
 
 .users-table td {
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--border-light);
-  font-size: 13px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f0f4f8;
   color: var(--text-primary);
+  vertical-align: middle;
+  transition: background 0.15s ease;
 }
 
-.users-table tr:last-child td { border-bottom: none; }
-.users-table tr:hover td { background: var(--bg-secondary); }
+.users-table tbody tr:last-child td { border-bottom: none; }
 
+.users-table tbody tr:hover td {
+  background: #f5f9ff;
+}
+
+.users-table tbody tr:hover td:first-child {
+  border-left: 3px solid var(--primary);
+  padding-left: 17px;
+}
+
+/* User cell */
 .user-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
 }
 
 .user-name {
   font-weight: 600;
   font-size: 13px;
+  color: var(--text-primary);
 }
 
 .user-email {
   font-size: 11px;
   color: var(--text-muted);
-  margin-top: 1px;
+  margin-top: 2px;
+  letter-spacing: 0.01em;
 }
 
+/* Role badge */
 .role-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   font-weight: 600;
   padding: 3px 10px;
   border-radius: var(--radius-full);
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
 }
 
+.role-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* Status pill */
 .status-pill {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   font-weight: 600;
   padding: 3px 10px;
   border-radius: var(--radius-full);
+  letter-spacing: 0.01em;
+}
+
+.status-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .status-pill.active {
-  background: rgba(40, 167, 69, 0.1);
-  color: var(--success);
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
 }
+.status-pill.active::before { background: #22c55e; }
 
 .status-pill.inactive {
-  background: var(--bg-tertiary);
-  color: var(--text-muted);
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 }
+.status-pill.inactive::before { background: #94a3b8; }
 
+/* Last login */
 .last-login {
   color: var(--text-muted) !important;
   font-size: 12px !important;
 }
 
+/* Action buttons */
 .user-actions {
-  display: flex;
-  gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  justify-content: flex-end;
+  opacity: 0.45;
+  transition: opacity 0.15s;
 }
 
+.users-table tbody tr:hover .user-actions {
+  opacity: 1;
+}
+
+/* Empty state */
 .table-empty {
   text-align: center;
-  color: var(--text-muted);
-  padding: 32px !important;
+  color: var(--text-light);
+  padding: 56px 24px !important;
   font-size: 13px;
+  border-bottom: none !important;
+  background: white !important;
 }
 
 .btn-xs {
-  padding: 4px 10px;
+  padding: 5px 11px;
   font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
 }
 
 /* Modal */
