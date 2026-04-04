@@ -1,0 +1,86 @@
+.story-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 24px;
+}
+
+.story-form-main { display: flex; flex-direction: column; }
+.story-form-sidebar { display: flex; flex-direction: column; }
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.tags-input-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 42px;
+  transition: border-color var(--transition);
+}
+
+.tags-input-wrapper:focus-within { border-color: var(--primary); }
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--primary-50);
+  color: var(--primary-dark);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.tag-input {
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 100px;
+  background: transparent;
+}
+
+.priority-selector {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.priority-btn {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+
+.priority-btn.priority-low.active { background: #e8f5eb; color: #166534; border-color: #86efac; }
+.priority-btn.priority-medium.active { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.priority-btn.priority-high.active { background: #fde8d8; color: #9a3412; border-color: #fb923c; }
+.priority-btn.priority-critical.active { background: #fde8ea; color: #9b1c1c; border-color: #fca5a5; }
+.priority-btn:hover { background: var(--bg-secondary); }

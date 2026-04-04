@@ -1,0 +1,136 @@
+const express = require('express');
+const router = express.Router();
+const { authenticate, requireSystemAdmin, requireManager } = require('../middleware/auth');
+
+// Auth
+const { login, getMe, changePassword } = require('../controllers/authController');
+router.post('/auth/login', login);
+router.get('/auth/me', authenticate, getMe);
+router.put('/auth/change-password', authenticate, changePassword);
+
+// Users
+const {
+  getAllUsers, getUserById, createUser, updateUser,
+  resetPassword, updatePermissions, getUserKPIs, getRoles
+} = require('../controllers/userController');
+router.get('/users', authenticate, requireManager, getAllUsers);
+router.get('/users/roles', authenticate, getRoles);
+router.get('/users/:id', authenticate, getUserById);
+router.post('/users', authenticate, requireSystemAdmin, createUser);
+router.put('/users/:id', authenticate, updateUser);
+router.post('/users/:id/reset-password', authenticate, requireSystemAdmin, resetPassword);
+router.put('/users/:id/permissions', authenticate, requireSystemAdmin, updatePermissions);
+router.get('/users/:id/kpis', authenticate, getUserKPIs);
+
+// Dashboard
+const { getDashboardStats } = require('../controllers/dashboardController');
+router.get('/dashboard', authenticate, getDashboardStats);
+
+// Kanban
+const { getColumns, createSubStage, updateSubStage, deleteSubStage, updateColumnOrder, createColumn, updateColumn, deleteColumn } = require('../controllers/kanbanController');
+router.get('/kanban/columns', authenticate, getColumns);
+router.put('/kanban/columns/order', authenticate, requireManager, updateColumnOrder);
+router.post('/kanban/sub-stages', authenticate, requireManager, createSubStage);
+router.put('/kanban/sub-stages/:id', authenticate, requireManager, updateSubStage);
+router.delete('/kanban/sub-stages/:id', authenticate, requireManager, deleteSubStage);
+
+// Stories
+const {
+  getAllStories, getStoryById, createStory, updateStory, moveStory, deleteStory,
+  getTasksByStory, createTask, updateTask, deleteTask, addComment
+} = require('../controllers/storyController');
+router.get('/stories', authenticate, getAllStories);
+router.post('/stories', authenticate, createStory);
+router.get('/stories/:id', authenticate, getStoryById);
+router.put('/stories/:id', authenticate, updateStory);
+router.patch('/stories/:id/move', authenticate, moveStory);
+router.delete('/stories/:id', authenticate, requireManager, deleteStory);
+
+// Tasks
+router.get('/stories/:storyId/tasks', authenticate, getTasksByStory);
+router.post('/stories/:storyId/tasks', authenticate, createTask);
+router.put('/tasks/:id', authenticate, updateTask);
+router.delete('/tasks/:id', authenticate, deleteTask);
+
+// Comments
+router.post('/stories/:storyId/comments', authenticate, addComment);
+
+// Meetings
+const { getMeetings, createMeeting, updateMeeting, deleteMeeting } = require('../controllers/meetingController');
+router.get('/meetings', authenticate, getMeetings);
+router.post('/meetings', authenticate, createMeeting);
+router.put('/meetings/:id', authenticate, updateMeeting);
+router.delete('/meetings/:id', authenticate, deleteMeeting);
+
+// Settings & Integrations
+const {
+  getSettings, updateSettings, whatsappWebhook,
+  getNotifications, markNotificationRead, markAllNotificationsRead
+} = require('../controllers/settingsController');
+router.get('/settings', authenticate, getSettings);
+router.put('/settings', authenticate, updateSettings);
+router.get('/notifications', authenticate, getNotifications);
+router.put('/notifications/:id/read', authenticate, markNotificationRead);
+router.put('/notifications/read-all', authenticate, markAllNotificationsRead);
+
+// WhatsApp webhook (no auth - verified by token)
+router.get('/webhooks/whatsapp', whatsappWebhook);
+router.post('/webhooks/whatsapp', whatsappWebhook);
+
+// Seed admin (only usable once)
+const bcrypt = require('bcryptjs');
+const { query } = require('../config/database');
+router.post('/setup/init', async (req, res) => {
+  try {
+    const existing = await query(
+      "SELECT id FROM users u JOIN roles r ON u.role_id = r.id WHERE r.name = 'system_admin' LIMIT 1"
+    );
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'System already initialized' });
+    }
+
+    const { email, password, first_name, last_name } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    const roleResult = await query("SELECT id FROM roles WHERE name = 'system_admin'");
+    const hash = await bcrypt.hash(password, 12);
+
+    await query(
+      `INSERT INTO users (email, password_hash, first_name, last_name, role_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [email.toLowerCase(), hash, first_name || 'System', last_name || 'Admin', roleResult.rows[0].id]
+    );
+
+    res.json({ message: 'System admin created successfully' });
+  } catch (error) {
+    console.error('Init error:', error);
+    res.status(500).json({ error: 'Setup failed' });
+  }
+});
+
+// Roles & Access Controls
+const { getRoles: getRolesList, getRoleAccessControls, createRole, updateRole, deleteRole, updateRoleAccessControls, getUserAccessOverrides, updateUserAccessOverride } = require('../controllers/roleController');
+router.get('/roles', authenticate, requireSystemAdmin, getRolesList);
+router.post('/roles', authenticate, requireSystemAdmin, createRole);
+router.put('/roles/:id', authenticate, requireSystemAdmin, updateRole);
+router.delete('/roles/:id', authenticate, requireSystemAdmin, deleteRole);
+router.get('/roles/:id/access-controls', authenticate, requireSystemAdmin, getRoleAccessControls);
+router.put('/roles/:id/access-controls', authenticate, requireSystemAdmin, updateRoleAccessControls);
+router.get('/users/:id/access-overrides', authenticate, requireSystemAdmin, getUserAccessOverrides);
+router.put('/users/:id/access-overrides', authenticate, requireSystemAdmin, updateUserAccessOverride);
+
+// Teams
+const { getTeams, createTeam, updateTeam, deleteTeam } = require('../controllers/teamController');
+router.get('/teams', authenticate, requireSystemAdmin, getTeams);
+router.post('/teams', authenticate, requireSystemAdmin, createTeam);
+router.put('/teams/:id', authenticate, requireSystemAdmin, updateTeam);
+router.delete('/teams/:id', authenticate, requireSystemAdmin, deleteTeam);
+
+// Kanban Column Admin
+router.post('/kanban/columns', authenticate, requireSystemAdmin, createColumn);
+router.put('/kanban/columns/:id', authenticate, requireSystemAdmin, updateColumn);
+router.delete('/kanban/columns/:id', authenticate, requireSystemAdmin, deleteColumn);
+
+module.exports = router;

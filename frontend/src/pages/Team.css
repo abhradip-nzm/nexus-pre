@@ -1,0 +1,70 @@
+.team-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 7px 12px;
+  color: var(--text-muted);
+}
+
+.search-bar:focus-within {
+  border-color: var(--primary);
+  color: var(--text-primary);
+}
+
+.search-bar input {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-primary);
+  width: 200px;
+  outline: none;
+}
+
+.you-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--primary-50);
+  color: var(--primary);
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}
+
+.reset-result {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 12px;
+  border: 1px solid var(--border);
+}
+
+.reset-result code {
+  background: var(--bg-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  border: 1px solid var(--border);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
