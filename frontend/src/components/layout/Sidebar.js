@@ -133,7 +133,7 @@ export default function Sidebar() {
           <div
             className="avatar"
             style={{
-              background: isSystemAdmin ? '#c0392b' : '#3e72ae',
+              background: '#1a2332',
               color: 'white',
               fontSize: '13px'
             }}
