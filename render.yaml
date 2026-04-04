@@ -17,7 +17,7 @@ services:
       - key: JWT_EXPIRES_IN
         value: 7d
       - key: FRONTEND_URL
-        value: https://nexus-pre.netlify.app
+        value: https://unique-duckanoo-fe44b4.netlify.app
       - key: MS_CLIENT_ID
         sync: false
       - key: MS_CLIENT_SECRET

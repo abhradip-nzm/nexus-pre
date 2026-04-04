@@ -22,7 +22,7 @@ app.use(cors({
     process.env.FRONTEND_URL || 'http://localhost:3000',
     'http://localhost:3000',
     'http://localhost:5173',
-    'https://nexus-pre.netlify.app',
+    'https://unique-duckanoo-fe44b4.netlify.app',
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
