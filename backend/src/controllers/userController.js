@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/database');
+const { sendWelcomeEmail, sendPasswordResetEmail } = require('../utils/emailService');
 
 const getAllUsers = async (req, res) => {
   try {
@@ -75,12 +76,20 @@ const createUser = async (req, res) => {
       [email.toLowerCase(), hash, first_name, last_name, phone, role_id, whatsapp_number]
     );
 
-    // Create notification
+    // Create in-app notification
     await query(
       `INSERT INTO notifications (user_id, title, message, type)
        VALUES ($1, 'Welcome to Nexus Pre', 'Your account has been created. Please change your password on first login.', 'info')`,
       [result.rows[0].id]
     );
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(email.toLowerCase(), {
+      name:        `${first_name} ${last_name}`,
+      email:       email.toLowerCase(),
+      tempPassword,
+      loginUrl:    `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`,
+    }).catch(err => console.error('[Email] Welcome email failed:', err.message));
 
     res.status(201).json({
       user: result.rows[0],
@@ -146,6 +155,20 @@ const resetPassword = async (req, res) => {
     const hash = await bcrypt.hash(tempPassword, 12);
 
     await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hash, id]);
+
+    // Send password reset email if we have user details
+    const userRes = await query(
+      'SELECT email, first_name, last_name FROM users WHERE id = $1', [id]
+    );
+    if (userRes.rows.length > 0) {
+      const u = userRes.rows[0];
+      sendPasswordResetEmail(u.email, {
+        name:        `${u.first_name} ${u.last_name}`,
+        email:       u.email,
+        tempPassword,
+        loginUrl:    `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`,
+      }).catch(err => console.error('[Email] Password reset email failed:', err.message));
+    }
 
     res.json({
       message: 'Password reset successfully',
