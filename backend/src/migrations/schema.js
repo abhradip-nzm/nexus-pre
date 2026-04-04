@@ -299,6 +299,37 @@ const migrations = [
     is_enabled BOOLEAN DEFAULT true,
     updated_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(user_id, module, feature_key)
+  )`,
+
+  // Tags table (system admin manages)
+  `CREATE TABLE IF NOT EXISTS tags (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    color VARCHAR(20) DEFAULT '#3e72ae',
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+  )`,
+
+  // Industries table
+  `CREATE TABLE IF NOT EXISTS industries (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL UNIQUE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+  )`,
+
+  // Story-Tag junction
+  `CREATE TABLE IF NOT EXISTS story_tags (
+    story_id UUID REFERENCES user_stories(id) ON DELETE CASCADE,
+    tag_id INTEGER REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (story_id, tag_id)
+  )`,
+
+  // Story-Industry junction
+  `CREATE TABLE IF NOT EXISTS story_industries (
+    story_id UUID REFERENCES user_stories(id) ON DELETE CASCADE,
+    industry_id INTEGER REFERENCES industries(id) ON DELETE CASCADE,
+    PRIMARY KEY (story_id, industry_id)
   )`
 ];
 

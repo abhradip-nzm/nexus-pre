@@ -265,10 +265,15 @@
   display: inline-block;
   width: 44px;
   height: 24px;
-  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.toggle-switch input { display: none; }
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
 
 .toggle-slider {
   position: absolute;
@@ -276,6 +281,7 @@
   background: var(--border-dark);
   border-radius: var(--radius-full);
   transition: background var(--transition);
+  cursor: pointer;
 }
 
 .toggle-slider::before {
@@ -288,7 +294,7 @@
   top: 3px;
   left: 3px;
   transition: transform var(--transition);
-  box-shadow: var(--shadow-xs);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
 
 .toggle-switch input:checked + .toggle-slider {
@@ -297,6 +303,11 @@
 
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(20px);
+}
+
+.toggle-switch input:disabled + .toggle-slider {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .form-hint {

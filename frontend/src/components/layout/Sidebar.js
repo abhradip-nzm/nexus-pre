@@ -4,30 +4,47 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Kanban, Users, Settings,
   ChevronDown, LogOut, MessageSquare, Activity,
-  Shield, UsersRound, LayoutGrid, UserCog
+  Shield, UsersRound, LayoutGrid, UserCog,
+  Calendar as CalendarIcon, Tag as TagIcon, Building2
 } from 'lucide-react';
 import './Sidebar.css';
 
-const regularNavItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['all'] },
-  { to: '/kanban', icon: Kanban, label: 'Kanban Board', roles: ['all'] },
-  {
-    label: 'Team', icon: Users, roles: ['super_admin', 'pre_sales_manager'],
+function getNavItems(role) {
+  const teamItem = {
+    label: 'Team', icon: Users,
     children: [
       { to: '/team', label: 'Team Members' },
       { to: '/executives', label: 'Executives' },
     ]
-  },
-  { to: '/whatsapp', icon: MessageSquare, label: 'WhatsApp', roles: ['super_admin', 'pre_sales_manager'] },
-  { to: '/activity', icon: Activity, label: 'Activity Log', roles: ['all'] },
-  { to: '/settings', icon: Settings, label: 'Settings', roles: ['all'] },
-];
+  };
+
+  if (role === 'super_admin' || role === 'pre_sales_manager') {
+    return [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
+      teamItem,
+      { to: '/calendar', icon: CalendarIcon, label: 'Calendar' },
+      { to: '/activity', icon: Activity, label: 'Activity Log' },
+    ];
+  }
+  if (role === 'pre_sales_executive') {
+    return [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
+      { to: '/calendar', icon: CalendarIcon, label: 'Calendar' },
+      { to: '/whatsapp', icon: MessageSquare, label: 'WhatsApp' },
+    ];
+  }
+  return [];
+}
 
 const adminNavItems = [
   { to: '/admin/users', icon: UserCog, label: 'User Management' },
   { to: '/admin/teams', icon: UsersRound, label: 'Teams' },
   { to: '/admin/roles', icon: Shield, label: 'Roles & Permissions' },
   { to: '/admin/kanban', icon: LayoutGrid, label: 'Kanban Setup' },
+  { to: '/admin/tags', icon: TagIcon, label: 'Manage Tags' },
+  { to: '/admin/industries', icon: Building2, label: 'Manage Industries' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -37,11 +54,6 @@ export default function Sidebar() {
   const location = useLocation();
 
   const isSystemAdmin = user?.role_name === 'system_admin';
-
-  const canSee = (roles) => {
-    if (!roles || roles.includes('all')) return true;
-    return roles.includes(user?.role_name);
-  };
 
   const toggle = (label) => setExpanded(p => ({ ...p, [label]: !p[label] }));
 
@@ -76,9 +88,7 @@ export default function Sidebar() {
             ))}
           </>
         ) : (
-          regularNavItems.map((item) => {
-            if (!canSee(item.roles)) return null;
-
+          getNavItems(user?.role_name).map((item) => {
             if (item.children) {
               const isActive = item.children.some(c => location.pathname.startsWith(c.to));
               return (

@@ -133,4 +133,18 @@ router.post('/kanban/columns', authenticate, requireSystemAdmin, createColumn);
 router.put('/kanban/columns/:id', authenticate, requireSystemAdmin, updateColumn);
 router.delete('/kanban/columns/:id', authenticate, requireSystemAdmin, deleteColumn);
 
+// Tags
+const { getTags, createTag, updateTag, deleteTag } = require('../controllers/tagsController');
+router.get('/tags', authenticate, getTags);
+router.post('/tags', authenticate, requireSystemAdmin, createTag);
+router.put('/tags/:id', authenticate, requireSystemAdmin, updateTag);
+router.delete('/tags/:id', authenticate, requireSystemAdmin, deleteTag);
+
+// Industries
+const { getIndustries, createIndustry, updateIndustry, deleteIndustry } = require('../controllers/industriesController');
+router.get('/industries', authenticate, getIndustries);
+router.post('/industries', authenticate, requireSystemAdmin, createIndustry);
+router.put('/industries/:id', authenticate, requireSystemAdmin, updateIndustry);
+router.delete('/industries/:id', authenticate, requireSystemAdmin, deleteIndustry);
+
 module.exports = router;

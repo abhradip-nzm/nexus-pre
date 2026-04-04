@@ -17,6 +17,8 @@ import AdminUsers from './pages/AdminUsers';
 import AdminTeams from './pages/AdminTeams';
 import AdminRoles from './pages/AdminRoles';
 import AdminKanban from './pages/AdminKanban';
+import AdminTags from './pages/AdminTags';
+import AdminIndustries from './pages/AdminIndustries';
 import './styles/global.css';
 
 function ProtectedRoute({ children, roles }) {
@@ -133,6 +135,16 @@ function App() {
               <AppLayout><AdminKanban /></AppLayout>
             </AdminRoute>
           } />
+          <Route path="/admin/tags" element={
+            <AdminRoute>
+              <AppLayout><AdminTags /></AppLayout>
+            </AdminRoute>
+          } />
+          <Route path="/admin/industries" element={
+            <AdminRoute>
+              <AppLayout><AdminIndustries /></AppLayout>
+            </AdminRoute>
+          } />
 
           {/* Regular App Routes - not for system_admin */}
           <Route path="/dashboard" element={
@@ -166,7 +178,7 @@ function App() {
           } />
 
           <Route path="/activity" element={
-            <ProtectedRoute roles={['super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
+            <ProtectedRoute roles={['super_admin', 'pre_sales_manager']}>
               <AppLayout><ActivityLog /></AppLayout>
             </ProtectedRoute>
           } />
@@ -178,7 +190,7 @@ function App() {
           } />
 
           <Route path="/settings" element={
-            <ProtectedRoute roles={['system_admin', 'super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
+            <ProtectedRoute roles={['system_admin']}>
               <AppLayout><Settings /></AppLayout>
             </ProtectedRoute>
           } />

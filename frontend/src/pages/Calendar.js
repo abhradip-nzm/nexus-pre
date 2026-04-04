@@ -59,27 +59,25 @@ export default function CalendarPage() {
         <div className="calendar-layout">
           <div className="calendar-main">
             <div className="cal-nav">
-              <button className="btn btn-ghost btn-icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
-                <ChevronLeft size={18} />
+              <button className="cal-nav-btn" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+                <ChevronLeft size={16} />
               </button>
               <h2 className="cal-month-title">{format(currentMonth, 'MMMM yyyy')}</h2>
-              <button className="btn btn-ghost btn-icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-                <ChevronRight size={18} />
+              <button className="cal-nav-btn" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                <ChevronRight size={16} />
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setCurrentMonth(new Date())} style={{ marginLeft: 8 }}>
-                Today
-              </button>
+              <button className="cal-today-btn" onClick={() => setCurrentMonth(new Date())}>Today</button>
               {isManager() && (
-                <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)} style={{ marginLeft: 'auto' }}>
-                  <Plus size={14} /> Add Meeting
+                <button className="cal-add-btn" onClick={() => setShowCreate(true)}>
+                  <Plus size={13} /> Add Meeting
                 </button>
               )}
             </div>
 
             <div className="cal-grid">
               <div className="cal-day-headers">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                  <div key={d} className="cal-day-header">{d}</div>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
+                  <div key={d} className={`cal-day-header ${i === 0 || i === 6 ? 'weekend' : ''}`}>{d}</div>
                 ))}
               </div>
 
@@ -126,7 +124,8 @@ export default function CalendarPage() {
             {selectedDay ? (
               <>
                 <div className="cal-sidebar-header">
-                  <h3>{format(selectedDay, 'EEEE, MMMM d')}</h3>
+                  <h3>Meetings</h3>
+                  <span className="cal-sidebar-date-badge">{format(selectedDay, 'MMM d')}</span>
                   <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setSelectedDay(null)}>
                     <X size={14} />
                   </button>
