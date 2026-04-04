@@ -39,10 +39,11 @@ jobs:
         env:
           CI: false
 
+      - name: Install Netlify CLI
+        run: npm install -g netlify-cli
+
       - name: Deploy to Netlify
-        uses: netlify/actions/cli@master
-        with:
-          args: deploy --prod --dir=frontend/build
+        run: netlify deploy --prod --dir=build --message="GitHub Actions deploy"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
