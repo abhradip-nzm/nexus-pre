@@ -5,7 +5,8 @@ import {
   LayoutDashboard, Kanban, Users, Settings,
   ChevronDown, LogOut, MessageSquare, Activity,
   Shield, UsersRound, LayoutGrid, UserCog,
-  Calendar as CalendarIcon, Tag as TagIcon, Building2
+  Calendar as CalendarIcon, Tag as TagIcon, Building2,
+  GitBranch
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -41,6 +42,7 @@ function getNavItems(role) {
 const adminNavItems = [
   { to: '/admin/users', icon: UserCog, label: 'User Management' },
   { to: '/admin/teams', icon: UsersRound, label: 'Teams' },
+  { to: '/admin/business-team', icon: GitBranch, label: 'Business Team' },
   { to: '/admin/roles', icon: Shield, label: 'Roles & Permissions' },
   { to: '/admin/kanban', icon: LayoutGrid, label: 'Kanban Setup' },
   { to: '/admin/tags', icon: TagIcon, label: 'Manage Tags' },

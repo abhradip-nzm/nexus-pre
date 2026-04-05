@@ -330,6 +330,18 @@ const migrations = [
     story_id UUID REFERENCES user_stories(id) ON DELETE CASCADE,
     industry_id INTEGER REFERENCES industries(id) ON DELETE CASCADE,
     PRIMARY KEY (story_id, industry_id)
+  )`,
+
+  // Business Team hierarchy
+  `CREATE TABLE IF NOT EXISTS business_team (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('cgo', 'asd', 'sales_manager', 'sales_executive')),
+    parent_id INTEGER REFERENCES business_team(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
   )`
 ];
 

@@ -19,6 +19,7 @@ import AdminRoles from './pages/AdminRoles';
 import AdminKanban from './pages/AdminKanban';
 import AdminTags from './pages/AdminTags';
 import AdminIndustries from './pages/AdminIndustries';
+import BusinessTeam from './pages/BusinessTeam';
 import './styles/global.css';
 
 function ProtectedRoute({ children, roles }) {
@@ -143,6 +144,11 @@ function App() {
           <Route path="/admin/industries" element={
             <AdminRoute>
               <AppLayout><AdminIndustries /></AppLayout>
+            </AdminRoute>
+          } />
+          <Route path="/admin/business-team" element={
+            <AdminRoute>
+              <AppLayout><BusinessTeam /></AppLayout>
             </AdminRoute>
           } />
 

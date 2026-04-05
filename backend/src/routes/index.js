@@ -147,4 +147,12 @@ router.post('/industries', authenticate, requireSystemAdmin, createIndustry);
 router.put('/industries/:id', authenticate, requireSystemAdmin, updateIndustry);
 router.delete('/industries/:id', authenticate, requireSystemAdmin, deleteIndustry);
 
+// Business Team
+const { getAll: getBizTeam, getTree: getBizTree, create: createBizMember, update: updateBizMember, remove: deleteBizMember } = require('../controllers/businessTeamController');
+router.get('/business-team', authenticate, requireSystemAdmin, getBizTeam);
+router.get('/business-team/tree', authenticate, requireSystemAdmin, getBizTree);
+router.post('/business-team', authenticate, requireSystemAdmin, createBizMember);
+router.put('/business-team/:id', authenticate, requireSystemAdmin, updateBizMember);
+router.delete('/business-team/:id', authenticate, requireSystemAdmin, deleteBizMember);
+
 module.exports = router;
