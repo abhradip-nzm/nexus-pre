@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, X, Check, RefreshCw, KeyRound, Copy } from 'lucide-react';
+import { formatRoleName } from '../utils/helpers';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -271,7 +272,7 @@ export default function AdminUsers() {
                   </td>
                   <td>
                     <span className="role-badge" style={{ background: `${ROLE_COLORS[user.role_name]}20`, color: ROLE_COLORS[user.role_name] || '#3e72ae' }}>
-                      {user.role_display_name || user.role_name}
+                      {formatRoleName(user.role_name)}
                     </span>
                   </td>
                   <td>

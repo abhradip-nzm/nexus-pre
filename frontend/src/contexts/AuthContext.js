@@ -38,6 +38,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('nexus_token');
     setUser(null);
     setPermissions({});
+    window.location.href = '/login';
   };
 
   const isSystemAdmin = () => user?.role_name === 'system_admin';

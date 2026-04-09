@@ -324,3 +324,65 @@
   justify-content: center;
   flex-shrink: 0;
 }
+
+/* Team manager row */
+.team-manager-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+  padding: 5px 8px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.team-manager-row svg {
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+.team-manager-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.team-manager-role {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+
+/* Section label in modal */
+.team-section-label {
+  display: flex !important;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+.team-section-hint {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.team-no-users-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 0;
+  font-style: italic;
+}
+
+/* Busy member (already in another team) */
+.member-select-item.busy {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.member-busy-tag {
+  color: var(--error);
+  font-size: 11px;
+}

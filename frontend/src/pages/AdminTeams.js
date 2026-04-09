@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, X, Users } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Users, UserCheck, Crown } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
+import { formatRoleName } from '../utils/helpers';
 import toast from 'react-hot-toast';
 import './AdminTeams.css';
 
@@ -29,11 +30,10 @@ export default function AdminTeams() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editTeam, setEditTeam] = useState(null);
-  const [form, setForm] = useState({ name: '', purpose: '', accent_color: '#3e72ae', member_ids: [] });
+  const emptyForm = { name: '', purpose: '', accent_color: '#3e72ae', manager_id: '', executive_ids: [] };
+  const [form, setForm] = useState(emptyForm);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
@@ -52,17 +52,21 @@ export default function AdminTeams() {
 
   const openCreate = () => {
     setEditTeam(null);
-    setForm({ name: '', purpose: '', accent_color: '#3e72ae', member_ids: [] });
+    setForm(emptyForm);
     setShowModal(true);
   };
 
   const openEdit = (team) => {
     setEditTeam(team);
+    const members = team.members || [];
+    const manager = members.find(m => m.role_name === 'pre_sales_manager');
+    const executives = members.filter(m => m.role_name === 'pre_sales_executive');
     setForm({
       name: team.name,
       purpose: team.purpose || '',
       accent_color: team.accent_color || '#3e72ae',
-      member_ids: (team.members || []).map(m => m.id),
+      manager_id: manager?.id || '',
+      executive_ids: executives.map(e => e.id),
     });
     setShowModal(true);
   };
@@ -70,12 +74,19 @@ export default function AdminTeams() {
   const saveTeam = async () => {
     if (!form.name.trim()) return toast.error('Team name is required');
     try {
+      const payload = {
+        name: form.name,
+        purpose: form.purpose,
+        accent_color: form.accent_color,
+        manager_id: form.manager_id || null,
+        executive_ids: form.executive_ids,
+      };
       if (editTeam) {
-        const res = await api.put(`/teams/${editTeam.id}`, form);
+        const res = await api.put(`/teams/${editTeam.id}`, payload);
         setTeams(prev => prev.map(t => t.id === editTeam.id ? res.data.team : t));
         toast.success('Team updated');
       } else {
-        const res = await api.post('/teams', form);
+        const res = await api.post('/teams', payload);
         setTeams(prev => [...prev, res.data.team]);
         toast.success('Team created');
       }
@@ -96,14 +107,29 @@ export default function AdminTeams() {
     }
   };
 
-  const toggleMember = (userId) => {
+  const toggleExecutive = (userId) => {
     setForm(prev => ({
       ...prev,
-      member_ids: prev.member_ids.includes(userId)
-        ? prev.member_ids.filter(id => id !== userId)
-        : [...prev.member_ids, userId]
+      executive_ids: prev.executive_ids.includes(userId)
+        ? prev.executive_ids.filter(id => id !== userId)
+        : [...prev.executive_ids, userId]
     }));
   };
+
+  // Filter users by role for the selectors
+  const managers = allUsers.filter(u => u.role_name === 'pre_sales_manager');
+  const executives = allUsers.filter(u => u.role_name === 'pre_sales_executive');
+
+  // Determine which managers/executives are already in other teams (for warning display)
+  const busyManagers = new Set();
+  const busyExecutives = new Set();
+  teams.forEach(t => {
+    if (editTeam && t.id === editTeam.id) return; // skip current team
+    (t.members || []).forEach(m => {
+      if (m.role_name === 'pre_sales_manager') busyManagers.add(m.id);
+      if (m.role_name === 'pre_sales_executive') busyExecutives.add(m.id);
+    });
+  });
 
   if (loading) return (
     <div className="page-loading"><div className="page-spinner" /><p>Loading teams...</p></div>
@@ -111,7 +137,7 @@ export default function AdminTeams() {
 
   return (
     <>
-      <Header title="Team Management" subtitle="Organize users into teams with purpose and color" />
+      <Header title="Team Management" subtitle="Organize users into teams with a manager and executives" />
       <div className="page-content admin-teams-page">
 
         <div className="teams-header">
@@ -130,49 +156,59 @@ export default function AdminTeams() {
           </div>
         ) : (
           <div className="teams-grid">
-            {teams.map(team => (
-              <div key={team.id} className="team-card">
-                <div className="team-card-top" style={{ background: team.accent_color || '#3e72ae' }} />
-                <div className="team-card-body">
-                  <div className="team-card-head">
-                    <h3 className="team-name">{team.name}</h3>
-                    <div className="team-actions">
-                      <button className="btn-icon-sm" onClick={() => openEdit(team)} title="Edit">
-                        <Pencil size={13} />
-                      </button>
-                      <button className="btn-icon-sm danger" onClick={() => deleteTeam(team)} title="Delete">
-                        <Trash2 size={13} />
-                      </button>
+            {teams.map(team => {
+              const manager = (team.members || []).find(m => m.role_name === 'pre_sales_manager');
+              const execs = (team.members || []).filter(m => m.role_name === 'pre_sales_executive');
+              return (
+                <div key={team.id} className="team-card">
+                  <div className="team-card-top" style={{ background: team.accent_color || '#3e72ae' }} />
+                  <div className="team-card-body">
+                    <div className="team-card-head">
+                      <h3 className="team-name">{team.name}</h3>
+                      <div className="team-actions">
+                        <button className="btn-icon-sm" onClick={() => openEdit(team)} title="Edit">
+                          <Pencil size={13} />
+                        </button>
+                        <button className="btn-icon-sm danger" onClick={() => deleteTeam(team)} title="Delete">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  {team.purpose && (
-                    <p className="team-purpose">{team.purpose}</p>
-                  )}
+                    {team.purpose && <p className="team-purpose">{team.purpose}</p>}
 
-                  <div className="team-members">
-                    <div className="members-avatars">
-                      {(team.members || []).slice(0, 6).map((m, i) => (
-                        <div
-                          key={m.id}
-                          className="member-avatar"
-                          style={{ background: getAvatarColor(m.full_name), color: 'white', fontSize: '11px', zIndex: 10 - i }}
-                          title={m.full_name}
-                        >
-                          {getInitials(m.full_name)}
-                        </div>
-                      ))}
-                      {(team.members || []).length > 6 && (
-                        <div className="member-avatar overflow" title={`+${team.members.length - 6} more`}>
-                          +{team.members.length - 6}
-                        </div>
-                      )}
+                    {manager && (
+                      <div className="team-manager-row">
+                        <Crown size={12} />
+                        <span className="team-manager-name">{manager.full_name}</span>
+                        <span className="team-manager-role">Manager</span>
+                      </div>
+                    )}
+
+                    <div className="team-members">
+                      <div className="members-avatars">
+                        {execs.slice(0, 5).map((m, i) => (
+                          <div
+                            key={m.id}
+                            className="member-avatar"
+                            style={{ background: getAvatarColor(m.full_name), color: 'white', fontSize: '11px', zIndex: 10 - i }}
+                            title={m.full_name}
+                          >
+                            {getInitials(m.full_name)}
+                          </div>
+                        ))}
+                        {execs.length > 5 && (
+                          <div className="member-avatar overflow" title={`+${execs.length - 5} more`}>
+                            +{execs.length - 5}
+                          </div>
+                        )}
+                      </div>
+                      <span className="members-count">{execs.length} executive{execs.length !== 1 ? 's' : ''}</span>
                     </div>
-                    <span className="members-count">{(team.members || []).length} member{(team.members || []).length !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -187,7 +223,7 @@ export default function AdminTeams() {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>Team Name</label>
+                <label>Team Name <span className="req">*</span></label>
                 <input
                   className="form-input"
                   placeholder="e.g. Enterprise Sales"
@@ -218,34 +254,73 @@ export default function AdminTeams() {
                   ))}
                 </div>
               </div>
+
+              {/* Pre-Sales Manager */}
               <div className="form-group">
-                <label>Members ({form.member_ids.length} selected)</label>
-                <div className="members-select-list">
-                  {allUsers.map(u => (
-                    <div
-                      key={u.id}
-                      className={`member-select-item ${form.member_ids.includes(u.id) ? 'selected' : ''}`}
-                      onClick={() => toggleMember(u.id)}
-                    >
-                      <div
-                        className="avatar"
-                        style={{ background: getAvatarColor(`${u.first_name} ${u.last_name}`), color: 'white', fontSize: '11px', width: 28, height: 28, flexShrink: 0 }}
-                      >
-                        {getInitials(`${u.first_name} ${u.last_name}`)}
-                      </div>
-                      <div className="member-info">
-                        <div className="member-name">{u.first_name} {u.last_name}</div>
-                        <div className="member-role">{u.role_display_name || u.role_name}</div>
-                      </div>
-                      {form.member_ids.includes(u.id) && (
-                        <div className="member-check"><X size={11} /></div>
-                      )}
-                    </div>
+                <label className="team-section-label">
+                  <Crown size={13} /> Pre-Sales Manager
+                  <span className="team-section-hint">One per team</span>
+                </label>
+                <select
+                  className="form-input"
+                  value={form.manager_id}
+                  onChange={e => setForm(p => ({ ...p, manager_id: e.target.value }))}
+                >
+                  <option value="">— No manager assigned —</option>
+                  {managers.map(u => (
+                    <option key={u.id} value={u.id} disabled={busyManagers.has(u.id)}>
+                      {u.first_name} {u.last_name}{busyManagers.has(u.id) ? ' (in another team)' : ''}
+                    </option>
                   ))}
-                  {allUsers.length === 0 && (
-                    <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '12px', textAlign: 'center' }}>No users available</p>
-                  )}
-                </div>
+                </select>
+                {managers.length === 0 && (
+                  <p className="team-no-users-hint">No Pre-Sales Managers found in the system.</p>
+                )}
+              </div>
+
+              {/* Pre-Sales Executives */}
+              <div className="form-group">
+                <label className="team-section-label">
+                  <UserCheck size={13} /> Pre-Sales Executives
+                  <span className="team-section-hint">{form.executive_ids.length} selected</span>
+                </label>
+                {executives.length === 0 ? (
+                  <p className="team-no-users-hint">No Pre-Sales Executives found in the system.</p>
+                ) : (
+                  <div className="members-select-list">
+                    {executives.map(u => {
+                      const busy = busyExecutives.has(u.id);
+                      const selected = form.executive_ids.includes(u.id);
+                      return (
+                        <div
+                          key={u.id}
+                          className={`member-select-item ${selected ? 'selected' : ''} ${busy ? 'busy' : ''}`}
+                          onClick={() => !busy && toggleExecutive(u.id)}
+                        >
+                          <div
+                            className="avatar"
+                            style={{ background: getAvatarColor(`${u.first_name} ${u.last_name}`), color: 'white', fontSize: '11px', width: 28, height: 28, flexShrink: 0 }}
+                          >
+                            {getInitials(`${u.first_name} ${u.last_name}`)}
+                          </div>
+                          <div className="member-info">
+                            <div className="member-name">{u.first_name} {u.last_name}</div>
+                            <div className="member-role">
+                              {busy ? (
+                                <span className="member-busy-tag">Already in another team</span>
+                              ) : (
+                                formatRoleName(u.role_name)
+                              )}
+                            </div>
+                          </div>
+                          {selected && !busy && (
+                            <div className="member-check"><X size={11} /></div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
             <div className="modal-footer">

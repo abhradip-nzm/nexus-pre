@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, User, DollarSign, Calendar, Tag, Building } from 'lucide-react';
 import api from '../../utils/api';
+import PhoneInput from '../PhoneInput';
 import toast from 'react-hot-toast';
 import './StoryModal.css';
 
@@ -162,12 +163,9 @@ export default function StoryModal({ story, columnId, columns, users, onClose, o
                   </div>
                   <div className="form-group">
                     <label className="form-label">Client Phone</label>
-                    <input
-                      type="tel"
-                      className="form-control"
-                      placeholder="+1 234 567 8900"
+                    <PhoneInput
                       value={form.client_phone}
-                      onChange={e => handleChange('client_phone', e.target.value)}
+                      onChange={val => handleChange('client_phone', val)}
                     />
                   </div>
                 </div>

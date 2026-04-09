@@ -5,6 +5,7 @@ import {
   ChevronDown, Search, GitBranch
 } from 'lucide-react';
 import Header from '../components/layout/Header';
+import PhoneInput from '../components/PhoneInput';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import './BusinessTeam.css';
@@ -236,11 +237,10 @@ function MemberModal({ member, members, onClose, onSave }) {
 
               <div className="form-group">
                 <label>Phone <span className="req">*</span></label>
-                <input
-                  className={`form-input ${errors.phone ? 'input-error' : ''}`}
-                  placeholder="+1 234 567 8900"
+                <PhoneInput
                   value={form.phone}
-                  onChange={e => set('phone', e.target.value)}
+                  onChange={val => set('phone', val)}
+                  className={errors.phone ? 'input-error' : ''}
                 />
                 {errors.phone && <span className="field-error">{errors.phone}</span>}
               </div>
@@ -367,10 +367,10 @@ export default function BusinessTeam() {
   );
 
   return (
-    <div className="page-container">
+    <>
       <Header title="Business Team" subtitle="Manage your sales hierarchy — CGO, ASD, Sales Managers and Executives" />
 
-      <div className="bt-content">
+      <div className="page-content bt-page">
         {/* Stats Strip */}
         <div className="bt-stats">
           {stats.map(s => (
@@ -559,6 +559,6 @@ export default function BusinessTeam() {
           loading={deleteLoading}
         />
       )}
-    </div>
+    </>
   );
 }

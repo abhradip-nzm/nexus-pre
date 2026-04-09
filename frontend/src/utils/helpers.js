@@ -72,3 +72,13 @@ export const getSourceIcon = (source) => {
   const map = { whatsapp: '💬', email: '📧', manual: '✏️', teams: '📹' };
   return map[source] || '📌';
 };
+
+export const formatRoleName = (roleName) => {
+  const map = {
+    system_admin: 'System Admin',
+    super_admin: 'Super Admin',
+    pre_sales_manager: 'Pre-Sales Manager',
+    pre_sales_executive: 'Pre-Sales Executive',
+  };
+  return map[roleName] || roleName;
+};

@@ -8,6 +8,7 @@ import {
   Calendar as CalendarIcon, Tag as TagIcon, Building2,
   GitBranch
 } from 'lucide-react';
+import { formatRoleName } from '../../utils/helpers';
 import './Sidebar.css';
 
 function getNavItems(role) {
@@ -58,13 +59,6 @@ export default function Sidebar() {
   const isSystemAdmin = user?.role_name === 'system_admin';
 
   const toggle = (label) => setExpanded(p => ({ ...p, [label]: !p[label] }));
-
-  const roleLabel = {
-    system_admin: 'System Admin',
-    super_admin: 'Super Admin',
-    pre_sales_manager: 'Pre-Sales Manager',
-    pre_sales_executive: 'Pre-Sales Executive',
-  };
 
   return (
     <aside className="sidebar">
@@ -144,7 +138,7 @@ export default function Sidebar() {
           </div>
           <div className="sidebar-user-info">
             <div className="sidebar-user-name">{user?.first_name} {user?.last_name}</div>
-            <div className="sidebar-user-role">{roleLabel[user?.role_name]}</div>
+            <div className="sidebar-user-role">{formatRoleName(user?.role_name)}</div>
           </div>
           <button className="btn btn-ghost btn-icon" onClick={logout} title="Logout">
             <LogOut size={16} />

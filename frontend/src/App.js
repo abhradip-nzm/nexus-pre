@@ -39,7 +39,7 @@ function ProtectedRoute({ children, roles }) {
     );
   }
 
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/login" replace />;
 
   if (roles && !roles.includes(user.role_name)) {
     return <Navigate to="/dashboard" replace />;
@@ -65,7 +65,7 @@ function AdminRoute({ children }) {
     );
   }
 
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/login" replace />;
   if (user.role_name !== 'system_admin') return <Navigate to="/dashboard" replace />;
   return children;
 }

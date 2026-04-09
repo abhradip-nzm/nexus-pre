@@ -4,8 +4,9 @@ import {
   X, Save, User, Mail, Phone, ChevronDown
 } from 'lucide-react';
 import Header from '../components/layout/Header';
+import PhoneInput from '../components/PhoneInput';
 import { useAuth } from '../contexts/AuthContext';
-import { formatDate, timeAgo, getInitials, getAvatarColor } from '../utils/helpers';
+import { formatDate, timeAgo, getInitials, getAvatarColor, formatRoleName } from '../utils/helpers';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import './Team.css';
@@ -57,12 +58,6 @@ export default function Team() {
     const matchRole = roleFilter === 'all' || u.role_name === roleFilter;
     return matchSearch && matchRole;
   });
-
-  const roleLabel = {
-    super_admin: 'Super Admin',
-    pre_sales_manager: 'Manager',
-    pre_sales_executive: 'Executive',
-  };
 
   const roleBadgeClass = {
     super_admin: 'badge-primary',
@@ -145,7 +140,7 @@ export default function Team() {
                     </td>
                     <td>
                       <span className={`badge ${roleBadgeClass[u.role_name] || 'badge-muted'}`}>
-                        {roleLabel[u.role_name] || u.role_name}
+                        {formatRoleName(u.role_name)}
                       </span>
                     </td>
                     <td>
@@ -304,13 +299,18 @@ function UserFormModal({ user, roles, onClose, onSaved }) {
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Phone</label>
-                <input className="form-control" value={form.phone}
-                  onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
+                <PhoneInput
+                  value={form.phone}
+                  onChange={val => setForm(p => ({ ...p, phone: val }))}
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">WhatsApp Number</label>
-                <input className="form-control" placeholder="+1234567890" value={form.whatsapp_number}
-                  onChange={e => setForm(p => ({ ...p, whatsapp_number: e.target.value }))} />
+                <PhoneInput
+                  value={form.whatsapp_number}
+                  onChange={val => setForm(p => ({ ...p, whatsapp_number: val }))}
+                  placeholder="123 456 7890"
+                />
               </div>
             </div>
             <div className="form-group">
