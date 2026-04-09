@@ -3,7 +3,7 @@ import {
   X, Plus, Send, Check, Pencil, Trash2,
   Calendar, User, DollarSign, Activity, MessageSquare,
   CheckSquare, ExternalLink, Clock, Building, Briefcase, Users,
-  ArrowRight, Layers, Flag
+  ArrowRight, Layers, Flag, CheckCircle2, Circle, ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDate, formatDateTime, timeAgo, getInitials, getAvatarColor } from '../../utils/helpers';
@@ -41,10 +41,16 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
 
   // Task state
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskStartDate, setNewTaskStartDate] = useState('');
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
   const [newTaskAssignees, setNewTaskAssignees] = useState([]);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [addingTask, setAddingTask] = useState(false);
+  // Task edit state
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editForm, setEditForm] = useState({ title: '', start_date: '', due_date: '', assignee_ids: [] });
+  // Task activity expansion
+  const [expandedActivity, setExpandedActivity] = useState(new Set());
 
   // Comment state
   const [comment, setComment] = useState('');
@@ -79,11 +85,13 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
     try {
       const res = await api.post(`/stories/${storyId}/tasks`, {
         title: newTaskTitle,
+        start_date: newTaskStartDate || null,
         due_date: newTaskDueDate || null,
         assignee_ids: newTaskAssignees,
       });
       setData(prev => ({ ...prev, tasks: [...prev.tasks, res.data.task] }));
       setNewTaskTitle('');
+      setNewTaskStartDate('');
       setNewTaskDueDate('');
       setNewTaskAssignees([]);
       setShowTaskForm(false);
@@ -100,7 +108,9 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
       await api.put(`/tasks/${task.id}`, { status: newStatus });
       setData(prev => ({
         ...prev,
-        tasks: prev.tasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t)
+        tasks: prev.tasks.map(t => t.id === task.id
+          ? { ...t, status: newStatus, completed_at: newStatus === 'done' ? new Date().toISOString() : null }
+          : t)
       }));
     } catch { toast.error('Failed to update task'); }
   };
@@ -110,6 +120,48 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
       await api.delete(`/tasks/${taskId}`);
       setData(prev => ({ ...prev, tasks: prev.tasks.filter(t => t.id !== taskId) }));
     } catch { toast.error('Failed to delete task'); }
+  };
+
+  const startEditTask = (task) => {
+    setEditingTaskId(task.id);
+    setEditForm({
+      title: task.title || '',
+      start_date: task.start_date ? task.start_date.slice(0, 10) : '',
+      due_date: task.due_date ? task.due_date.slice(0, 10) : '',
+      assignee_ids: task.assignees?.map(a => a.id) || [],
+    });
+  };
+
+  const saveEditTask = async () => {
+    if (!editForm.title.trim()) return;
+    try {
+      await api.put(`/tasks/${editingTaskId}`, {
+        title: editForm.title,
+        start_date: editForm.start_date || null,
+        due_date: editForm.due_date || null,
+        assignee_ids: editForm.assignee_ids,
+      });
+      setEditingTaskId(null);
+      loadStory();
+      toast.success('Task updated');
+    } catch { toast.error('Failed to update task'); }
+  };
+
+  const toggleEditAssignee = (userId) => {
+    setEditForm(prev => ({
+      ...prev,
+      assignee_ids: prev.assignee_ids.includes(userId)
+        ? prev.assignee_ids.filter(id => id !== userId)
+        : [...prev.assignee_ids, userId]
+    }));
+  };
+
+  const toggleTaskActivity = (taskId) => {
+    setExpandedActivity(prev => {
+      const next = new Set(prev);
+      next.has(taskId) ? next.delete(taskId) : next.add(taskId);
+      return next;
+    });
   };
 
   const sendComment = async () => {
@@ -437,7 +489,16 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                       onKeyDown={e => e.key === 'Enter' && !e.shiftKey && addTask()}
                       autoFocus
                     />
-                    <div className="task-form-row">
+                    <div className="task-form-row-dates">
+                      <div className="task-form-field">
+                        <label className="task-form-label"><Calendar size={11} /> Start Date</label>
+                        <input
+                          type="date"
+                          className="form-control form-control-sm"
+                          value={newTaskStartDate}
+                          onChange={e => setNewTaskStartDate(e.target.value)}
+                        />
+                      </div>
                       <div className="task-form-field">
                         <label className="task-form-label"><Calendar size={11} /> Due Date</label>
                         <input
@@ -447,34 +508,34 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                           onChange={e => setNewTaskDueDate(e.target.value)}
                         />
                       </div>
-                      {assignableUsers.length > 0 && (
-                        <div className="task-form-field task-form-assignees">
-                          <label className="task-form-label"><User size={11} /> Assignees</label>
-                          <div className="task-assignee-checklist">
-                            {assignableUsers.map(u => (
-                              <label key={u.id} className={`task-assignee-item ${newTaskAssignees.includes(u.id) ? 'selected' : ''}`}>
-                                <input
-                                  type="checkbox"
-                                  checked={newTaskAssignees.includes(u.id)}
-                                  onChange={() => toggleTaskAssignee(u.id)}
-                                />
-                                <span className="task-assignee-avatar" style={{ background: getAvatarColor(`${u.first_name} ${u.last_name}`) }}>
-                                  {getInitials(`${u.first_name} ${u.last_name}`)}
-                                </span>
-                                <span>{u.first_name} {u.last_name}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
+                    {assignableUsers.length > 0 && (
+                      <div className="task-form-field">
+                        <label className="task-form-label"><User size={11} /> Assignees</label>
+                        <div className="task-assignee-checklist">
+                          {assignableUsers.map(u => (
+                            <label key={u.id} className={`task-assignee-item ${newTaskAssignees.includes(u.id) ? 'selected' : ''}`}>
+                              <input
+                                type="checkbox"
+                                checked={newTaskAssignees.includes(u.id)}
+                                onChange={() => toggleTaskAssignee(u.id)}
+                              />
+                              <span className="task-assignee-avatar" style={{ background: getAvatarColor(`${u.first_name} ${u.last_name}`) }}>
+                                {getInitials(`${u.first_name} ${u.last_name}`)}
+                              </span>
+                              <span>{u.first_name} {u.last_name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="task-form-actions">
                       <button className="btn btn-primary btn-sm" onClick={addTask} disabled={addingTask || !newTaskTitle.trim()}>
                         <Plus size={13} /> Add Task
                       </button>
                       <button className="btn btn-ghost btn-sm" onClick={() => {
                         setShowTaskForm(false);
-                        setNewTaskTitle(''); setNewTaskDueDate(''); setNewTaskAssignees([]);
+                        setNewTaskTitle(''); setNewTaskStartDate(''); setNewTaskDueDate(''); setNewTaskAssignees([]);
                       }}>
                         Cancel
                       </button>
@@ -493,45 +554,143 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                       <p>No tasks yet. Break this story into actionable steps.</p>
                     </div>
                   ) : (
-                    tasks.map(task => (
-                      <div key={task.id} className={`task-item ${task.status === 'done' ? 'done' : ''}`}>
-                        <button
-                          className={`task-check ${task.status === 'done' ? 'checked' : ''}`}
-                          onClick={() => toggleTask(task)}
-                          title={task.status === 'done' ? 'Mark incomplete' : 'Mark complete'}
-                        >
-                          {task.status === 'done' && <Check size={11} />}
-                        </button>
-                        <div className="task-content">
-                          <div className="task-main-row">
-                            <span className="task-title">{task.title}</span>
-                            {task.due_date && (
-                              <span className="task-due-badge">
-                                <Calendar size={9} /> {formatDate(task.due_date, 'MMM d')}
-                              </span>
+                    tasks.map(task => {
+                      const isDone = task.status === 'done';
+                      const isEditing = editingTaskId === task.id;
+                      const isActivityExpanded = expandedActivity.has(task.id);
+                      const activityLogs = task.activity_logs || [];
+
+                      if (isEditing) {
+                        return (
+                          <div key={task.id} className="task-item task-item--editing">
+                            <div className="task-edit-form">
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Task title"
+                                value={editForm.title}
+                                onChange={e => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                                autoFocus
+                              />
+                              <div className="task-form-row-dates">
+                                <div className="task-form-field">
+                                  <label className="task-form-label"><Calendar size={11} /> Start Date</label>
+                                  <input type="date" className="form-control form-control-sm"
+                                    value={editForm.start_date}
+                                    onChange={e => setEditForm(prev => ({ ...prev, start_date: e.target.value }))} />
+                                </div>
+                                <div className="task-form-field">
+                                  <label className="task-form-label"><Calendar size={11} /> Due Date</label>
+                                  <input type="date" className="form-control form-control-sm"
+                                    value={editForm.due_date}
+                                    onChange={e => setEditForm(prev => ({ ...prev, due_date: e.target.value }))} />
+                                </div>
+                              </div>
+                              {assignableUsers.length > 0 && (
+                                <div className="task-form-field">
+                                  <label className="task-form-label"><User size={11} /> Assignees</label>
+                                  <div className="task-assignee-checklist">
+                                    {assignableUsers.map(u => (
+                                      <label key={u.id} className={`task-assignee-item ${editForm.assignee_ids.includes(u.id) ? 'selected' : ''}`}>
+                                        <input type="checkbox" checked={editForm.assignee_ids.includes(u.id)}
+                                          onChange={() => toggleEditAssignee(u.id)} />
+                                        <span className="task-assignee-avatar" style={{ background: getAvatarColor(`${u.first_name} ${u.last_name}`) }}>
+                                          {getInitials(`${u.first_name} ${u.last_name}`)}
+                                        </span>
+                                        <span>{u.first_name} {u.last_name}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              <div className="task-form-actions">
+                                <button className="btn btn-primary btn-sm" onClick={saveEditTask} disabled={!editForm.title.trim()}>
+                                  <Check size={13} /> Save
+                                </button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => setEditingTaskId(null)}>Cancel</button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={task.id} className={`task-item ${isDone ? 'done' : ''}`}>
+                          <button
+                            className={`task-complete-btn ${isDone ? 'task-complete-btn--done' : ''}`}
+                            onClick={() => toggleTask(task)}
+                            title={isDone ? 'Mark incomplete' : 'Mark complete'}
+                          >
+                            {isDone ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                          </button>
+                          <div className="task-content">
+                            <div className="task-main-row">
+                              <span className="task-title">{task.title}</span>
+                              {(task.start_date || task.due_date) && (
+                                <span className="task-date-range">
+                                  <Calendar size={9} />
+                                  {task.start_date ? formatDate(task.start_date) : '—'}
+                                  {' → '}
+                                  {task.due_date ? formatDate(task.due_date) : 'No due date'}
+                                </span>
+                              )}
+                            </div>
+                            {task.assignees?.length > 0 && (
+                              <div className="task-assignees-row">
+                                {task.assignees.map(a => (
+                                  <span key={a.id} className="task-assignee-chip">
+                                    <span style={{
+                                      width: 14, height: 14, borderRadius: '50%',
+                                      background: getAvatarColor(a.name), color: 'white',
+                                      fontSize: '7px', display: 'inline-flex',
+                                      alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                                    }}>{getInitials(a.name)}</span>
+                                    {a.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {activityLogs.length > 0 && (
+                              <div className="task-activity-section">
+                                <button className="task-activity-toggle" onClick={() => toggleTaskActivity(task.id)}>
+                                  <ChevronDown size={10} style={{ transform: isActivityExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                                  {activityLogs.length} {activityLogs.length === 1 ? 'change' : 'changes'}
+                                </button>
+                                {isActivityExpanded && (
+                                  <div className="task-activity-log">
+                                    {activityLogs.map((log, i) => (
+                                      <div key={i} className="task-activity-item">
+                                        <span className={`task-activity-dot task-activity-dot--${log.change_type}`} />
+                                        <span className="task-activity-text">
+                                          <strong>{log.changed_by_name}</strong>
+                                          {log.change_type === 'created' && <> created this task</>}
+                                          {log.change_type === 'completed' && <> marked as <em className="tl-new">Completed</em></>}
+                                          {log.change_type === 'reopened' && <> reopened this task</>}
+                                          {log.change_type === 'update' && log.field_name && (
+                                            <> updated <em className="tl-field">{log.field_name}</em>
+                                              {log.old_value && log.new_value && <> from <em className="tl-old">{log.old_value}</em> to <em className="tl-new">{log.new_value}</em></>}
+                                            </>
+                                          )}
+                                        </span>
+                                        <span className="task-activity-time">{timeAgo(log.created_at)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
-                          {task.assignees?.length > 0 && (
-                            <div className="task-assignees-row">
-                              {task.assignees.map(a => (
-                                <span key={a.id} className="task-assignee-chip">
-                                  <span style={{
-                                    width: 14, height: 14, borderRadius: '50%',
-                                    background: getAvatarColor(a.name), color: 'white',
-                                    fontSize: '7px', display: 'inline-flex',
-                                    alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                                  }}>{getInitials(a.name)}</span>
-                                  {a.name}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                          <div className="task-actions">
+                            <button className="task-edit-btn" onClick={() => startEditTask(task)} title="Edit task">
+                              <Pencil size={12} />
+                            </button>
+                            <button className="task-delete" onClick={() => deleteTask(task.id)} title="Delete task">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         </div>
-                        <button className="task-delete" onClick={() => deleteTask(task.id)}>
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

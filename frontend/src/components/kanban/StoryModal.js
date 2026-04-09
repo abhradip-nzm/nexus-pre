@@ -398,28 +398,26 @@ export default function StoryModal({
                   </select>
                 </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label"><DollarSign size={12} /> Est. Value</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      placeholder="0.00"
-                      value={form.estimated_value}
-                      onChange={e => handleChange('estimated_value', e.target.value)}
-                      min="0"
-                      step="100"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label"><Calendar size={12} /> Due Date</label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      value={form.due_date}
-                      onChange={e => handleChange('due_date', e.target.value)}
-                    />
-                  </div>
+                <div className="form-group">
+                  <label className="form-label"><DollarSign size={12} /> Est. Value</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="0.00"
+                    value={form.estimated_value}
+                    onChange={e => handleChange('estimated_value', e.target.value)}
+                    min="0"
+                    step="100"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label"><Calendar size={12} /> Due Date</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={form.due_date}
+                    onChange={e => handleChange('due_date', e.target.value)}
+                  />
                 </div>
 
                 {/* Sales Manager */}

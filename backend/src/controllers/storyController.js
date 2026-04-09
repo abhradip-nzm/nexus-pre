@@ -502,6 +502,21 @@ const deleteStory = async (req, res) => {
 
 // ── Tasks ──────────────────────────────────────────────────────────────────────
 
+// Helper: log a task change
+const logTaskChange = async (taskId, changedBy, changeType, fieldName, oldVal, newVal) => {
+  try {
+    await query(
+      `INSERT INTO task_change_logs (task_id, changed_by, change_type, field_name, old_value, new_value)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [taskId, changedBy, changeType, fieldName || null,
+       oldVal != null ? String(oldVal) : null,
+       newVal != null ? String(newVal) : null]
+    );
+  } catch (e) {
+    console.error('Failed to log task change:', e.message);
+  }
+};
+
 const getTasksByStory = async (req, res) => {
   try {
     const result = await query(`
@@ -511,7 +526,24 @@ const getTasksByStory = async (req, res) => {
             json_build_object('id', u.id, 'name', u.first_name || ' ' || u.last_name)
           ) FILTER (WHERE u.id IS NOT NULL),
           '[]'
-        ) as assignees
+        ) as assignees,
+        COALESCE(
+          (SELECT json_agg(
+            jsonb_build_object(
+              'id', tcl.id,
+              'change_type', tcl.change_type,
+              'field_name', tcl.field_name,
+              'old_value', tcl.old_value,
+              'new_value', tcl.new_value,
+              'created_at', tcl.created_at,
+              'changed_by_name', ub.first_name || ' ' || ub.last_name
+            ) ORDER BY tcl.created_at ASC
+          )
+          FROM task_change_logs tcl
+          LEFT JOIN users ub ON ub.id = tcl.changed_by
+          WHERE tcl.task_id = t.id),
+          '[]'
+        ) AS activity_logs
       FROM tasks t
       LEFT JOIN task_assignees ta ON ta.task_id = t.id
       LEFT JOIN users u ON u.id = ta.user_id
@@ -527,7 +559,7 @@ const getTasksByStory = async (req, res) => {
 
 const createTask = async (req, res) => {
   try {
-    const { title, description, assignee_ids, due_date } = req.body;
+    const { title, description, assignee_ids, start_date, due_date } = req.body;
     const { storyId } = req.params;
 
     if (!title?.trim()) {
@@ -535,12 +567,15 @@ const createTask = async (req, res) => {
     }
 
     const result = await query(
-      `INSERT INTO tasks (user_story_id, title, description, created_by, due_date)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [storyId, title.trim(), description || null, req.user.id, due_date || null]
+      `INSERT INTO tasks (user_story_id, title, description, created_by, start_date, due_date)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [storyId, title.trim(), description || null, req.user.id, start_date || null, due_date || null]
     );
 
     const taskId = result.rows[0].id;
+
+    // Log creation
+    await logTaskChange(taskId, req.user.id, 'created', null, null, null);
 
     // Insert assignees
     if (Array.isArray(assignee_ids) && assignee_ids.length > 0) {
@@ -552,13 +587,25 @@ const createTask = async (req, res) => {
       }
     }
 
-    // Return task with assignees
+    // Return task with assignees and empty activity_logs
     const taskWithAssignees = await query(`
       SELECT t.*,
         COALESCE(
           json_agg(json_build_object('id', u.id, 'name', u.first_name || ' ' || u.last_name))
           FILTER (WHERE u.id IS NOT NULL), '[]'
-        ) as assignees
+        ) as assignees,
+        COALESCE(
+          (SELECT json_agg(jsonb_build_object(
+            'id', tcl.id, 'change_type', tcl.change_type,
+            'field_name', tcl.field_name, 'old_value', tcl.old_value,
+            'new_value', tcl.new_value, 'created_at', tcl.created_at,
+            'changed_by_name', ub.first_name || ' ' || ub.last_name
+          ) ORDER BY tcl.created_at ASC)
+          FROM task_change_logs tcl
+          LEFT JOIN users ub ON ub.id = tcl.changed_by
+          WHERE tcl.task_id = t.id),
+          '[]'
+        ) AS activity_logs
       FROM tasks t
       LEFT JOIN task_assignees ta ON ta.task_id = t.id
       LEFT JOIN users u ON u.id = ta.user_id
@@ -575,7 +622,11 @@ const createTask = async (req, res) => {
 const updateTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, status, assignee_ids, due_date } = req.body;
+    const { title, description, status, assignee_ids, start_date, due_date } = req.body;
+
+    // Fetch current state for change logging
+    const current = await query('SELECT * FROM tasks WHERE id = $1', [id]);
+    const currentTask = current.rows[0];
 
     const updates = [];
     const values = [];
@@ -587,12 +638,40 @@ const updateTask = async (req, res) => {
       updates.push(`status = $${idx++}`); values.push(status);
       updates.push(`completed_at = ${status === 'done' ? 'NOW()' : 'NULL'}`);
     }
+    if (start_date !== undefined) { updates.push(`start_date = $${idx++}`); values.push(start_date || null); }
     if (due_date !== undefined) { updates.push(`due_date = $${idx++}`); values.push(due_date || null); }
 
     updates.push(`updated_at = NOW()`);
     values.push(id);
 
     await query(`UPDATE tasks SET ${updates.join(', ')} WHERE id = $${idx}`, values);
+
+    // Log changes
+    if (currentTask) {
+      const changedBy = req.user.id;
+      if (title !== undefined && title !== currentTask.title) {
+        await logTaskChange(id, changedBy, 'update', 'Title', currentTask.title, title);
+      }
+      if (status !== undefined && status !== currentTask.status) {
+        const changeType = status === 'done' ? 'completed' : 'reopened';
+        await logTaskChange(id, changedBy, changeType, 'Status',
+          currentTask.status === 'done' ? 'Completed' : 'Open',
+          status === 'done' ? 'Completed' : 'Open'
+        );
+      }
+      if (start_date !== undefined) {
+        const oldV = currentTask.start_date ? currentTask.start_date.toISOString().slice(0, 10) : null;
+        if (oldV !== (start_date || null)) {
+          await logTaskChange(id, changedBy, 'update', 'Start Date', oldV || 'None', start_date || 'None');
+        }
+      }
+      if (due_date !== undefined) {
+        const oldV = currentTask.due_date ? currentTask.due_date.toISOString().slice(0, 10) : null;
+        if (oldV !== (due_date || null)) {
+          await logTaskChange(id, changedBy, 'update', 'Due Date', oldV || 'None', due_date || 'None');
+        }
+      }
+    }
 
     // Handle assignees: if provided, replace all
     if (assignee_ids !== undefined) {
@@ -630,7 +709,7 @@ const getMyTasks = async (req, res) => {
 
     const result = await query(`
       SELECT
-        t.id, t.title, t.description, t.status, t.due_date, t.completed_at,
+        t.id, t.title, t.description, t.status, t.start_date, t.due_date, t.completed_at,
         t.created_at, t.updated_at,
         us.id   AS story_id,
         us.title AS story_title,

@@ -366,6 +366,21 @@ const migrations = [
     task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (task_id, user_id)
+  )`,
+
+  // Task start date
+  `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_date DATE`,
+
+  // Task activity / change log
+  `CREATE TABLE IF NOT EXISTS task_change_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+    changed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    field_name VARCHAR(100),
+    old_value TEXT,
+    new_value TEXT,
+    change_type VARCHAR(50) DEFAULT 'update',
+    created_at TIMESTAMP DEFAULT NOW()
   )`
 ];
 

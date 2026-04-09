@@ -232,3 +232,14 @@
   flex-wrap: wrap;
   max-height: none;
 }
+
+/* Responsive: stack sidebar below main on narrow viewports */
+@media (max-width: 720px) {
+  .story-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .story-form-sidebar {
+    border-top: 1px solid var(--border-light);
+    padding-top: 18px;
+  }
+}
