@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   ChevronLeft, ChevronRight, CalendarCheck, CheckSquare,
-  CheckCircle2, Circle, Clock, AlertCircle, ExternalLink, Check
+  Clock, AlertCircle, ExternalLink, Check, Users
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
@@ -16,7 +16,7 @@ function getDaysInMonth(year, month) {
 }
 
 function getFirstDayOfMonth(year, month) {
-  return new Date(year, month, 1).getDay(); // 0 = Sunday
+  return new Date(year, month, 1).getDay();
 }
 
 function toLocalDateStr(date) {
@@ -38,7 +38,6 @@ const MONTH_NAMES = [
 ];
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// Determine task color category using start_date (fallback created_at) and due_date
 function getTaskCategory(task, today) {
   if (task.status === 'done') return 'completed';
   const due = parseLocalDate(task.due_date);
@@ -50,7 +49,6 @@ function getTaskCategory(task, today) {
   return 'upcoming';
 }
 
-// Greedy lane assignment so bars don't overlap
 function assignLanes(bars) {
   const laneEnds = [];
   const result = bars.map(bar => {
@@ -71,7 +69,6 @@ function WeekRow({ weekDays, taskBars, today, onToggleComplete, onViewStory }) {
 
   return (
     <div className="cal-week-row">
-      {/* Day number cells */}
       <div className="cal-week-days">
         {weekDays.map((day, i) => {
           const isToday = day && toLocalDateStr(day) === toLocalDateStr(today);
@@ -87,7 +84,6 @@ function WeekRow({ weekDays, taskBars, today, onToggleComplete, onViewStory }) {
         })}
       </div>
 
-      {/* Event bars */}
       <div className="cal-events-area" style={{ height: eventsHeight }}>
         {bars.map((bar, idx) => {
           const leftPct = (bar.startCol / 7) * 100;
@@ -112,7 +108,7 @@ function WeekRow({ weekDays, taskBars, today, onToggleComplete, onViewStory }) {
                 onClick={e => { e.stopPropagation(); onToggleComplete(bar.task); }}
                 title={isDone ? 'Mark incomplete' : 'Mark complete'}
               >
-                {isDone ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                {isDone ? <Check size={13} /> : <span style={{ width: 13, height: 13, borderRadius: '50%', border: '2px solid white', display: 'inline-block' }} />}
               </button>
               <button
                 className="cal-task-bar-body"
@@ -132,7 +128,7 @@ function WeekRow({ weekDays, taskBars, today, onToggleComplete, onViewStory }) {
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
-export default function MyTasks() {
+export default function AllTasks() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -141,10 +137,22 @@ export default function MyTasks() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewingStoryId, setViewingStoryId] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedAssignee, setSelectedAssignee] = useState('');
 
-  const loadTasks = useCallback(async () => {
+  const loadUsers = useCallback(async () => {
     try {
-      const res = await api.get('/tasks/my');
+      const res = await api.get('/users');
+      setAllUsers(res.data.users || []);
+    } catch {
+      // not critical
+    }
+  }, []);
+
+  const loadTasks = useCallback(async (assigneeId) => {
+    try {
+      const url = assigneeId ? `/tasks/my?assignee_id=${assigneeId}` : '/tasks/my';
+      const res = await api.get(url);
       setTasks(res.data.tasks || []);
     } catch {
       toast.error('Failed to load tasks');
@@ -153,7 +161,10 @@ export default function MyTasks() {
     }
   }, []);
 
-  useEffect(() => { loadTasks(); }, [loadTasks]);
+  useEffect(() => {
+    loadUsers();
+    loadTasks(selectedAssignee);
+  }, [loadUsers, loadTasks, selectedAssignee]);
 
   const handleToggleComplete = async (task) => {
     const newStatus = task.status === 'done' ? 'todo' : 'done';
@@ -190,7 +201,6 @@ export default function MyTasks() {
   const weeks = [];
   for (let i = 0; i < slots.length; i += 7) weeks.push(slots.slice(i, i + 7));
 
-  // Compute task bars for a week
   const getWeekBars = (weekDays) => {
     const weekStart = weekDays.find(d => d !== null);
     const weekEnd = [...weekDays].reverse().find(d => d !== null);
@@ -198,7 +208,6 @@ export default function MyTasks() {
 
     const bars = [];
     tasks.forEach(task => {
-      // Use start_date if available, else created_at
       const taskStart = parseLocalDate(task.start_date || task.created_at);
       const taskEnd = parseLocalDate(task.due_date);
       if (!taskStart || !taskEnd) return;
@@ -220,7 +229,6 @@ export default function MyTasks() {
     return bars;
   };
 
-  // Stats
   const totalTasks = tasks.length;
   const completedCount = tasks.filter(t => t.status === 'done').length;
   const overdueCount = tasks.filter(t => getTaskCategory(t, today) === 'overdue').length;
@@ -229,7 +237,7 @@ export default function MyTasks() {
   if (loading) return (
     <div className="page-loading">
       <div className="page-spinner" />
-      <p>Loading your tasks...</p>
+      <p>Loading tasks...</p>
     </div>
   );
 
@@ -244,8 +252,25 @@ export default function MyTasks() {
           onClose={() => setViewingStoryId(null)}
         />
       )}
-      <Header title="My Tasks" subtitle="Your assigned tasks across all user stories" />
+      <Header title="All Tasks" subtitle="All tasks across all user stories" />
       <div className="page-content mytasks-page">
+
+        {/* Assignee filter */}
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Users size={15} style={{ color: 'var(--text-muted)' }} />
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Filter by assignee:</label>
+          <select
+            className="form-control"
+            style={{ width: 220, fontSize: 13 }}
+            value={selectedAssignee}
+            onChange={e => setSelectedAssignee(e.target.value)}
+          >
+            <option value="">All assignees</option>
+            {allUsers.map(u => (
+              <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
+            ))}
+          </select>
+        </div>
 
         {/* Stats row */}
         <div className="mytasks-stats">
@@ -290,7 +315,6 @@ export default function MyTasks() {
 
         {/* Calendar */}
         <div className="cal-card">
-          {/* Navigation */}
           <div className="cal-nav">
             <button className="cal-nav-btn cal-nav-arrow" onClick={prevMonth} aria-label="Previous month">
               <ChevronLeft size={16} />
@@ -305,14 +329,12 @@ export default function MyTasks() {
             </button>
           </div>
 
-          {/* Day headers */}
           <div className="cal-day-headers">
             {DAY_NAMES.map(d => (
               <div key={d} className="cal-day-header">{d}</div>
             ))}
           </div>
 
-          {/* Weeks */}
           <div className="cal-grid">
             {weeks.map((weekDays, wi) => (
               <WeekRow
@@ -330,7 +352,7 @@ export default function MyTasks() {
         {/* Task list below calendar */}
         {tasks.length > 0 && (
           <div className="mytasks-list-section">
-            <h3 className="mytasks-list-title">All Assigned Tasks</h3>
+            <h3 className="mytasks-list-title">All Tasks</h3>
             <div className="mytasks-list">
               {tasks.map(task => {
                 const cat = getTaskCategory(task, today);
@@ -351,6 +373,11 @@ export default function MyTasks() {
                         {task.title}
                       </span>
                       <span className="mytasks-list-story">{task.story_title}</span>
+                      {task.assignees?.length > 0 && (
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {task.assignees.map(a => a.name).join(', ')}
+                        </span>
+                      )}
                     </div>
                     <div className="mytasks-list-right">
                       {(startDate || dueDate) && (

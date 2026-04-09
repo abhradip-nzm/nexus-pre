@@ -262,7 +262,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
             </div>
 
             <div className="story-detail-actions">
-              {!readOnly && canDo('user_stories', 'update') && (
+              {!readOnly && canDo('user_stories', 'update') && user?.role_name === 'system_admin' && (
                 <button className="btn btn-secondary btn-sm" onClick={() => setShowEdit(true)}>
                   <Pencil size={14} /> Edit
                 </button>
@@ -454,7 +454,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                     )}
                     {story.business_team_member_name && (
                       <div className="sidebar-stat">
-                        <span className="ss-label">Sales Manager</span>
+                        <span className="ss-label">Sales Executive</span>
                         <span className="ss-value">{story.business_team_member_name}</span>
                       </div>
                     )}
@@ -650,6 +650,14 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                                 ))}
                               </div>
                             )}
+                            {isDone && (() => {
+                              const completedLog = activityLogs.find(l => l.change_type === 'completed');
+                              return completedLog ? (
+                                <div style={{ marginTop: 4, fontSize: 10, color: '#16a34a', fontWeight: 500 }}>
+                                  Completed by {completedLog.changed_by_name} · {timeAgo(completedLog.created_at)}
+                                </div>
+                              ) : null;
+                            })()}
                             {activityLogs.length > 0 && (
                               <div className="task-activity-section">
                                 <button className="task-activity-toggle" onClick={() => toggleTaskActivity(task.id)}>

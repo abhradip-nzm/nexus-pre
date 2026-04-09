@@ -37,7 +37,6 @@ export default function StoryModal({
     client_phone: story?.client_phone || '',
     column_id: story?.column_id || columnId || '',
     sub_stage_id: story?.sub_stage_id || '',
-    assigned_to: story?.assigned_to || '',
     priority: story?.priority || 'medium',
     estimated_value: story?.estimated_value || '',
     due_date: story?.due_date ? story.due_date.slice(0, 10) : '',
@@ -49,6 +48,7 @@ export default function StoryModal({
   });
 
   const [saving, setSaving] = useState(false);
+  const [loadingOptions, setLoadingOptions] = useState(true);
   const [tagInput, setTagInput] = useState('');
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [businessTeam, setBusinessTeam] = useState([]);
@@ -57,22 +57,27 @@ export default function StoryModal({
   const [industryOptions, setIndustryOptions] = useState([]);
 
   useEffect(() => {
+    setLoadingOptions(true);
     Promise.all([
-      api.get('/business-team').catch(() => ({ data: [] })),
-      api.get('/teams').catch(() => ({ data: { teams: [] } })),
-      api.get('/tags').catch(() => ({ data: { tags: [] } })),
-      api.get('/industries').catch(() => ({ data: { industries: [] } })),
+      api.get('/business-team').catch(err => { console.error('Failed to load business team:', err); return { data: [] }; }),
+      api.get('/teams').catch(err => { console.error('Failed to load teams:', err); return { data: { teams: [] } }; }),
+      api.get('/tags').catch(err => { console.error('Failed to load tags:', err); return { data: { tags: [] } }; }),
+      api.get('/industries').catch(err => { console.error('Failed to load industries:', err); return { data: { industries: [] } }; }),
     ]).then(([btRes, teamsRes, tagsRes, indRes]) => {
       setBusinessTeam(Array.isArray(btRes.data) ? btRes.data : []);
       setTeams(teamsRes.data.teams || []);
       setTagOptions(tagsRes.data.tags || []);
       setIndustryOptions(indRes.data.industries || []);
+    }).catch(err => {
+      console.error('Failed to load form options:', err);
+    }).finally(() => {
+      setLoadingOptions(false);
     });
   }, []);
 
   const selectedColumn = columns.find(c => String(c.id) === String(form.column_id));
   const subStages = selectedColumn?.sub_stages || [];
-  const salesManagers = businessTeam.filter(m => m.role === 'sales_manager');
+  const salesExecutives = businessTeam.filter(m => m.role === 'sales_executive');
   const assignableUsers = users.filter(u =>
     ['pre_sales_manager', 'pre_sales_executive'].includes(u.role_name)
   );
@@ -88,7 +93,7 @@ export default function StoryModal({
     return chain;
   };
 
-  const smHierarchy = getSmHierarchy(form.business_team_member_id);
+  const seHierarchy = getSmHierarchy(form.business_team_member_id);
 
   // Tag autocomplete: filter options not already selected
   const filteredTagOptions = tagOptions.filter(t =>
@@ -164,7 +169,6 @@ export default function StoryModal({
         ...form,
         estimated_value: form.estimated_value ? parseFloat(form.estimated_value) : null,
         sub_stage_id: form.sub_stage_id || null,
-        assigned_to: form.assigned_to || null,
         due_date: form.due_date || null,
         business_team_member_id: form.business_team_member_id || null,
       };
@@ -194,7 +198,7 @@ export default function StoryModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'contents' }}>
+        <form key={story?.id || 'new'} onSubmit={handleSubmit} style={{ display: 'contents' }}>
           <div className="modal-body">
             <div className="story-form-grid">
               {/* ── Left column ── */}
@@ -309,7 +313,7 @@ export default function StoryModal({
                       onKeyDown={handleTagKeyDown}
                     />
                   </div>
-                  {showTagDropdown && (filteredTagOptions.length > 0 || tagInput.trim()) && (
+                  {showTagDropdown && (filteredTagOptions.length > 0 || tagInput.trim() || tagOptions.length > 0) && (
                     <div className="tag-autocomplete-dropdown">
                       {filteredTagOptions.slice(0, 8).map(t => (
                         <button
@@ -385,20 +389,6 @@ export default function StoryModal({
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label"><User size={12} /> Assigned To</label>
-                  <select
-                    className="form-control"
-                    value={form.assigned_to}
-                    onChange={e => handleChange('assigned_to', e.target.value)}
-                  >
-                    <option value="">Unassigned</option>
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
                   <label className="form-label"><DollarSign size={12} /> Est. Value</label>
                   <input
                     type="number"
@@ -420,22 +410,22 @@ export default function StoryModal({
                   />
                 </div>
 
-                {/* Sales Manager */}
+                {/* Sales Executive */}
                 <div className="form-group">
-                  <label className="form-label"><Briefcase size={12} /> Sales Manager</label>
+                  <label className="form-label"><Briefcase size={12} /> Sales Executive</label>
                   <select
                     className="form-control"
                     value={form.business_team_member_id}
                     onChange={e => handleChange('business_team_member_id', e.target.value)}
                   >
                     <option value="">None</option>
-                    {salesManagers.map(sm => (
-                      <option key={sm.id} value={sm.id}>{sm.name}</option>
+                    {salesExecutives.map(se => (
+                      <option key={se.id} value={se.id}>{se.name}</option>
                     ))}
                   </select>
-                  {smHierarchy.length > 1 && (
+                  {seHierarchy.length > 1 && (
                     <div className="sm-hierarchy">
-                      {smHierarchy.map((node, i) => (
+                      {seHierarchy.map((node, i) => (
                         <span key={node.id} className="sm-hierarchy-node">
                           {i > 0 && <span className="sm-hierarchy-arrow">›</span>}
                           <span className="sm-hierarchy-role">{BT_ROLE_LABELS[node.role] || node.role}</span>

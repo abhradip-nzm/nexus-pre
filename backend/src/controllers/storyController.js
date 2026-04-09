@@ -9,37 +9,44 @@ const FIELD_LABELS = {
   sub_stage_id: 'Sub Stage',
   assigned_to: 'Assigned To',
   estimated_value: 'Est. Value',
-  business_team_member_id: 'Sales Manager',
+  business_team_member_id: 'Sales Executive',
   priority: 'Priority',
   due_date: 'Due Date',
 };
 
 // Resolve a field value to a human-readable display string
 const resolveDisplayValue = async (field, value) => {
-  if (value === null || value === undefined || value === '' || value === 'null') return 'None';
-  if (field === 'column_id') {
-    const r = await query('SELECT name FROM kanban_columns WHERE id = $1', [value]);
-    return r.rows[0]?.name || String(value);
+  try {
+    if (value === null || value === undefined || value === '' || value === 'null') return 'None';
+    if (field === 'column_id') {
+      const r = await query('SELECT name FROM kanban_columns WHERE id = $1', [value]);
+      return r.rows[0]?.name || String(value);
+    }
+    if (field === 'sub_stage_id') {
+      const r = await query('SELECT name FROM kanban_sub_stages WHERE id = $1', [value]);
+      return r.rows[0]?.name || String(value);
+    }
+    if (field === 'assigned_to') {
+      const r = await query("SELECT first_name || ' ' || last_name as name FROM users WHERE id = $1", [value]);
+      return r.rows[0]?.name || String(value);
+    }
+    if (field === 'business_team_member_id') {
+      const r = await query('SELECT name FROM business_team WHERE id = $1', [value]);
+      return r.rows[0]?.name || String(value);
+    }
+    return String(value);
+  } catch (e) {
+    console.error(`resolveDisplayValue failed for field=${field}, value=${value}:`, e.message);
+    return String(value ?? 'None');
   }
-  if (field === 'sub_stage_id') {
-    const r = await query('SELECT name FROM kanban_sub_stages WHERE id = $1', [value]);
-    return r.rows[0]?.name || String(value);
-  }
-  if (field === 'assigned_to') {
-    const r = await query("SELECT first_name || ' ' || last_name as name FROM users WHERE id = $1", [value]);
-    return r.rows[0]?.name || String(value);
-  }
-  if (field === 'business_team_member_id') {
-    const r = await query('SELECT name FROM business_team WHERE id = $1', [value]);
-    return r.rows[0]?.name || String(value);
-  }
-  return String(value);
 };
 
 const getAllStories = async (req, res) => {
   try {
     const { column_id, assigned_to, search, page = 1, limit = 100 } = req.query;
     const offset = (page - 1) * limit;
+    const userRole = req.user.role_name;
+    const userId = req.user.id;
 
     let conditions = [];
     let values = [];
@@ -56,6 +63,31 @@ const getAllStories = async (req, res) => {
     if (search) {
       conditions.push(`(us.title ILIKE $${idx} OR us.client_name ILIKE $${idx} OR us.client_company ILIKE $${idx})`);
       values.push(`%${search}%`);
+      idx++;
+    }
+
+    // Visibility filter for non-admin roles
+    if (!['system_admin', 'super_admin'].includes(userRole)) {
+      conditions.push(`(
+        EXISTS (
+          SELECT 1 FROM story_team_assignments sta
+          JOIN team_members tm ON tm.team_id = sta.team_id
+          WHERE sta.story_id = us.id AND tm.user_id = $${idx}
+        )
+        OR
+        EXISTS (
+          SELECT 1 FROM story_member_assignments sma
+          WHERE sma.story_id = us.id AND sma.user_id = $${idx}
+        )
+        OR
+        EXISTS (
+          SELECT 1 FROM story_member_assignments sma
+          JOIN team_members tm_assigned ON tm_assigned.user_id = sma.user_id
+          JOIN team_members tm_mine ON tm_mine.team_id = tm_assigned.team_id AND tm_mine.user_id = $${idx}
+          WHERE sma.story_id = us.id
+        )
+      )`);
+      values.push(userId);
       idx++;
     }
 
@@ -171,7 +203,7 @@ const getStoryById = async (req, res) => {
       WHERE si.story_id = $1
     `, [id]);
 
-    // Tasks with multiple assignees
+    // Tasks with multiple assignees and activity logs
     const tasksResult = await query(`
       SELECT t.*,
         COALESCE(
@@ -179,7 +211,24 @@ const getStoryById = async (req, res) => {
             json_build_object('id', u.id, 'name', u.first_name || ' ' || u.last_name)
           ) FILTER (WHERE u.id IS NOT NULL),
           '[]'
-        ) as assignees
+        ) as assignees,
+        COALESCE(
+          (SELECT json_agg(
+            jsonb_build_object(
+              'id', tcl.id,
+              'change_type', tcl.change_type,
+              'field_name', tcl.field_name,
+              'old_value', tcl.old_value,
+              'new_value', tcl.new_value,
+              'created_at', tcl.created_at,
+              'changed_by_name', ub.first_name || ' ' || ub.last_name
+            ) ORDER BY tcl.created_at ASC
+          )
+          FROM task_change_logs tcl
+          LEFT JOIN users ub ON ub.id = tcl.changed_by
+          WHERE tcl.task_id = t.id),
+          '[]'
+        ) AS activity_logs
       FROM tasks t
       LEFT JOIN task_assignees ta ON ta.task_id = t.id
       LEFT JOIN users u ON u.id = ta.user_id
@@ -706,6 +755,20 @@ const deleteTask = async (req, res) => {
 const getMyTasks = async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role_name === 'system_admin';
+    const filterUserId = req.query.assignee_id || (isAdmin ? null : userId);
+
+    let whereClause = '';
+    let params = [];
+
+    if (!isAdmin) {
+      whereClause = 'WHERE t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $1)';
+      params = [userId];
+    } else if (filterUserId) {
+      whereClause = 'WHERE t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $1)';
+      params = [filterUserId];
+    }
+    // else: no filter, get all tasks for admin
 
     const result = await query(`
       SELECT
@@ -724,11 +787,9 @@ const getMyTasks = async (req, res) => {
       FROM tasks t
       JOIN user_stories us ON us.id = t.user_story_id
       LEFT JOIN users cb ON cb.id = t.created_by
-      WHERE t.id IN (
-        SELECT task_id FROM task_assignees WHERE user_id = $1
-      )
+      ${whereClause}
       ORDER BY t.due_date ASC NULLS LAST, t.created_at ASC
-    `, [userId]);
+    `, params);
 
     res.json({ tasks: result.rows });
   } catch (error) {

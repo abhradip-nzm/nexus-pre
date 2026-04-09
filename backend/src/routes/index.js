@@ -158,4 +158,10 @@ router.post('/business-team', authenticate, requireSystemAdmin, createBizMember)
 router.put('/business-team/:id', authenticate, requireSystemAdmin, updateBizMember);
 router.delete('/business-team/:id', authenticate, requireSystemAdmin, deleteBizMember);
 
+// Global error handler middleware
+router.use((err, req, res, next) => {
+  console.error('Unhandled route error:', err);
+  res.status(500).json({ error: 'An unexpected error occurred', details: process.env.NODE_ENV === 'development' ? err.message : undefined });
+});
+
 module.exports = router;

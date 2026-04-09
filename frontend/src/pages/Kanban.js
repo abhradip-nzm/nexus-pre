@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  DndContext, closestCenter, PointerSensor, KeyboardSensor,
+  DndContext, rectIntersection, PointerSensor, KeyboardSensor,
   useSensor, useSensors, DragOverlay, useDroppable
 } from '@dnd-kit/core';
 import {
   SortableContext, verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare } from 'lucide-react';
+import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare, SlidersHorizontal } from 'lucide-react';
 import Header from '../components/layout/Header';
 import StoryModal from '../components/kanban/StoryModal';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
@@ -196,6 +196,12 @@ export default function KanbanBoard() {
   const [defaultColumnId, setDefaultColumnId] = useState(null);
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState([]);
+  const [filters, setFilters] = useState({
+    priority: '',
+    has_incomplete_tasks: false,
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterOptions, setFilterOptions] = useState({ teams: [], industries: [], tags: [] });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -204,16 +210,24 @@ export default function KanbanBoard() {
 
   const loadData = useCallback(async () => {
     try {
-      const [colRes, storyRes, userRes] = await Promise.all([
+      const [colRes, storyRes, userRes, teamsRes, indRes, tagsRes] = await Promise.all([
         api.get('/kanban/columns'),
         api.get('/stories?limit=500'),
-        api.get('/users').catch(() => ({ data: { users: [] } }))
+        api.get('/users').catch(() => ({ data: { users: [] } })),
+        api.get('/teams').catch(() => ({ data: { teams: [] } })),
+        api.get('/industries').catch(() => ({ data: { industries: [] } })),
+        api.get('/tags').catch(() => ({ data: { tags: [] } })),
       ]);
 
       const cols = colRes.data.columns || [];
       setColumns(cols);
       setSubStageMap(buildSubStageMap(cols));
       setUsers(userRes.data.users || []);
+      setFilterOptions({
+        teams: teamsRes.data.teams || [],
+        industries: indRes.data.industries || [],
+        tags: tagsRes.data.tags || [],
+      });
 
       const grouped = {};
       cols.forEach(col => { grouped[col.id] = []; });
@@ -316,15 +330,28 @@ export default function KanbanBoard() {
   };
 
   const filteredStories = (colId) => {
-    const colStories = stories[colId] || [];
-    if (!search) return colStories;
-    const q = search.toLowerCase();
-    return colStories.filter(s =>
-      s.title?.toLowerCase().includes(q) ||
-      s.client_name?.toLowerCase().includes(q) ||
-      s.client_company?.toLowerCase().includes(q)
-    );
+    let colStories = stories[colId] || [];
+    if (search) {
+      const q = search.toLowerCase();
+      colStories = colStories.filter(s =>
+        s.title?.toLowerCase().includes(q) ||
+        s.client_name?.toLowerCase().includes(q) ||
+        s.client_company?.toLowerCase().includes(q)
+      );
+    }
+    if (filters.priority) {
+      colStories = colStories.filter(s => s.priority === filters.priority);
+    }
+    if (filters.has_incomplete_tasks) {
+      colStories = colStories.filter(s => s.task_count > 0 && s.completed_task_count < s.task_count);
+    }
+    return colStories;
   };
+
+  const activeFilterCount = [
+    filters.priority,
+    filters.has_incomplete_tasks,
+  ].filter(Boolean).length;
 
   if (loading) return (
     <div className="page-loading">
@@ -355,6 +382,17 @@ export default function KanbanBoard() {
           </div>
           <div className="kanban-actions">
             <button
+              className={`btn btn-sm ${showFilters || activeFilterCount > 0 ? 'btn-secondary' : 'btn-ghost'}`}
+              onClick={() => setShowFilters(v => !v)}
+              title="Toggle filters"
+            >
+              <SlidersHorizontal size={14} />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="filter-count-badge">{activeFilterCount}</span>
+              )}
+            </button>
+            <button
               className="btn btn-primary btn-sm"
               onClick={() => { setDefaultColumnId(columns[0]?.id); setShowCreateModal(true); }}
             >
@@ -363,9 +401,49 @@ export default function KanbanBoard() {
           </div>
         </div>
 
+        {showFilters && (
+          <div className="kanban-filter-panel">
+            <div className="filter-group">
+              <label className="filter-label">Priority</label>
+              <div className="filter-chips">
+                {['', 'critical', 'high', 'medium', 'low'].map(p => (
+                  <button
+                    key={p}
+                    className={`filter-chip ${filters.priority === p ? 'active' : ''}`}
+                    onClick={() => setFilters(f => ({ ...f, priority: p }))}
+                  >
+                    {p || 'All'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label">Tasks</label>
+              <div className="filter-chips">
+                <label className="filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={filters.has_incomplete_tasks}
+                    onChange={e => setFilters(f => ({ ...f, has_incomplete_tasks: e.target.checked }))}
+                  />
+                  Has incomplete tasks
+                </label>
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                className="btn btn-ghost btn-sm filter-clear-btn"
+                onClick={() => setFilters({ priority: '', has_incomplete_tasks: false })}
+              >
+                <X size={12} /> Clear filters
+              </button>
+            )}
+          </div>
+        )}
+
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={rectIntersection}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >

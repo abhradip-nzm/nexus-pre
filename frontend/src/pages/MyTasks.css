@@ -367,26 +367,24 @@
 .mytasks-list-item:hover { background: var(--bg-secondary); }
 .mytasks-list-item--completed { opacity: 0.55; }
 
-/* Toggle button in list */
-.mytasks-list-toggle {
-  background: none;
-  border: 2px solid var(--border-dark);
+/* Task check circle (matches StoryDetailModal .task-check style) */
+.mytasks-list-item .task-check {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
   border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  padding: 0;
-  cursor: pointer;
+  border: 2px solid #cbd5e0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
-  flex-shrink: 0;
+  cursor: pointer;
+  background: white;
   transition: all var(--transition);
+  flex-shrink: 0;
+  padding: 0;
 }
-.mytasks-list-toggle:hover { border-color: #22c55e; color: #22c55e; background: #f0fdf4; }
-.mytasks-list-toggle--done { background: #22c55e; border-color: #22c55e; color: white; }
-.mytasks-list-toggle--done:hover { background: #16a34a; border-color: #16a34a; }
+.mytasks-list-item .task-check.checked { background: #28a745; border-color: #28a745; color: white; }
+.mytasks-list-item .task-check:hover { border-color: #28a745; }
 
 .mytasks-list-info {
   display: flex;

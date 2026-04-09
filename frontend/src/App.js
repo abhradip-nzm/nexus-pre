@@ -21,6 +21,7 @@ import AdminTags from './pages/AdminTags';
 import AdminIndustries from './pages/AdminIndustries';
 import BusinessTeam from './pages/BusinessTeam';
 import MyTasks from './pages/MyTasks';
+import AllTasks from './pages/AllTasks';
 import './styles/global.css';
 
 function ProtectedRoute({ children, roles }) {
@@ -205,6 +206,12 @@ function App() {
           <Route path="/my-tasks" element={
             <ProtectedRoute roles={['system_admin', 'super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
               <AppLayout><MyTasks /></AppLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/all-tasks" element={
+            <ProtectedRoute roles={['system_admin']}>
+              <AppLayout><AllTasks /></AppLayout>
             </ProtectedRoute>
           } />
 
