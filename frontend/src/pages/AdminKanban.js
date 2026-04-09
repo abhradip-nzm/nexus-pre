@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, X, Check, GripVertical, ChevronDown, ChevronRight, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check, Eye } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -16,41 +16,26 @@ const DUMMY_CARDS = [
 
 const PRIORITY_COLORS = { critical: '#dc3545', high: '#e67e22', medium: '#f59e0b', low: '#28a745' };
 
-const DEFAULT_COLORS = ['#3e72ae', '#27ae60', '#e74c3c', '#f39c12', '#8e44ad', '#16a085', '#2c3e50', '#d35400'];
-
 export default function AdminKanban() {
   const [columns, setColumns] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState({});
   const [editingColumn, setEditingColumn] = useState(null);
-  const [editingSubStage, setEditingSubStage] = useState(null);
-  const [newColumnForm, setNewColumnForm] = useState({ name: '', color: '#3e72ae', position: 0 });
+  const [newColumnForm, setNewColumnForm] = useState({ name: '', color: '#3e72ae' });
   const [showNewColumn, setShowNewColumn] = useState(false);
-  const [newSubStageNames, setNewSubStageNames] = useState({});
-  const [addingSubStage, setAddingSubStage] = useState(null);
-  const [selectedSS, setSelectedSS] = useState({}); // { colId: Set<ssId> }
 
-  useEffect(() => {
-    loadColumns();
-  }, []);
+  useEffect(() => { loadColumns(); }, []);
 
   const loadColumns = async () => {
     try {
       const res = await api.get('/kanban/columns');
-      const cols = res.data.columns || [];
-      setColumns(cols);
-      // Expand first column by default
-      if (cols.length > 0) setExpanded({ [cols[0].id]: true });
-    } catch (err) {
+      setColumns(res.data.columns || []);
+    } catch {
       toast.error('Failed to load columns');
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleExpand = (id) => setExpanded(p => ({ ...p, [id]: !p[id] }));
-
-  // Column CRUD
   const createColumn = async () => {
     if (!newColumnForm.name.trim()) return;
     try {
@@ -59,117 +44,33 @@ export default function AdminKanban() {
         position: columns.length * 1000,
       });
       setColumns(prev => [...prev, { ...res.data.column, sub_stages: [] }]);
-      setNewColumnForm({ name: '', color: '#3e72ae', position: 0 });
+      setNewColumnForm({ name: '', color: '#3e72ae' });
       setShowNewColumn(false);
-      toast.success('Column created');
+      toast.success('Stage added');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to create column');
+      toast.error(err.response?.data?.error || 'Failed to add stage');
     }
   };
 
   const updateColumn = async (col) => {
     try {
-      await api.put(`/kanban/columns/${col.id}`, {
-        name: col.name,
-        color: col.color,
-      });
+      await api.put(`/kanban/columns/${col.id}`, { name: col.name, color: col.color });
       setColumns(prev => prev.map(c => c.id === col.id ? { ...c, name: col.name, color: col.color } : c));
       setEditingColumn(null);
-      toast.success('Column updated');
-    } catch (err) {
-      toast.error('Failed to update column');
+      toast.success('Stage updated');
+    } catch {
+      toast.error('Failed to update stage');
     }
   };
 
   const deleteColumn = async (colId) => {
-    if (!window.confirm('Delete this column? This cannot be undone.')) return;
+    if (!window.confirm('Delete this stage? This cannot be undone.')) return;
     try {
       await api.delete(`/kanban/columns/${colId}`);
       setColumns(prev => prev.filter(c => c.id !== colId));
-      toast.success('Column deleted');
+      toast.success('Stage deleted');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to delete column');
-    }
-  };
-
-  // Sub-stage CRUD
-  const createSubStage = async (colId) => {
-    const name = newSubStageNames[colId]?.trim();
-    if (!name) return;
-    try {
-      const col = columns.find(c => c.id === colId);
-      const res = await api.post('/kanban/sub-stages', {
-        column_id: colId,
-        name,
-        position: (col?.sub_stages?.length || 0) * 1000,
-      });
-      setColumns(prev => prev.map(c =>
-        c.id === colId ? { ...c, sub_stages: [...(c.sub_stages || []), res.data.subStage] } : c
-      ));
-      setNewSubStageNames(p => ({ ...p, [colId]: '' }));
-      setAddingSubStage(null);
-      toast.success('Sub-stage added');
-    } catch (err) {
-      toast.error('Failed to add sub-stage');
-    }
-  };
-
-  const updateSubStage = async (ss) => {
-    try {
-      await api.put(`/kanban/sub-stages/${ss.id}`, { name: ss.name });
-      setColumns(prev => prev.map(c => ({
-        ...c,
-        sub_stages: (c.sub_stages || []).map(s => s.id === ss.id ? { ...s, name: ss.name } : s)
-      })));
-      setEditingSubStage(null);
-      toast.success('Sub-stage updated');
-    } catch (err) {
-      toast.error('Failed to update sub-stage');
-    }
-  };
-
-  const deleteSubStage = async (ssId, colId) => {
-    if (!window.confirm('Delete this sub-stage?')) return;
-    try {
-      await api.delete(`/kanban/sub-stages/${ssId}`);
-      setColumns(prev => prev.map(c =>
-        c.id === colId ? { ...c, sub_stages: (c.sub_stages || []).filter(s => s.id !== ssId) } : c
-      ));
-      toast.success('Sub-stage deleted');
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to delete sub-stage');
-    }
-  };
-
-  const toggleSelectSS = (colId, ssId) => {
-    setSelectedSS(prev => {
-      const colSet = new Set(prev[colId] || []);
-      colSet.has(ssId) ? colSet.delete(ssId) : colSet.add(ssId);
-      return { ...prev, [colId]: colSet };
-    });
-  };
-
-  const toggleSelectAllSS = (colId, subStages) => {
-    setSelectedSS(prev => {
-      const colSet = prev[colId] || new Set();
-      const allSelected = subStages.every(ss => colSet.has(ss.id));
-      return { ...prev, [colId]: allSelected ? new Set() : new Set(subStages.map(s => s.id)) };
-    });
-  };
-
-  const bulkDeleteSS = async (colId) => {
-    const ids = [...(selectedSS[colId] || [])];
-    if (!ids.length) return;
-    if (!window.confirm(`Delete ${ids.length} sub-stage${ids.length > 1 ? 's' : ''}?`)) return;
-    try {
-      await Promise.all(ids.map(id => api.delete(`/kanban/sub-stages/${id}`)));
-      setColumns(prev => prev.map(c =>
-        c.id === colId ? { ...c, sub_stages: (c.sub_stages || []).filter(s => !ids.includes(s.id)) } : c
-      ));
-      setSelectedSS(prev => ({ ...prev, [colId]: new Set() }));
-      toast.success(`Deleted ${ids.length} sub-stage${ids.length > 1 ? 's' : ''}`);
-    } catch (err) {
-      toast.error('Failed to delete some sub-stages');
+      toast.error(err.response?.data?.error || 'Failed to delete stage');
     }
   };
 
@@ -179,11 +80,11 @@ export default function AdminKanban() {
 
   return (
     <>
-      <Header title="Kanban Board Setup" subtitle="Configure columns and sub-stages for your pipeline" />
+      <Header title="Kanban Board Setup" subtitle="Configure pipeline stages for your board" />
       <div className="page-content admin-kanban-page">
         <div className="kanban-config-layout">
 
-          {/* Left: Config Panel */}
+          {/* Left: Stage Config Panel */}
           <div className="config-panel">
             <div className="config-panel-header">
               <h3>Pipeline Stages</h3>
@@ -191,19 +92,12 @@ export default function AdminKanban() {
             </div>
 
             <div className="config-columns">
-              {columns.map((col, idx) => {
-                const isExpanded = !!expanded[col.id];
-                const isEditingCol = editingColumn?.id === col.id;
-
+              {columns.map((col) => {
+                const isEditing = editingColumn?.id === col.id;
                 return (
                   <div key={col.id} className="config-column">
-                    {/* Column Header Row */}
                     <div className="config-col-header">
-                      <button className="expand-btn" onClick={() => toggleExpand(col.id)}>
-                        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                      </button>
-
-                      {isEditingCol ? (
+                      {isEditing ? (
                         <div className="col-edit-row">
                           <input
                             type="color"
@@ -225,7 +119,6 @@ export default function AdminKanban() {
                         <>
                           <div className="col-color-dot" style={{ background: col.color }} />
                           <span className="col-name">{col.name}</span>
-                          <span className="col-substage-count">{(col.sub_stages || []).length} stages</span>
                           <div className="col-actions">
                             <button className="icon-btn" onClick={() => setEditingColumn({ ...col })} title="Edit"><Pencil size={13} /></button>
                             <button className="icon-btn danger" onClick={() => deleteColumn(col.id)} title="Delete"><Trash2 size={13} /></button>
@@ -233,90 +126,11 @@ export default function AdminKanban() {
                         </>
                       )}
                     </div>
-
-                    {/* Sub-stages */}
-                    {isExpanded && (
-                      <div className="config-substages">
-                        {(col.sub_stages || []).length > 0 && (
-                          <div className="ss-bulk-bar">
-                            <label className="ss-select-all">
-                              <input
-                                type="checkbox"
-                                checked={(col.sub_stages || []).length > 0 && (col.sub_stages || []).every(ss => (selectedSS[col.id] || new Set()).has(ss.id))}
-                                onChange={() => toggleSelectAllSS(col.id, col.sub_stages || [])}
-                              />
-                              <span>Select all</span>
-                            </label>
-                            {(selectedSS[col.id]?.size > 0) && (
-                              <button className="ss-bulk-delete-btn" onClick={() => bulkDeleteSS(col.id)}>
-                                <Trash2 size={11} /> Delete {selectedSS[col.id].size} selected
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        {(col.sub_stages || []).map(ss => {
-                          const isEditingSS = editingSubStage?.id === ss.id;
-                          const isChecked = (selectedSS[col.id] || new Set()).has(ss.id);
-                          return (
-                            <div key={ss.id} className={`config-substage ${isChecked ? 'selected' : ''}`}>
-                              {isEditingSS ? (
-                                <div className="ss-edit-row">
-                                  <input
-                                    className="ss-name-input"
-                                    value={editingSubStage.name}
-                                    onChange={e => setEditingSubStage(p => ({ ...p, name: e.target.value }))}
-                                    onKeyDown={e => e.key === 'Enter' && updateSubStage(editingSubStage)}
-                                    autoFocus
-                                  />
-                                  <button className="icon-btn success" onClick={() => updateSubStage(editingSubStage)}><Check size={12} /></button>
-                                  <button className="icon-btn" onClick={() => setEditingSubStage(null)}><X size={12} /></button>
-                                </div>
-                              ) : (
-                                <>
-                                  <input
-                                    type="checkbox"
-                                    className="ss-checkbox"
-                                    checked={isChecked}
-                                    onChange={() => toggleSelectSS(col.id, ss.id)}
-                                  />
-                                  <div className="ss-dot" />
-                                  <span className="ss-name">{ss.name}</span>
-                                  <div className="ss-actions">
-                                    <button className="icon-btn sm" onClick={() => setEditingSubStage({ ...ss })}><Pencil size={11} /></button>
-                                    <button className="icon-btn sm danger" onClick={() => deleteSubStage(ss.id, col.id)}><Trash2 size={11} /></button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          );
-                        })}
-
-                        {/* Add sub-stage */}
-                        {addingSubStage === col.id ? (
-                          <div className="add-ss-row">
-                            <input
-                              className="ss-name-input"
-                              placeholder="Sub-stage name..."
-                              value={newSubStageNames[col.id] || ''}
-                              onChange={e => setNewSubStageNames(p => ({ ...p, [col.id]: e.target.value }))}
-                              onKeyDown={e => e.key === 'Enter' && createSubStage(col.id)}
-                              autoFocus
-                            />
-                            <button className="icon-btn success" onClick={() => createSubStage(col.id)}><Check size={12} /></button>
-                            <button className="icon-btn" onClick={() => setAddingSubStage(null)}><X size={12} /></button>
-                          </div>
-                        ) : (
-                          <button className="add-ss-btn" onClick={() => setAddingSubStage(col.id)}>
-                            <Plus size={12} /> Add Sub-Stage
-                          </button>
-                        )}
-                      </div>
-                    )}
                   </div>
                 );
               })}
 
-              {/* Add Column */}
+              {/* Add Stage */}
               {showNewColumn ? (
                 <div className="add-col-form">
                   <div className="add-col-row">
@@ -328,7 +142,7 @@ export default function AdminKanban() {
                     />
                     <input
                       className="col-name-input"
-                      placeholder="Column name..."
+                      placeholder="Stage name..."
                       value={newColumnForm.name}
                       onChange={e => setNewColumnForm(p => ({ ...p, name: e.target.value }))}
                       onKeyDown={e => e.key === 'Enter' && createColumn()}
@@ -340,7 +154,7 @@ export default function AdminKanban() {
                 </div>
               ) : (
                 <button className="add-col-btn" onClick={() => setShowNewColumn(true)}>
-                  <Plus size={14} /> Add Column
+                  <Plus size={14} /> Add Stage
                 </button>
               )}
             </div>
@@ -355,74 +169,33 @@ export default function AdminKanban() {
             </div>
             <div className="preview-board">
               {columns.map((col, colIdx) => {
-                const subStages = col.sub_stages || [];
-                const cardsForCol = DUMMY_CARDS.filter((_, i) => i % columns.length === colIdx % columns.length);
-
-                if (subStages.length === 0) {
-                  return (
-                    <div key={col.id} className="preview-col-group">
-                      <div className="preview-col-title" style={{ borderTopColor: col.color }}>
-                        <div className="preview-col-dot" style={{ background: col.color }} />
-                        <span>{col.name}</span>
-                        <span className="preview-col-count">{cardsForCol.length}</span>
-                      </div>
-                      <div className="preview-substage-cols">
-                        <div className="preview-substage-col">
-                          <div className="preview-substage-header">—</div>
-                          <div className="preview-cards">
-                            {cardsForCol.slice(0, 2).map(card => (
-                              <div key={card.id} className="preview-card">
-                                <div className="preview-card-dot" style={{ background: PRIORITY_COLORS[card.priority] }} />
-                                <div className="preview-card-title">{card.title}</div>
-                                <div className="preview-card-meta">
-                                  <span>{card.company}</span>
-                                  <span className="preview-card-value">{card.value}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
+                const cards = DUMMY_CARDS.filter((_, i) => i % columns.length === colIdx % columns.length);
                 return (
                   <div key={col.id} className="preview-col-group">
                     <div className="preview-col-title" style={{ borderTopColor: col.color }}>
                       <div className="preview-col-dot" style={{ background: col.color }} />
                       <span>{col.name}</span>
-                      <span className="preview-col-count">{cardsForCol.length}</span>
+                      <span className="preview-col-count">{cards.length}</span>
                     </div>
-                    <div className="preview-substage-cols">
-                      {subStages.map((ss, ssIdx) => {
-                        const ssCards = cardsForCol.filter((_, i) => i % subStages.length === ssIdx % subStages.length);
-                        return (
-                          <div key={ss.id} className="preview-substage-col">
-                            <div className="preview-substage-header">{ss.name}</div>
-                            <div className="preview-cards">
-                              {ssCards.slice(0, 2).map(card => (
-                                <div key={card.id} className="preview-card">
-                                  <div className="preview-card-dot" style={{ background: PRIORITY_COLORS[card.priority] }} />
-                                  <div className="preview-card-title">{card.title}</div>
-                                  <div className="preview-card-meta">
-                                    <span>{card.company}</span>
-                                    <span className="preview-card-value">{card.value}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                    <div className="preview-cards">
+                      {cards.slice(0, 2).map(card => (
+                        <div key={card.id} className="preview-card">
+                          <div className="preview-card-dot" style={{ background: PRIORITY_COLORS[card.priority] }} />
+                          <div className="preview-card-title">{card.title}</div>
+                          <div className="preview-card-meta">
+                            <span>{card.company}</span>
+                            <span className="preview-card-value">{card.value}</span>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );
               })}
               {columns.length === 0 && (
                 <div className="preview-empty">
-                  <p>No columns configured yet</p>
-                  <p>Add columns on the left to see preview</p>
+                  <p>No stages configured yet</p>
+                  <p>Add stages on the left to see preview</p>
                 </div>
               )}
             </div>

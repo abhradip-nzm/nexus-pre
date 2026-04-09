@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  DndContext, closestCenter, KeyboardSensor, PointerSensor,
+  DndContext, closestCenter, PointerSensor, KeyboardSensor,
   useSensor, useSensors, DragOverlay, useDroppable
 } from '@dnd-kit/core';
 import {
-  SortableContext, verticalListSortingStrategy,
-  useSortable, arrayMove
+  SortableContext, verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  Plus, Search, X, Eye
-} from 'lucide-react';
+import { Plus, Search, X, Eye } from 'lucide-react';
 import Header from '../components/layout/Header';
 import StoryModal from '../components/kanban/StoryModal';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
@@ -24,8 +21,19 @@ const PRIORITY_COLORS = {
   critical: '#dc3545', high: '#e67e22', medium: '#f59e0b', low: '#28a745'
 };
 
-// Draggable Story Card
-function StoryCard({ story, onView }) {
+// Build a flat lookup: sub_stage_id -> sub_stage_name from all columns
+function buildSubStageMap(columns) {
+  const map = {};
+  columns.forEach(col => {
+    (col.sub_stages || []).forEach(ss => {
+      map[ss.id] = ss.name;
+    });
+  });
+  return map;
+}
+
+// ── Draggable Story Card ──────────────────────────────────────────────────────
+function StoryCard({ story, subStageName, columnName, onView }) {
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging
   } = useSortable({ id: story.id });
@@ -60,6 +68,13 @@ function StoryCard({ story, onView }) {
         <div className="story-company">
           <span className="company-dot" />
           {story.client_company}
+        </div>
+      )}
+
+      {/* Stage + Sub-stage tags */}
+      {subStageName && (
+        <div className="story-stage-tags">
+          <span className="story-substage-tag">{subStageName}</span>
         </div>
       )}
 
@@ -100,89 +115,55 @@ function StoryCard({ story, onView }) {
   );
 }
 
-// Sub-stage column (droppable + sortable)
-function SubStageColumn({ colId, subStage, stories, onAdd, onView }) {
-  const droppableId = subStage ? `${colId}_${subStage.id}` : `${colId}_null`;
+// ── Single droppable column for one stage ─────────────────────────────────────
+function StageColumn({ column, stories, subStageMap, onAdd, onView }) {
+  const droppableId = `col_${column.id}`;
   const { setNodeRef, isOver } = useDroppable({ id: droppableId });
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`kanban-substage-col ${isOver ? 'drop-over' : ''}`}
-    >
-      <div className="substage-col-header">
-        <span className="substage-col-name">{subStage ? subStage.name : 'General'}</span>
-        <span className="substage-col-count">{stories.length}</span>
-      </div>
-      <SortableContext items={stories.map(s => s.id)} strategy={verticalListSortingStrategy}>
-        <div className="substage-col-cards">
-          {stories.map(story => (
-            <StoryCard key={story.id} story={story} onView={onView} />
-          ))}
-          {stories.length === 0 && (
-            <div className="substage-col-empty">Drop here</div>
-          )}
-        </div>
-      </SortableContext>
-    </div>
-  );
-}
-
-// Status group (one per column)
-function StatusGroup({ column, stories, onAdd, onView }) {
-  const subStages = column.sub_stages || [];
-  const totalCount = stories.length;
-
-  const getStoriesForSubStage = (ssId) => {
-    if (!ssId) {
-      return stories.filter(s => !s.sub_stage_id || !subStages.find(ss => ss.id === s.sub_stage_id));
-    }
-    return stories.filter(s => s.sub_stage_id === ssId);
-  };
-
-  return (
     <div className="kanban-status-group" style={{ '--group-color': column.color }}>
+      {/* Column header */}
       <div className="status-group-header" style={{ borderTopColor: column.color }}>
         <div className="status-group-title">
           <div className="status-group-dot" style={{ background: column.color }} />
           <span className="status-group-name">{column.name}</span>
-          <span className="status-group-count">{totalCount}</span>
+          <span className="status-group-count">{stories.length}</span>
         </div>
         <button className="add-story-btn" onClick={() => onAdd(column.id)} title="Add story">
           <Plus size={13} />
         </button>
       </div>
 
-      <div className="status-group-body">
-        {subStages.length === 0 ? (
-          <SubStageColumn
-            colId={column.id}
-            subStage={null}
-            stories={stories}
-            onAdd={onAdd}
-            onView={onView}
-          />
-        ) : (
-          subStages.map(ss => (
-            <SubStageColumn
-              key={ss.id}
-              colId={column.id}
-              subStage={ss}
-              stories={getStoriesForSubStage(ss.id)}
-              onAdd={onAdd}
+      {/* Drop area — entire column */}
+      <div
+        ref={setNodeRef}
+        className={`stage-drop-area ${isOver ? 'drop-over' : ''}`}
+      >
+        <SortableContext items={stories.map(s => s.id)} strategy={verticalListSortingStrategy}>
+          {stories.map(story => (
+            <StoryCard
+              key={story.id}
+              story={story}
+              subStageName={story.sub_stage_id ? subStageMap[story.sub_stage_id] : null}
+              columnName={column.name}
               onView={onView}
             />
-          ))
-        )}
+          ))}
+          {stories.length === 0 && (
+            <div className="stage-drop-empty">Drop stories here</div>
+          )}
+        </SortableContext>
       </div>
     </div>
   );
 }
 
+// ── Main Kanban Board ─────────────────────────────────────────────────────────
 export default function KanbanBoard() {
   const { canDo, isManager } = useAuth();
   const [columns, setColumns] = useState([]);
-  const [stories, setStories] = useState({});
+  const [stories, setStories] = useState({});    // { colId: [story, ...] }
+  const [subStageMap, setSubStageMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [activeStory, setActiveStory] = useState(null);
   const [viewStory, setViewStory] = useState(null);
@@ -196,11 +177,7 @@ export default function KanbanBoard() {
     useSensor(KeyboardSensor)
   );
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [colRes, storyRes, userRes] = await Promise.all([
         api.get('/kanban/columns'),
@@ -208,8 +185,9 @@ export default function KanbanBoard() {
         api.get('/users').catch(() => ({ data: { users: [] } }))
       ]);
 
-      const cols = colRes.data.columns;
+      const cols = colRes.data.columns || [];
       setColumns(cols);
+      setSubStageMap(buildSubStageMap(cols));
       setUsers(userRes.data.users || []);
 
       const grouped = {};
@@ -220,17 +198,18 @@ export default function KanbanBoard() {
         }
       });
       setStories(grouped);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load kanban board');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleDragStart = (event) => {
-    const allStories = Object.values(stories).flat();
-    const story = allStories.find(s => s.id === event.active.id);
-    setActiveStory(story);
+    const story = Object.values(stories).flat().find(s => s.id === event.active.id);
+    setActiveStory(story || null);
   };
 
   const handleDragEnd = async (event) => {
@@ -241,7 +220,7 @@ export default function KanbanBoard() {
     const activeId = active.id;
     const overId = over.id;
 
-    // Find source info
+    // Find source column
     let sourceColId = null;
     for (const [colId, colStories] of Object.entries(stories)) {
       if (colStories.find(s => s.id === activeId)) {
@@ -249,83 +228,66 @@ export default function KanbanBoard() {
         break;
       }
     }
-    if (!sourceColId) return;
+    if (sourceColId === null) return;
 
-    // Determine dest column and sub_stage from overId
+    // Determine destination column
     let destColId = sourceColId;
-    let destSubStageId = null;
 
-    // Check if dropped on a droppable key like "colId_subStageId" or "colId_null"
-    if (typeof overId === 'string' && overId.includes('_')) {
-      const parts = overId.split('_');
-      destColId = parseInt(parts[0]);
-      destSubStageId = parts[1] === 'null' ? null : parseInt(parts[1]);
+    if (typeof overId === 'string' && overId.startsWith('col_')) {
+      // Dropped directly on a column drop area
+      destColId = parseInt(overId.replace('col_', ''));
     } else {
-      // Dropped on another story
+      // Dropped on another story — find which column it belongs to
       for (const [colId, colStories] of Object.entries(stories)) {
         if (colStories.find(s => s.id === overId)) {
           destColId = parseInt(colId);
-          const overStory = colStories.find(s => s.id === overId);
-          destSubStageId = overStory?.sub_stage_id || null;
           break;
         }
       }
     }
 
-    // Update UI optimistically
-    const newStories = { ...stories };
-    const sourceList = [...(newStories[sourceColId] || [])];
-    const movingStory = sourceList.find(s => s.id === activeId);
+    // When moving to a different column, clear sub_stage_id
+    // When reordering within the same column, preserve it
+    const movingStory = (stories[sourceColId] || []).find(s => s.id === activeId);
     if (!movingStory) return;
+    const newSubStageId = destColId === sourceColId ? (movingStory.sub_stage_id || null) : null;
 
-    newStories[sourceColId] = sourceList.filter(s => s.id !== activeId);
+    // Optimistic UI update
+    const newStories = { ...stories };
+    const sourceList = (newStories[sourceColId] || []).filter(s => s.id !== activeId);
+    newStories[sourceColId] = sourceList;
 
     const destList = [...(newStories[destColId] || [])];
-    const overIdx = typeof overId === 'string' ? destList.length : destList.findIndex(s => s.id === overId);
+    const overIdx = typeof overId === 'string' && overId.startsWith('col_')
+      ? destList.length
+      : destList.findIndex(s => s.id === overId);
     destList.splice(overIdx >= 0 ? overIdx : destList.length, 0, {
       ...movingStory,
       column_id: destColId,
-      sub_stage_id: destSubStageId
+      sub_stage_id: newSubStageId,
     });
     newStories[destColId] = destList;
     setStories(newStories);
 
-    // Calculate position
+    // Compute position
     const targetList = newStories[destColId];
     const idx = targetList.findIndex(s => s.id === activeId);
-    const before = idx > 0 ? targetList[idx - 1].position || (idx * 1000) : 0;
-    const after = idx < targetList.length - 1 ? targetList[idx + 1].position || ((idx + 2) * 1000) : (targetList.length + 1) * 1000;
+    const before = idx > 0 ? (targetList[idx - 1].position || idx * 1000) : 0;
+    const after = idx < targetList.length - 1
+      ? (targetList[idx + 1].position || (idx + 2) * 1000)
+      : (targetList.length + 1) * 1000;
     const position = (before + after) / 2;
 
     try {
       await api.patch(`/stories/${activeId}/move`, {
         column_id: destColId,
-        sub_stage_id: destSubStageId,
+        sub_stage_id: newSubStageId,
         position,
       });
-    } catch (err) {
+    } catch {
       toast.error('Failed to move story');
       loadData();
     }
-  };
-
-  const handleAddStory = (columnId) => {
-    setDefaultColumnId(columnId);
-    setShowCreateModal(true);
-  };
-
-  const handleStoryCreated = (story) => {
-    setStories(prev => ({
-      ...prev,
-      [story.column_id]: [...(prev[story.column_id] || []), story]
-    }));
-    setShowCreateModal(false);
-    toast.success('Story created!');
-  };
-
-  const handleStoryUpdated = () => {
-    loadData();
-    setViewStory(null);
   };
 
   const filteredStories = (colId) => {
@@ -348,7 +310,7 @@ export default function KanbanBoard() {
 
   return (
     <>
-      <Header title="Kanban Board" subtitle="Drag and drop stories to update their stage" />
+      <Header title="Kanban Board" subtitle="Drag and drop stories between stages" />
       <div className="page-content kanban-page">
         <div className="kanban-toolbar">
           <div className="kanban-search">
@@ -366,11 +328,10 @@ export default function KanbanBoard() {
               </button>
             )}
           </div>
-
           <div className="kanban-actions">
             <button
               className="btn btn-primary btn-sm"
-              onClick={() => handleAddStory(columns[0]?.id)}
+              onClick={() => { setDefaultColumnId(columns[0]?.id); setShowCreateModal(true); }}
             >
               <Plus size={14} /> New Story
             </button>
@@ -385,11 +346,12 @@ export default function KanbanBoard() {
         >
           <div className="kanban-board">
             {columns.map(column => (
-              <StatusGroup
+              <StageColumn
                 key={column.id}
                 column={column}
                 stories={filteredStories(column.id)}
-                onAdd={handleAddStory}
+                subStageMap={subStageMap}
+                onAdd={(colId) => { setDefaultColumnId(colId); setShowCreateModal(true); }}
                 onView={setViewStory}
               />
             ))}
@@ -414,7 +376,14 @@ export default function KanbanBoard() {
           columns={columns}
           users={users}
           onClose={() => setShowCreateModal(false)}
-          onSaved={handleStoryCreated}
+          onSaved={(story) => {
+            setStories(prev => ({
+              ...prev,
+              [story.column_id]: [...(prev[story.column_id] || []), story]
+            }));
+            setShowCreateModal(false);
+            toast.success('Story created!');
+          }}
         />
       )}
 
@@ -424,7 +393,7 @@ export default function KanbanBoard() {
           columns={columns}
           users={users}
           onClose={() => setViewStory(null)}
-          onUpdated={handleStoryUpdated}
+          onUpdated={() => { loadData(); setViewStory(null); }}
         />
       )}
     </>
