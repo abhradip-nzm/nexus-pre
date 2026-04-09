@@ -190,12 +190,10 @@
   text-overflow: ellipsis;
 }
 
-/* Story Card — fixed width so cards line up in a consistent grid */
+/* Story Card — fixed width, Jira-style */
 .story-card {
+  flex: 0 0 260px;
   width: 260px;
-  min-width: 260px;
-  max-width: 260px;
-  flex-shrink: 0;
   background: linear-gradient(135deg, #eef4fa 0%, #ffffff 100%);
   border-radius: var(--radius-md);
   padding: 10px;
