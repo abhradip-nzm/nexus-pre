@@ -160,7 +160,7 @@ function App() {
           } />
 
           <Route path="/kanban" element={
-            <ProtectedRoute roles={['super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
+            <ProtectedRoute roles={['system_admin', 'super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
               <AppLayout><Kanban /></AppLayout>
             </ProtectedRoute>
           } />

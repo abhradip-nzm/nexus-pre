@@ -41,6 +41,7 @@ function getNavItems(role) {
 }
 
 const adminNavItems = [
+  { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
   { to: '/admin/users', icon: UserCog, label: 'User Management' },
   { to: '/admin/teams', icon: UsersRound, label: 'Teams' },
   { to: '/admin/business-team', icon: GitBranch, label: 'Business Team' },
