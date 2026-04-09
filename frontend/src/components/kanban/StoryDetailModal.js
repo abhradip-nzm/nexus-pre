@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-  X, Plus, Send, Check, Pencil, Trash2, ChevronDown,
+  X, Plus, Send, Check, Pencil, Trash2,
   Calendar, User, DollarSign, Activity, MessageSquare,
-  CheckSquare, ExternalLink, Clock, Building
+  CheckSquare, ExternalLink, Clock, Building, Briefcase, Users
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDate, formatDateTime, timeAgo, getInitials, getAvatarColor } from '../../utils/helpers';
@@ -13,15 +13,25 @@ import './StoryDetailModal.css';
 
 const TABS = ['Details', 'Tasks', 'Comments', 'Meetings', 'Activity'];
 
+const BT_ROLE_LABELS = {
+  cgo: 'Chief Growth Officer',
+  asd: 'Associate Sales Director',
+  sales_manager: 'Sales Manager',
+  sales_executive: 'Sales Executive',
+};
+
 export default function StoryDetailModal({ storyId, columns, users, onClose, onUpdated }) {
-  const { user, canDo, isManager } = useAuth();
+  const { user, canDo } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Details');
   const [showEdit, setShowEdit] = useState(false);
 
   // Task state
-  const [newTask, setNewTask] = useState('');
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+  const [newTaskAssignees, setNewTaskAssignees] = useState([]);
+  const [showTaskForm, setShowTaskForm] = useState(false);
   const [addingTask, setAddingTask] = useState(false);
 
   // Comment state
@@ -41,13 +51,31 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
     }
   };
 
+  // Assignable users for tasks (managers + executives from users prop)
+  const assignableUsers = users.filter(u =>
+    ['pre_sales_manager', 'pre_sales_executive'].includes(u.role_name)
+  );
+
+  const toggleTaskAssignee = (userId) => {
+    setNewTaskAssignees(prev =>
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
   const addTask = async () => {
-    if (!newTask.trim()) return;
+    if (!newTaskTitle.trim()) return;
     setAddingTask(true);
     try {
-      const res = await api.post(`/stories/${storyId}/tasks`, { title: newTask });
+      const res = await api.post(`/stories/${storyId}/tasks`, {
+        title: newTaskTitle,
+        due_date: newTaskDueDate || null,
+        assignee_ids: newTaskAssignees,
+      });
       setData(prev => ({ ...prev, tasks: [...prev.tasks, res.data.task] }));
-      setNewTask('');
+      setNewTaskTitle('');
+      setNewTaskDueDate('');
+      setNewTaskAssignees([]);
+      setShowTaskForm(false);
     } catch {
       toast.error('Failed to add task');
     } finally {
@@ -88,7 +116,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
     finally { setSendingComment(false); }
   };
 
-  const handleUpdated = (updatedStory) => {
+  const handleUpdated = () => {
     setShowEdit(false);
     loadStory();
     onUpdated?.();
@@ -104,7 +132,17 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
     </div>
   );
 
-  const { story, tasks = [], comments = [], changeLogs = [], meetings = [] } = data || {};
+  const {
+    story,
+    btHierarchy = [],
+    teamAssignments = [],
+    memberAssignments = [],
+    tasks = [],
+    comments = [],
+    changeLogs = [],
+    meetings = []
+  } = data || {};
+
   if (!story) return null;
 
   const completedTasks = tasks.filter(t => t.status === 'done').length;
@@ -113,6 +151,18 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
   const priorityColor = {
     critical: '#dc3545', high: '#e67e22', medium: '#f59e0b', low: '#28a745'
   }[story.priority] || '#718096';
+
+  // Build a human-readable activity sentence
+  const formatActivityText = (log) => {
+    const who = log.changed_by_name;
+    if (log.change_type === 'created') return `${who} created this story`;
+    if (log.change_type === 'moved') return `${who} moved the story`;
+    if (log.change_type === 'update' && log.field_name) {
+      return `${who} updated ${log.field_name}`;
+    }
+    if (log.comment) return `${who} — ${log.comment}`;
+    return `${who} made a change`;
+  };
 
   return (
     <>
@@ -185,7 +235,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
           </div>
 
           <div className="story-detail-body">
-            {/* Details Tab */}
+            {/* ── Details Tab ── */}
             {activeTab === 'Details' && (
               <div className="detail-content">
                 <div className="detail-grid">
@@ -227,6 +277,74 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                       </div>
                     </div>
 
+                    {/* Sales Manager Hierarchy */}
+                    {btHierarchy.length > 0 && (
+                      <div className="detail-section">
+                        <h4 className="detail-section-title"><Briefcase size={11} style={{ display: 'inline', marginRight: 4 }} />Sales Hierarchy</h4>
+                        <div className="bt-hierarchy-chain">
+                          {[...btHierarchy].reverse().map((node, i) => (
+                            <div key={node.id} className="bt-hierarchy-node" style={{ paddingLeft: i * 16 }}>
+                              {i > 0 && <span className="bt-hier-connector">└</span>}
+                              <span className="bt-hier-role-badge">{BT_ROLE_LABELS[node.role] || node.role}</span>
+                              <span className="bt-hier-name">{node.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Team & Member Assignments */}
+                    {(teamAssignments.length > 0 || memberAssignments.length > 0) && (
+                      <div className="detail-section">
+                        <h4 className="detail-section-title"><Users size={11} style={{ display: 'inline', marginRight: 4 }} />Assignments</h4>
+                        {teamAssignments.length > 0 && (
+                          <div className="assignment-group">
+                            <span className="assignment-group-label">Teams</span>
+                            <div className="assignment-chips">
+                              {teamAssignments.map(t => (
+                                <span key={t.team_id} className="assignment-chip team-chip">
+                                  <span
+                                    className="assignment-chip-dot"
+                                    style={{ background: t.accent_color || '#3e72ae' }}
+                                  />
+                                  {t.team_name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {memberAssignments.length > 0 && (
+                          <div className="assignment-group">
+                            <span className="assignment-group-label">Members</span>
+                            <div className="assignment-chips">
+                              {memberAssignments.map(m => (
+                                <span key={m.user_id} className="assignment-chip member-chip">
+                                  <span
+                                    className="avatar"
+                                    style={{
+                                      background: getAvatarColor(m.user_name),
+                                      color: 'white',
+                                      fontSize: '9px',
+                                      width: '18px',
+                                      height: '18px',
+                                      minWidth: '18px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      borderRadius: '50%'
+                                    }}
+                                  >
+                                    {getInitials(m.user_name)}
+                                  </span>
+                                  {m.user_name}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {story.tags?.length > 0 && (
                       <div className="detail-section">
                         <h4 className="detail-section-title">Tags</h4>
@@ -260,27 +378,77 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                       <span className="ss-label">Last Updated</span>
                       <span className="ss-value">{timeAgo(story.updated_at)}</span>
                     </div>
+                    {story.business_team_member_name && (
+                      <div className="sidebar-stat">
+                        <span className="ss-label">Sales Manager</span>
+                        <span className="ss-value">{story.business_team_member_name}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Tasks Tab */}
+            {/* ── Tasks Tab ── */}
             {activeTab === 'Tasks' && (
               <div className="detail-content">
-                <div className="task-add-row">
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Add a sub-task..."
-                    value={newTask}
-                    onChange={e => setNewTask(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && addTask()}
-                  />
-                  <button className="btn btn-primary" onClick={addTask} disabled={addingTask || !newTask.trim()}>
-                    <Plus size={15} /> Add
+                {/* Add task form */}
+                {showTaskForm ? (
+                  <div className="task-add-form">
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Task title..."
+                      value={newTaskTitle}
+                      onChange={e => setNewTaskTitle(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && !e.shiftKey && addTask()}
+                      autoFocus
+                    />
+                    <div className="task-form-row">
+                      <div className="task-form-field">
+                        <label className="task-form-label"><Calendar size={11} /> Due Date</label>
+                        <input
+                          type="date"
+                          className="form-control form-control-sm"
+                          value={newTaskDueDate}
+                          onChange={e => setNewTaskDueDate(e.target.value)}
+                        />
+                      </div>
+                      {assignableUsers.length > 0 && (
+                        <div className="task-form-field task-form-assignees">
+                          <label className="task-form-label"><User size={11} /> Assignees</label>
+                          <div className="task-assignee-checklist">
+                            {assignableUsers.map(u => (
+                              <label key={u.id} className="task-assignee-item">
+                                <input
+                                  type="checkbox"
+                                  checked={newTaskAssignees.includes(u.id)}
+                                  onChange={() => toggleTaskAssignee(u.id)}
+                                />
+                                <span>{u.first_name} {u.last_name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="task-form-actions">
+                      <button className="btn btn-primary btn-sm" onClick={addTask} disabled={addingTask || !newTaskTitle.trim()}>
+                        <Plus size={13} /> Add Task
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => { setShowTaskForm(false); setNewTaskTitle(''); setNewTaskDueDate(''); setNewTaskAssignees([]); }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button className="task-add-trigger" onClick={() => setShowTaskForm(true)}>
+                    <Plus size={14} /> Add Task
                   </button>
-                </div>
+                )}
 
                 <div className="task-list">
                   {tasks.length === 0 ? (
@@ -298,9 +466,33 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                           {task.status === 'done' && <Check size={12} />}
                         </button>
                         <div className="task-content">
-                          <span className="task-title">{task.title}</span>
-                          {task.assigned_to_name && (
-                            <span className="task-assignee">{task.assigned_to_name}</span>
+                          <div className="task-main-row">
+                            <span className="task-title">{task.title}</span>
+                            {task.due_date && (
+                              <span className="task-due-badge">
+                                <Calendar size={10} /> {formatDate(task.due_date, 'MMM d')}
+                              </span>
+                            )}
+                          </div>
+                          {task.assignees?.length > 0 && (
+                            <div className="task-assignees-row">
+                              {task.assignees.map(a => (
+                                <span key={a.id} className="task-assignee-chip">
+                                  <span
+                                    style={{
+                                      width: 16, height: 16, borderRadius: '50%',
+                                      background: getAvatarColor(a.name), color: 'white',
+                                      fontSize: '8px', display: 'inline-flex',
+                                      alignItems: 'center', justifyContent: 'center',
+                                      flexShrink: 0
+                                    }}
+                                  >
+                                    {getInitials(a.name)}
+                                  </span>
+                                  {a.name}
+                                </span>
+                              ))}
+                            </div>
                           )}
                         </div>
                         <button className="task-delete" onClick={() => deleteTask(task.id)}>
@@ -313,7 +505,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
               </div>
             )}
 
-            {/* Comments Tab */}
+            {/* ── Comments Tab ── */}
             {activeTab === 'Comments' && (
               <div className="detail-content">
                 <div className="comment-list">
@@ -376,7 +568,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
               </div>
             )}
 
-            {/* Meetings Tab */}
+            {/* ── Meetings Tab ── */}
             {activeTab === 'Meetings' && (
               <div className="detail-content">
                 {meetings.length === 0 ? (
@@ -412,7 +604,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
               </div>
             )}
 
-            {/* Activity/Changelog Tab */}
+            {/* ── Activity Tab ── */}
             {activeTab === 'Activity' && (
               <div className="detail-content">
                 {changeLogs.length === 0 ? (
@@ -433,17 +625,19 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                         <div className="changelog-content">
                           <div className="changelog-text">
                             <strong>{log.changed_by_name}</strong>
-                            {log.change_type === 'created' && ' created this story'}
-                            {log.change_type === 'moved' && ' moved to a new stage'}
-                            {log.change_type === 'update' && log.field_name && (
-                              <> updated <em>{log.field_name.replace(/_/g, ' ')}</em></>
+                            {' '}
+                            {log.change_type === 'created' && 'created this story'}
+                            {log.change_type === 'moved' && (
+                              <>moved the story from <em>{log.old_value}</em> to <em>{log.new_value}</em></>
                             )}
-                            {log.change_type === 'meeting_added' && ` — ${log.comment}`}
-                            {log.comment && log.change_type !== 'meeting_added' && (
-                              <span className="changelog-comment"> "{log.comment}"</span>
+                            {log.change_type === 'update' && log.field_name && (
+                              <>updated <em>{log.field_name}</em></>
+                            )}
+                            {log.change_type === 'update' && !log.field_name && log.comment && (
+                              <> — {log.comment}</>
                             )}
                           </div>
-                          {log.old_value && log.new_value && (
+                          {log.change_type === 'update' && log.old_value && log.new_value && (
                             <div className="changelog-diff">
                               <span className="diff-old">{log.old_value}</span>
                               <span className="diff-arrow">→</span>
@@ -467,6 +661,8 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
           story={story}
           columns={columns}
           users={users}
+          existingTeamIds={teamAssignments.map(t => t.team_id)}
+          existingMemberIds={memberAssignments.map(m => m.user_id)}
           onClose={() => setShowEdit(false)}
           onSaved={handleUpdated}
         />

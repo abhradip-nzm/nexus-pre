@@ -342,6 +342,30 @@ const migrations = [
     parent_id INTEGER REFERENCES business_team(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
+  )`,
+
+  // Business team member tagging on user stories
+  `ALTER TABLE user_stories ADD COLUMN IF NOT EXISTS business_team_member_id INTEGER REFERENCES business_team(id) ON DELETE SET NULL`,
+
+  // Story ↔ Team assignments (a story can be assigned to one or more teams)
+  `CREATE TABLE IF NOT EXISTS story_team_assignments (
+    story_id UUID REFERENCES user_stories(id) ON DELETE CASCADE,
+    team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
+    PRIMARY KEY (story_id, team_id)
+  )`,
+
+  // Story ↔ Member assignments (individual user assignments)
+  `CREATE TABLE IF NOT EXISTS story_member_assignments (
+    story_id UUID REFERENCES user_stories(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (story_id, user_id)
+  )`,
+
+  // Task assignees (multiple assignees per task)
+  `CREATE TABLE IF NOT EXISTS task_assignees (
+    task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (task_id, user_id)
   )`
 ];
 

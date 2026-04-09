@@ -84,3 +84,98 @@
 .priority-btn.priority-high.active { background: #fde8d8; color: #9a3412; border-color: #fb923c; }
 .priority-btn.priority-critical.active { background: #fde8ea; color: #9b1c1c; border-color: #fca5a5; }
 .priority-btn:hover { background: var(--bg-secondary); }
+
+/* Sales Manager hierarchy breadcrumb */
+.sm-hierarchy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--primary-50);
+  border-radius: var(--radius);
+  border: 1px solid var(--primary-100);
+}
+
+.sm-hierarchy-node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sm-hierarchy-arrow {
+  color: var(--primary);
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+.sm-hierarchy-role {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sm-hierarchy-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Assignment checklists */
+.assign-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  overflow-y: auto;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px;
+}
+
+.assign-check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition);
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.assign-check-item:hover { background: var(--bg-secondary); }
+
+.assign-check-item input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.assign-check-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.assign-check-label {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.assign-check-role {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}

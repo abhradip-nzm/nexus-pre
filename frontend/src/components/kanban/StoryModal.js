@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, User, DollarSign, Calendar, Tag, Building } from 'lucide-react';
+import { X, Save, User, DollarSign, Calendar, Tag, Building, Briefcase, Users } from 'lucide-react';
 import api from '../../utils/api';
 import PhoneInput from '../PhoneInput';
 import toast from 'react-hot-toast';
@@ -7,7 +7,23 @@ import './StoryModal.css';
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 
-export default function StoryModal({ story, columnId, columns, users, onClose, onSaved }) {
+const BT_ROLE_LABELS = {
+  cgo: 'CGO',
+  asd: 'ASD',
+  sales_manager: 'Sales Manager',
+  sales_executive: 'Sales Executive',
+};
+
+export default function StoryModal({
+  story,
+  columnId,
+  columns,
+  users,
+  existingTeamIds = [],
+  existingMemberIds = [],
+  onClose,
+  onSaved
+}) {
   const isEdit = !!story;
 
   const [form, setForm] = useState({
@@ -24,19 +40,76 @@ export default function StoryModal({ story, columnId, columns, users, onClose, o
     estimated_value: story?.estimated_value || '',
     due_date: story?.due_date ? story.due_date.slice(0, 10) : '',
     tags: story?.tags || [],
+    business_team_member_id: story?.business_team_member_id || '',
+    team_ids: existingTeamIds,
+    member_ids: existingMemberIds,
   });
 
   const [saving, setSaving] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const [businessTeam, setBusinessTeam] = useState([]);
+  const [teams, setTeams] = useState([]);
+
+  // Load business team and teams data
+  useEffect(() => {
+    Promise.all([
+      api.get('/business-team').catch(() => ({ data: [] })),
+      api.get('/teams').catch(() => ({ data: { teams: [] } })),
+    ]).then(([btRes, teamsRes]) => {
+      const btData = Array.isArray(btRes.data) ? btRes.data : [];
+      setBusinessTeam(btData);
+      setTeams(teamsRes.data.teams || []);
+    });
+  }, []);
 
   const selectedColumn = columns.find(c => String(c.id) === String(form.column_id));
   const subStages = selectedColumn?.sub_stages || [];
+
+  // Sales managers from business team
+  const salesManagers = businessTeam.filter(m => m.role === 'sales_manager');
+
+  // Assignable users: pre_sales_manager and pre_sales_executive
+  const assignableUsers = users.filter(u =>
+    ['pre_sales_manager', 'pre_sales_executive'].includes(u.role_name)
+  );
+
+  // Build hierarchy chain for a selected SM (SM → ASD → CGO)
+  const getSmHierarchy = (smId) => {
+    if (!smId) return [];
+    const chain = [];
+    let current = businessTeam.find(m => m.id === parseInt(smId));
+    while (current) {
+      chain.unshift(current);
+      current = current.parent_id ? businessTeam.find(m => m.id === current.parent_id) : null;
+    }
+    return chain;
+  };
+
+  const smHierarchy = getSmHierarchy(form.business_team_member_id);
 
   const handleChange = (field, value) => {
     setForm(prev => ({
       ...prev,
       [field]: value,
       ...(field === 'column_id' ? { sub_stage_id: '' } : {})
+    }));
+  };
+
+  const toggleTeam = (teamId) => {
+    setForm(prev => ({
+      ...prev,
+      team_ids: prev.team_ids.includes(teamId)
+        ? prev.team_ids.filter(id => id !== teamId)
+        : [...prev.team_ids, teamId]
+    }));
+  };
+
+  const toggleMember = (userId) => {
+    setForm(prev => ({
+      ...prev,
+      member_ids: prev.member_ids.includes(userId)
+        ? prev.member_ids.filter(id => id !== userId)
+        : [...prev.member_ids, userId]
     }));
   };
 
@@ -70,6 +143,7 @@ export default function StoryModal({ story, columnId, columns, users, onClose, o
         sub_stage_id: form.sub_stage_id || null,
         assigned_to: form.assigned_to || null,
         due_date: form.due_date || null,
+        business_team_member_id: form.business_team_member_id || null,
       };
 
       let res;
@@ -238,6 +312,79 @@ export default function StoryModal({ story, columnId, columns, users, onClose, o
                     ))}
                   </select>
                 </div>
+
+                {/* Sales Manager from Business Team */}
+                <div className="form-group">
+                  <label className="form-label"><Briefcase size={12} /> Sales Manager</label>
+                  <select
+                    className="form-control"
+                    value={form.business_team_member_id}
+                    onChange={e => handleChange('business_team_member_id', e.target.value)}
+                  >
+                    <option value="">None</option>
+                    {salesManagers.map(sm => (
+                      <option key={sm.id} value={sm.id}>{sm.name}</option>
+                    ))}
+                  </select>
+                  {smHierarchy.length > 1 && (
+                    <div className="sm-hierarchy">
+                      {smHierarchy.map((node, i) => (
+                        <span key={node.id} className="sm-hierarchy-node">
+                          {i > 0 && <span className="sm-hierarchy-arrow">›</span>}
+                          <span className="sm-hierarchy-role">{BT_ROLE_LABELS[node.role] || node.role}</span>
+                          <span className="sm-hierarchy-name">{node.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Team Assignment */}
+                {teams.length > 0 && (
+                  <div className="form-group">
+                    <label className="form-label"><Users size={12} /> Assign to Teams</label>
+                    <div className="assign-checklist">
+                      {teams.map(team => (
+                        <label key={team.id} className="assign-check-item">
+                          <input
+                            type="checkbox"
+                            checked={form.team_ids.includes(team.id)}
+                            onChange={() => toggleTeam(team.id)}
+                          />
+                          <span
+                            className="assign-check-dot"
+                            style={{ background: team.accent_color || '#3e72ae' }}
+                          />
+                          <span className="assign-check-label">{team.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Individual Member Assignment */}
+                {assignableUsers.length > 0 && (
+                  <div className="form-group">
+                    <label className="form-label"><User size={12} /> Assign Members</label>
+                    <div className="assign-checklist">
+                      {assignableUsers.map(u => (
+                        <label key={u.id} className="assign-check-item">
+                          <input
+                            type="checkbox"
+                            checked={form.member_ids.includes(u.id)}
+                            onChange={() => toggleMember(u.id)}
+                          />
+                          <span className="assign-check-label">
+                            {u.first_name} {u.last_name}
+                          </span>
+                          <span className="assign-check-role">
+                            {u.role_name === 'pre_sales_manager' ? 'Manager' : 'Executive'}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label className="form-label">Priority</label>

@@ -123,7 +123,7 @@ router.put('/users/:id/access-overrides', authenticate, requireSystemAdmin, upda
 
 // Teams
 const { getTeams, createTeam, updateTeam, deleteTeam } = require('../controllers/teamController');
-router.get('/teams', authenticate, requireSystemAdmin, getTeams);
+router.get('/teams', authenticate, getTeams);
 router.post('/teams', authenticate, requireSystemAdmin, createTeam);
 router.put('/teams/:id', authenticate, requireSystemAdmin, updateTeam);
 router.delete('/teams/:id', authenticate, requireSystemAdmin, deleteTeam);
@@ -149,8 +149,8 @@ router.delete('/industries/:id', authenticate, requireSystemAdmin, deleteIndustr
 
 // Business Team
 const { getAll: getBizTeam, getTree: getBizTree, create: createBizMember, update: updateBizMember, remove: deleteBizMember } = require('../controllers/businessTeamController');
-router.get('/business-team', authenticate, requireSystemAdmin, getBizTeam);
-router.get('/business-team/tree', authenticate, requireSystemAdmin, getBizTree);
+router.get('/business-team', authenticate, getBizTeam);
+router.get('/business-team/tree', authenticate, getBizTree);
 router.post('/business-team', authenticate, requireSystemAdmin, createBizMember);
 router.put('/business-team/:id', authenticate, requireSystemAdmin, updateBizMember);
 router.delete('/business-team/:id', authenticate, requireSystemAdmin, deleteBizMember);
