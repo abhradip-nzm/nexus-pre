@@ -338,10 +338,13 @@
 }
 
 .story-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   font-size: 9px;
   color: var(--text-muted);
   background: var(--bg-tertiary);
-  padding: 1px 4px;
+  padding: 2px 5px;
   border-radius: 3px;
   white-space: nowrap;
 }

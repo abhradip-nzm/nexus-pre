@@ -7,7 +7,7 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Search, X, Eye, Building } from 'lucide-react';
+import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare } from 'lucide-react';
 import Header from '../components/layout/Header';
 import StoryModal from '../components/kanban/StoryModal';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
@@ -65,6 +65,7 @@ function StoryCard({ story, subStageName, onView }) {
           <span className="story-source">{getSourceIcon(story.source)}</span>
           <button
             className="story-more-btn"
+            onPointerDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onView(story); }}
             title="View details"
           >
@@ -72,7 +73,11 @@ function StoryCard({ story, subStageName, onView }) {
           </button>
         </div>
 
-        <div className="story-title" onClick={() => onView(story)}>
+        <div
+          className="story-title"
+          onPointerDown={e => e.stopPropagation()}
+          onClick={() => onView(story)}
+        >
           {story.title}
         </div>
 
@@ -121,11 +126,13 @@ function StoryCard({ story, subStageName, onView }) {
             )}
             {story.task_count > 0 && (
               <span className="story-count-badge">
-                ✓ {story.completed_task_count}/{story.task_count}
+                <CheckSquare size={9} /> {story.completed_task_count}/{story.task_count}
               </span>
             )}
             {story.comment_count > 0 && (
-              <span className="story-count-badge">💬 {story.comment_count}</span>
+              <span className="story-count-badge">
+                <MessageSquare size={9} /> {story.comment_count}
+              </span>
             )}
           </div>
         </div>
