@@ -28,11 +28,11 @@ const PRIORITY_COLORS = {
 const ACTIVITY_ICONS = {
   created: '✦',
   moved: '→',
-  update: '✎',
-  meeting_added: '📅',
+  update: '~',
+  meeting_added: '◎',
 };
 
-export default function StoryDetailModal({ storyId, columns, users, onClose, onUpdated }) {
+export default function StoryDetailModal({ storyId, columns, users, onClose, onUpdated, readOnly = false }) {
   const { user, canDo } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -262,7 +262,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
             </div>
 
             <div className="story-detail-actions">
-              {canDo('user_stories', 'update') && (
+              {!readOnly && canDo('user_stories', 'update') && (
                 <button className="btn btn-secondary btn-sm" onClick={() => setShowEdit(true)}>
                   <Pencil size={14} /> Edit
                 </button>
@@ -617,11 +617,11 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                       return (
                         <div key={task.id} className={`task-item ${isDone ? 'done' : ''}`}>
                           <button
-                            className={`task-complete-btn ${isDone ? 'task-complete-btn--done' : ''}`}
+                            className={`task-check ${isDone ? 'checked' : ''}`}
                             onClick={() => toggleTask(task)}
                             title={isDone ? 'Mark incomplete' : 'Mark complete'}
                           >
-                            {isDone ? <CheckCircle2 size={20} /> : <Circle size={20} />}
+                            {isDone && <Check size={11} />}
                           </button>
                           <div className="task-content">
                             <div className="task-main-row">

@@ -147,8 +147,10 @@
 }
 
 .cal-nav-today {
-  padding: 0 12px;
+  padding: 0 14px;
   height: 32px;
+  white-space: nowrap;
+  min-width: max-content;
 }
 
 .cal-nav-title {
@@ -290,13 +292,25 @@
   background: rgba(0,0,0,0.1);
 }
 
-.cal-task-bar-text {
+/* Clickable body area of bar */
+.cal-task-bar-body {
   flex: 1;
   min-width: 0;
   padding: 0 6px 0 4px;
   display: flex;
   align-items: center;
   overflow: hidden;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  height: 100%;
+  text-align: left;
+  transition: background var(--transition);
+}
+
+.cal-task-bar-body:hover {
+  background: rgba(0,0,0,0.12);
 }
 
 .cal-task-bar-title {
@@ -438,6 +452,29 @@
 .mytasks-list-badge--upcoming  { background: #f1f5f9; color: #64748b; }
 .mytasks-list-badge--overdue   { background: #fee2e2; color: #dc2626; }
 .mytasks-list-badge--completed { background: #dcfce7; color: #16a34a; }
+
+/* View Story button in list */
+.mytasks-view-story-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.mytasks-view-story-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-50);
+}
 
 @media (max-width: 600px) {
   .mytasks-list-right { flex-direction: column; align-items: flex-end; gap: 4px; }

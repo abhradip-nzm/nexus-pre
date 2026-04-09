@@ -364,9 +364,13 @@
   color: var(--text-secondary);
   transition: all var(--transition);
   user-select: none;
+  white-space: nowrap;
 }
 
-.task-assignee-item input[type="checkbox"] { display: none; }
+.task-assignee-item input[type="checkbox"] {
+  display: none;
+  accent-color: var(--primary);
+}
 
 .task-assignee-item:hover { border-color: var(--primary); color: var(--primary); }
 .task-assignee-item.selected { border-color: var(--primary); background: var(--primary-50); color: var(--primary-dark); }
@@ -466,27 +470,6 @@
 
 .task-item:hover .task-delete { opacity: 1; }
 .task-delete:hover { color: var(--error); background: var(--error-light); }
-
-/* Prominent complete toggle button */
-.task-complete-btn {
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  border-radius: 50%;
-  border: 2px solid var(--border-dark);
-  background: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all var(--transition);
-  color: var(--text-muted);
-  margin-top: 1px;
-  flex-shrink: 0;
-}
-.task-complete-btn:hover { border-color: #22c55e; color: #22c55e; background: #f0fdf4; }
-.task-complete-btn--done { background: #22c55e; border-color: #22c55e; color: white; }
-.task-complete-btn--done:hover { background: #16a34a; border-color: #16a34a; }
 
 /* Date range badge */
 .task-date-range {

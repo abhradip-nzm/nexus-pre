@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   ChevronLeft, ChevronRight, CalendarCheck, CheckSquare,
-  CheckCircle2, Circle, Clock, AlertCircle
+  CheckCircle2, Circle, Clock, AlertCircle, ExternalLink
 } from 'lucide-react';
 import Header from '../components/layout/Header';
+import StoryDetailModal from '../components/kanban/StoryDetailModal';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import './MyTasks.css';
@@ -62,7 +63,7 @@ function assignLanes(bars) {
 }
 
 // ── Week Row ──────────────────────────────────────────────────────────────────
-function WeekRow({ weekDays, taskBars, today, onToggleComplete }) {
+function WeekRow({ weekDays, taskBars, today, onToggleComplete, onViewStory }) {
   const { bars, laneCount } = assignLanes(taskBars);
   const BAR_H = 24;
   const BAR_GAP = 3;
@@ -104,7 +105,6 @@ function WeekRow({ weekDays, taskBars, today, onToggleComplete }) {
                 top: `${top}px`,
                 height: `${BAR_H}px`,
               }}
-              title={`${bar.task.title}\n${bar.task.story_title}\n${isDone ? 'Completed' : 'Click circle to toggle complete'}`}
             >
               <button
                 className={`cal-task-toggle${isDone ? ' cal-task-toggle--done' : ''}`}
@@ -114,10 +114,15 @@ function WeekRow({ weekDays, taskBars, today, onToggleComplete }) {
               >
                 {isDone ? <CheckCircle2 size={13} /> : <Circle size={13} />}
               </button>
-              <div className="cal-task-bar-text">
+              <button
+                className="cal-task-bar-body"
+                onMouseDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); onViewStory(bar.task.story_id); }}
+                title={`View story: ${bar.task.story_title}`}
+              >
                 <span className="cal-task-bar-title">{bar.task.title}</span>
                 <span className="cal-task-bar-story"> · {bar.task.story_title}</span>
-              </div>
+              </button>
             </div>
           );
         })}
@@ -135,6 +140,7 @@ export default function MyTasks() {
   const [month, setMonth] = useState(today.getMonth());
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewingStoryId, setViewingStoryId] = useState(null);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -229,6 +235,15 @@ export default function MyTasks() {
 
   return (
     <>
+      {viewingStoryId && (
+        <StoryDetailModal
+          storyId={viewingStoryId}
+          columns={[]}
+          users={[]}
+          readOnly={true}
+          onClose={() => setViewingStoryId(null)}
+        />
+      )}
       <Header title="My Tasks" subtitle="Your assigned tasks across all user stories" />
       <div className="page-content mytasks-page">
 
@@ -306,6 +321,7 @@ export default function MyTasks() {
                 taskBars={getWeekBars(weekDays)}
                 today={today}
                 onToggleComplete={handleToggleComplete}
+                onViewStory={setViewingStoryId}
               />
             ))}
           </div>
@@ -347,6 +363,14 @@ export default function MyTasks() {
                       <span className={`mytasks-list-badge mytasks-list-badge--${cat}`}>
                         {cat === 'active' ? 'In Progress' : cat === 'overdue' ? 'Overdue' : cat === 'upcoming' ? 'Upcoming' : 'Completed'}
                       </span>
+                      <button
+                        className="mytasks-view-story-btn"
+                        onClick={() => setViewingStoryId(task.story_id)}
+                        title="View story"
+                      >
+                        <ExternalLink size={13} />
+                        <span>Story</span>
+                      </button>
                     </div>
                   </div>
                 );

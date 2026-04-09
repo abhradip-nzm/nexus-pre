@@ -194,11 +194,11 @@
 .story-card {
   flex: 0 0 260px;
   width: 260px;
-  background: white;
+  background: linear-gradient(135deg, #f4f8fd 0%, #f0f9f6 100%);
   border-radius: var(--radius-md);
   padding: 0;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  border: 1.5px solid var(--border-light);
+  border: 1.5px solid rgba(62, 114, 174, 0.14);
   cursor: grab;
   transition: box-shadow var(--transition), border-color var(--transition), transform var(--transition);
   user-select: none;
@@ -207,8 +207,9 @@
 
 .story-card:hover {
   box-shadow: var(--shadow-md);
-  border-color: var(--border);
+  border-color: rgba(62, 114, 174, 0.3);
   transform: translateY(-1px);
+  background: linear-gradient(135deg, #deeaf8 0%, #d4eeea 100%);
 }
 
 .story-card:active { cursor: grabbing; }
