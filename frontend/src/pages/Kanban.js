@@ -7,7 +7,7 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Search, X, Eye } from 'lucide-react';
+import { Plus, Search, X, Eye, Building } from 'lucide-react';
 import Header from '../components/layout/Header';
 import StoryModal from '../components/kanban/StoryModal';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
@@ -33,7 +33,7 @@ function buildSubStageMap(columns) {
 }
 
 // ── Draggable Story Card ──────────────────────────────────────────────────────
-function StoryCard({ story, subStageName, columnName, onView }) {
+function StoryCard({ story, subStageName, onView }) {
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging
   } = useSortable({ id: story.id });
@@ -44,6 +44,8 @@ function StoryCard({ story, subStageName, columnName, onView }) {
     opacity: isDragging ? 0.4 : 1,
   };
 
+  const priorityColor = PRIORITY_COLORS[story.priority] || '#e2e8f0';
+
   return (
     <div
       ref={setNodeRef}
@@ -52,63 +54,80 @@ function StoryCard({ story, subStageName, columnName, onView }) {
       {...attributes}
       {...listeners}
     >
-      <div className="story-card-header">
-        <div className="story-priority-dot" style={{ background: PRIORITY_COLORS[story.priority] || '#e2e8f0' }} />
-        <span className="story-source">{getSourceIcon(story.source)}</span>
-        <button className="story-more-btn" onClick={(e) => { e.stopPropagation(); onView(story); }}>
-          <Eye size={12} />
-        </button>
-      </div>
+      {/* Priority stripe */}
+      <div className="story-card-priority-bar" style={{ background: priorityColor }} />
 
-      <div className="story-title" onClick={() => onView(story)}>
-        {story.title}
-      </div>
-
-      {story.client_company && (
-        <div className="story-company">
-          <span className="company-dot" />
-          {story.client_company}
-        </div>
-      )}
-
-      {/* Stage + Sub-stage tags */}
-      {subStageName && (
-        <div className="story-stage-tags">
-          <span className="story-substage-tag">{subStageName}</span>
-        </div>
-      )}
-
-      <div className="story-card-footer">
-        {story.assigned_to_name && (
-          <div
-            className="avatar avatar-sm"
-            style={{
-              background: getAvatarColor(story.assigned_to_name),
-              color: 'white',
-              fontSize: '10px',
-              width: '22px',
-              height: '22px'
-            }}
-            title={story.assigned_to_name}
+      <div className="story-card-inner">
+        <div className="story-card-header">
+          <span className="story-priority-label" style={{ color: priorityColor, background: `${priorityColor}18` }}>
+            {story.priority}
+          </span>
+          <span className="story-source">{getSourceIcon(story.source)}</span>
+          <button
+            className="story-more-btn"
+            onClick={e => { e.stopPropagation(); onView(story); }}
+            title="View details"
           >
-            {getInitials(story.assigned_to_name)}
+            <Eye size={12} />
+          </button>
+        </div>
+
+        <div className="story-title" onClick={() => onView(story)}>
+          {story.title}
+        </div>
+
+        {story.client_company && (
+          <div className="story-company">
+            <Building size={9} />
+            {story.client_company}
           </div>
         )}
-        <div className="story-meta">
-          {story.estimated_value && (
-            <span className="story-value">{formatCurrency(story.estimated_value)}</span>
-          )}
-          {story.due_date && (
-            <span className="story-due">{formatDate(story.due_date, 'MMM d')}</span>
-          )}
-        </div>
-        <div className="story-counts">
-          {story.task_count > 0 && (
-            <span className="story-count-badge">✓ {story.completed_task_count}/{story.task_count}</span>
-          )}
-          {story.comment_count > 0 && (
-            <span className="story-count-badge">💬 {story.comment_count}</span>
-          )}
+
+        {subStageName && (
+          <div className="story-stage-tags">
+            <span className="story-substage-tag">{subStageName}</span>
+          </div>
+        )}
+
+        <div className="story-card-footer">
+          <div className="story-footer-left">
+            {story.assigned_to_name && (
+              <div
+                className="avatar"
+                style={{
+                  background: getAvatarColor(story.assigned_to_name),
+                  color: 'white',
+                  fontSize: '9px',
+                  width: '22px',
+                  height: '22px',
+                  minWidth: '22px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '50%',
+                }}
+                title={story.assigned_to_name}
+              >
+                {getInitials(story.assigned_to_name)}
+              </div>
+            )}
+            {story.estimated_value && (
+              <span className="story-value">{formatCurrency(story.estimated_value)}</span>
+            )}
+          </div>
+          <div className="story-footer-right">
+            {story.due_date && (
+              <span className="story-due">{formatDate(story.due_date, 'MMM d')}</span>
+            )}
+            {story.task_count > 0 && (
+              <span className="story-count-badge">
+                ✓ {story.completed_task_count}/{story.task_count}
+              </span>
+            )}
+            {story.comment_count > 0 && (
+              <span className="story-count-badge">💬 {story.comment_count}</span>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -145,7 +164,6 @@ function StageColumn({ column, stories, subStageMap, onAdd, onView }) {
               key={story.id}
               story={story}
               subStageName={story.sub_stage_id ? subStageMap[story.sub_stage_id] : null}
-              columnName={column.name}
               onView={onView}
             />
           ))}

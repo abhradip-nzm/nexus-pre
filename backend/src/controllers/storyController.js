@@ -163,6 +163,14 @@ const getStoryById = async (req, res) => {
       WHERE sma.story_id = $1
     `, [id]);
 
+    // Industry assignments
+    const industryAssignmentsResult = await query(`
+      SELECT si.industry_id, i.name as industry_name
+      FROM story_industries si
+      JOIN industries i ON i.id = si.industry_id
+      WHERE si.story_id = $1
+    `, [id]);
+
     // Tasks with multiple assignees
     const tasksResult = await query(`
       SELECT t.*,
@@ -206,6 +214,7 @@ const getStoryById = async (req, res) => {
       btHierarchy,
       teamAssignments: teamAssignmentsResult.rows,
       memberAssignments: memberAssignmentsResult.rows,
+      industryAssignments: industryAssignmentsResult.rows,
       tasks: tasksResult.rows,
       comments: commentsResult.rows,
       changeLogs: changeLogsResult.rows,
@@ -226,7 +235,7 @@ const createStory = async (req, res) => {
     const {
       title, description, client_name, client_company, client_email,
       client_phone, column_id, sub_stage_id, assigned_to, priority,
-      estimated_value, tags, due_date, business_team_member_id, team_ids, member_ids
+      estimated_value, tags, due_date, business_team_member_id, team_ids, member_ids, industry_ids
     } = req.body;
 
     if (!title || !column_id) {
@@ -276,6 +285,16 @@ const createStory = async (req, res) => {
       }
     }
 
+    // Industry assignments
+    if (Array.isArray(industry_ids)) {
+      for (const industryId of industry_ids) {
+        await query(
+          'INSERT INTO story_industries (story_id, industry_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [storyId, industryId]
+        );
+      }
+    }
+
     // Log creation
     await query(
       `INSERT INTO story_change_logs (user_story_id, changed_by, change_type, comment)
@@ -303,7 +322,7 @@ const updateStory = async (req, res) => {
     const {
       title, description, client_name, client_company, client_email, client_phone,
       column_id, sub_stage_id, assigned_to, priority, estimated_value, tags, due_date,
-      business_team_member_id, team_ids, member_ids
+      business_team_member_id, team_ids, member_ids, industry_ids
     } = req.body;
 
     const updates = [];
@@ -395,6 +414,17 @@ const updateStory = async (req, res) => {
         await query(
           'INSERT INTO story_member_assignments (story_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
           [id, userId]
+        );
+      }
+    }
+
+    // Handle industry assignments
+    if (Array.isArray(industry_ids)) {
+      await query('DELETE FROM story_industries WHERE story_id = $1', [id]);
+      for (const industryId of industry_ids) {
+        await query(
+          'INSERT INTO story_industries (story_id, industry_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [id, industryId]
         );
       }
     }

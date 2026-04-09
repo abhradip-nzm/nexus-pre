@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   X, Plus, Send, Check, Pencil, Trash2,
   Calendar, User, DollarSign, Activity, MessageSquare,
-  CheckSquare, ExternalLink, Clock, Building, Briefcase, Users
+  CheckSquare, ExternalLink, Clock, Building, Briefcase, Users,
+  ArrowRight, Layers, Flag
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDate, formatDateTime, timeAgo, getInitials, getAvatarColor } from '../../utils/helpers';
@@ -18,6 +19,17 @@ const BT_ROLE_LABELS = {
   asd: 'Associate Sales Director',
   sales_manager: 'Sales Manager',
   sales_executive: 'Sales Executive',
+};
+
+const PRIORITY_COLORS = {
+  critical: '#dc3545', high: '#e67e22', medium: '#f59e0b', low: '#28a745'
+};
+
+const ACTIVITY_ICONS = {
+  created: '✦',
+  moved: '→',
+  update: '✎',
+  meeting_added: '📅',
 };
 
 export default function StoryDetailModal({ storyId, columns, users, onClose, onUpdated }) {
@@ -51,7 +63,6 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
     }
   };
 
-  // Assignable users for tasks (managers + executives from users prop)
   const assignableUsers = users.filter(u =>
     ['pre_sales_manager', 'pre_sales_executive'].includes(u.role_name)
   );
@@ -106,11 +117,13 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
     setSendingComment(true);
     try {
       const res = await api.post(`/stories/${storyId}/comments`, { content: comment });
-      const newComment = {
-        ...res.data.comment,
-        user_name: `${user.first_name} ${user.last_name}`,
-      };
-      setData(prev => ({ ...prev, comments: [...prev.comments, newComment] }));
+      setData(prev => ({
+        ...prev,
+        comments: [...prev.comments, {
+          ...res.data.comment,
+          user_name: `${user.first_name} ${user.last_name}`,
+        }]
+      }));
       setComment('');
     } catch { toast.error('Failed to send comment'); }
     finally { setSendingComment(false); }
@@ -137,6 +150,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
     btHierarchy = [],
     teamAssignments = [],
     memberAssignments = [],
+    industryAssignments = [],
     tasks = [],
     comments = [],
     changeLogs = [],
@@ -147,56 +161,51 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
 
   const completedTasks = tasks.filter(t => t.status === 'done').length;
   const progress = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
-
-  const priorityColor = {
-    critical: '#dc3545', high: '#e67e22', medium: '#f59e0b', low: '#28a745'
-  }[story.priority] || '#718096';
-
-  // Build a human-readable activity sentence
-  const formatActivityText = (log) => {
-    const who = log.changed_by_name;
-    if (log.change_type === 'created') return `${who} created this story`;
-    if (log.change_type === 'moved') return `${who} moved the story`;
-    if (log.change_type === 'update' && log.field_name) {
-      return `${who} updated ${log.field_name}`;
-    }
-    if (log.comment) return `${who} — ${log.comment}`;
-    return `${who} made a change`;
-  };
+  const priorityColor = PRIORITY_COLORS[story.priority] || '#718096';
 
   return (
     <>
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
         <div className="modal modal-xl story-detail-modal">
+
+          {/* Header */}
           <div className="story-detail-header">
             <div className="story-detail-title-row">
-              <div className="story-priority-badge" style={{ background: `${priorityColor}20`, color: priorityColor }}>
-                {story.priority?.toUpperCase()}
-              </div>
-              <div className="story-column-badge" style={{ background: story.column_color + '20', color: story.column_color }}>
+              <span
+                className="story-priority-badge"
+                style={{ background: `${priorityColor}22`, color: priorityColor, border: `1px solid ${priorityColor}44` }}
+              >
+                <Flag size={9} /> {story.priority?.toUpperCase()}
+              </span>
+              <span
+                className="story-column-badge"
+                style={{ background: story.column_color + '20', color: story.column_color }}
+              >
                 {story.column_name}
                 {story.sub_stage_name && ` · ${story.sub_stage_name}`}
-              </div>
+              </span>
+              {industryAssignments.length > 0 && industryAssignments.slice(0, 2).map(ind => (
+                <span key={ind.industry_id} className="story-industry-badge">{ind.industry_name}</span>
+              ))}
             </div>
             <h2 className="story-detail-title">{story.title}</h2>
             <div className="story-detail-meta">
               {story.client_company && (
-                <span className="detail-meta-item">
-                  <Building size={13} /> {story.client_company}
-                </span>
+                <span className="detail-meta-item"><Building size={13} /> {story.client_company}</span>
               )}
               {story.assigned_to_name && (
-                <span className="detail-meta-item">
-                  <User size={13} /> {story.assigned_to_name}
+                <span className="detail-meta-item"><User size={13} /> {story.assigned_to_name}</span>
+              )}
+              {story.estimated_value && (
+                <span className="detail-meta-item text-success">
+                  <DollarSign size={13} /> ${parseFloat(story.estimated_value).toLocaleString()}
                 </span>
               )}
               {story.due_date && (
-                <span className="detail-meta-item">
-                  <Calendar size={13} /> Due {formatDate(story.due_date)}
-                </span>
+                <span className="detail-meta-item"><Calendar size={13} /> Due {formatDate(story.due_date)}</span>
               )}
               <span className="detail-meta-item text-muted">
-                <Clock size={13} /> Created {timeAgo(story.created_at)}
+                <Clock size={13} /> {timeAgo(story.created_at)}
               </span>
             </div>
 
@@ -206,12 +215,11 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                   <Pencil size={14} /> Edit
                 </button>
               )}
-              <button className="btn btn-ghost btn-icon" onClick={onClose}>
-                <X size={18} />
-              </button>
+              <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
             </div>
           </div>
 
+          {/* Progress bar */}
           {tasks.length > 0 && (
             <div className="story-progress-bar">
               <div className="progress-fill" style={{ width: `${progress}%` }} />
@@ -219,6 +227,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
             </div>
           )}
 
+          {/* Tabs */}
           <div className="story-detail-tabs">
             {TABS.map(tab => (
               <button
@@ -235,7 +244,8 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
           </div>
 
           <div className="story-detail-body">
-            {/* ── Details Tab ── */}
+
+            {/* ── DETAILS TAB ── */}
             {activeTab === 'Details' && (
               <div className="detail-content">
                 <div className="detail-grid">
@@ -277,13 +287,13 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                       </div>
                     </div>
 
-                    {/* Sales Manager Hierarchy */}
+                    {/* Sales Hierarchy */}
                     {btHierarchy.length > 0 && (
                       <div className="detail-section">
-                        <h4 className="detail-section-title"><Briefcase size={11} style={{ display: 'inline', marginRight: 4 }} />Sales Hierarchy</h4>
+                        <h4 className="detail-section-title">Sales Hierarchy</h4>
                         <div className="bt-hierarchy-chain">
                           {[...btHierarchy].reverse().map((node, i) => (
-                            <div key={node.id} className="bt-hierarchy-node" style={{ paddingLeft: i * 16 }}>
+                            <div key={node.id} className="bt-hierarchy-node" style={{ paddingLeft: i * 14 }}>
                               {i > 0 && <span className="bt-hier-connector">└</span>}
                               <span className="bt-hier-role-badge">{BT_ROLE_LABELS[node.role] || node.role}</span>
                               <span className="bt-hier-name">{node.name}</span>
@@ -296,17 +306,14 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                     {/* Team & Member Assignments */}
                     {(teamAssignments.length > 0 || memberAssignments.length > 0) && (
                       <div className="detail-section">
-                        <h4 className="detail-section-title"><Users size={11} style={{ display: 'inline', marginRight: 4 }} />Assignments</h4>
+                        <h4 className="detail-section-title">Assignments</h4>
                         {teamAssignments.length > 0 && (
                           <div className="assignment-group">
                             <span className="assignment-group-label">Teams</span>
                             <div className="assignment-chips">
                               {teamAssignments.map(t => (
                                 <span key={t.team_id} className="assignment-chip team-chip">
-                                  <span
-                                    className="assignment-chip-dot"
-                                    style={{ background: t.accent_color || '#3e72ae' }}
-                                  />
+                                  <span className="assignment-chip-dot" style={{ background: t.accent_color || '#3e72ae' }} />
                                   {t.team_name}
                                 </span>
                               ))}
@@ -319,23 +326,12 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                             <div className="assignment-chips">
                               {memberAssignments.map(m => (
                                 <span key={m.user_id} className="assignment-chip member-chip">
-                                  <span
-                                    className="avatar"
-                                    style={{
-                                      background: getAvatarColor(m.user_name),
-                                      color: 'white',
-                                      fontSize: '9px',
-                                      width: '18px',
-                                      height: '18px',
-                                      minWidth: '18px',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      borderRadius: '50%'
-                                    }}
-                                  >
-                                    {getInitials(m.user_name)}
-                                  </span>
+                                  <span style={{
+                                    width: 18, height: 18, borderRadius: '50%',
+                                    background: getAvatarColor(m.user_name), color: 'white',
+                                    fontSize: '9px', display: 'inline-flex',
+                                    alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                                  }}>{getInitials(m.user_name)}</span>
                                   {m.user_name}
                                 </span>
                               ))}
@@ -345,6 +341,19 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                       </div>
                     )}
 
+                    {/* Industries */}
+                    {industryAssignments.length > 0 && (
+                      <div className="detail-section">
+                        <h4 className="detail-section-title"><Layers size={11} style={{ display: 'inline', marginRight: 4 }} />Industries</h4>
+                        <div className="detail-tags">
+                          {industryAssignments.map(ind => (
+                            <span key={ind.industry_id} className="industry-chip">{ind.industry_name}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tags */}
                     {story.tags?.length > 0 && (
                       <div className="detail-section">
                         <h4 className="detail-section-title">Tags</h4>
@@ -357,13 +366,44 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                     )}
                   </div>
 
+                  {/* Sidebar */}
                   <div className="detail-sidebar">
+                    <div className="sidebar-stat">
+                      <span className="ss-label">Priority</span>
+                      <span className="ss-value" style={{ color: priorityColor }}>
+                        {story.priority?.charAt(0).toUpperCase() + story.priority?.slice(1) || '—'}
+                      </span>
+                    </div>
+                    <div className="sidebar-stat">
+                      <span className="ss-label">Stage</span>
+                      <span className="ss-value">{story.column_name || '—'}</span>
+                    </div>
+                    {story.sub_stage_name && (
+                      <div className="sidebar-stat">
+                        <span className="ss-label">Sub Stage</span>
+                        <span className="ss-value">{story.sub_stage_name}</span>
+                      </div>
+                    )}
+                    <div className="sidebar-stat">
+                      <span className="ss-label">Assigned To</span>
+                      <span className="ss-value">{story.assigned_to_name || 'Unassigned'}</span>
+                    </div>
                     {story.estimated_value && (
                       <div className="sidebar-stat">
                         <span className="ss-label">Est. Value</span>
-                        <span className="ss-value text-success">
-                          ${parseFloat(story.estimated_value).toLocaleString()}
-                        </span>
+                        <span className="ss-value text-success">${parseFloat(story.estimated_value).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {story.due_date && (
+                      <div className="sidebar-stat">
+                        <span className="ss-label">Due Date</span>
+                        <span className="ss-value">{formatDate(story.due_date)}</span>
+                      </div>
+                    )}
+                    {story.business_team_member_name && (
+                      <div className="sidebar-stat">
+                        <span className="ss-label">Sales Manager</span>
+                        <span className="ss-value">{story.business_team_member_name}</span>
                       </div>
                     )}
                     <div className="sidebar-stat">
@@ -378,27 +418,20 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                       <span className="ss-label">Last Updated</span>
                       <span className="ss-value">{timeAgo(story.updated_at)}</span>
                     </div>
-                    {story.business_team_member_name && (
-                      <div className="sidebar-stat">
-                        <span className="ss-label">Sales Manager</span>
-                        <span className="ss-value">{story.business_team_member_name}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* ── Tasks Tab ── */}
+            {/* ── TASKS TAB ── */}
             {activeTab === 'Tasks' && (
               <div className="detail-content">
-                {/* Add task form */}
                 {showTaskForm ? (
                   <div className="task-add-form">
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Task title..."
+                      placeholder="What needs to be done?"
                       value={newTaskTitle}
                       onChange={e => setNewTaskTitle(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && !e.shiftKey && addTask()}
@@ -419,12 +452,15 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                           <label className="task-form-label"><User size={11} /> Assignees</label>
                           <div className="task-assignee-checklist">
                             {assignableUsers.map(u => (
-                              <label key={u.id} className="task-assignee-item">
+                              <label key={u.id} className={`task-assignee-item ${newTaskAssignees.includes(u.id) ? 'selected' : ''}`}>
                                 <input
                                   type="checkbox"
                                   checked={newTaskAssignees.includes(u.id)}
                                   onChange={() => toggleTaskAssignee(u.id)}
                                 />
+                                <span className="task-assignee-avatar" style={{ background: getAvatarColor(`${u.first_name} ${u.last_name}`) }}>
+                                  {getInitials(`${u.first_name} ${u.last_name}`)}
+                                </span>
                                 <span>{u.first_name} {u.last_name}</span>
                               </label>
                             ))}
@@ -436,25 +472,25 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                       <button className="btn btn-primary btn-sm" onClick={addTask} disabled={addingTask || !newTaskTitle.trim()}>
                         <Plus size={13} /> Add Task
                       </button>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => { setShowTaskForm(false); setNewTaskTitle(''); setNewTaskDueDate(''); setNewTaskAssignees([]); }}
-                      >
+                      <button className="btn btn-ghost btn-sm" onClick={() => {
+                        setShowTaskForm(false);
+                        setNewTaskTitle(''); setNewTaskDueDate(''); setNewTaskAssignees([]);
+                      }}>
                         Cancel
                       </button>
                     </div>
                   </div>
                 ) : (
                   <button className="task-add-trigger" onClick={() => setShowTaskForm(true)}>
-                    <Plus size={14} /> Add Task
+                    <Plus size={15} /> Add a task...
                   </button>
                 )}
 
                 <div className="task-list">
-                  {tasks.length === 0 ? (
+                  {tasks.length === 0 && !showTaskForm ? (
                     <div className="empty-state-sm">
                       <CheckSquare size={32} color="#e2e8f0" />
-                      <p>No tasks yet. Add tasks to track progress.</p>
+                      <p>No tasks yet. Break this story into actionable steps.</p>
                     </div>
                   ) : (
                     tasks.map(task => (
@@ -462,15 +498,16 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                         <button
                           className={`task-check ${task.status === 'done' ? 'checked' : ''}`}
                           onClick={() => toggleTask(task)}
+                          title={task.status === 'done' ? 'Mark incomplete' : 'Mark complete'}
                         >
-                          {task.status === 'done' && <Check size={12} />}
+                          {task.status === 'done' && <Check size={11} />}
                         </button>
                         <div className="task-content">
                           <div className="task-main-row">
                             <span className="task-title">{task.title}</span>
                             {task.due_date && (
                               <span className="task-due-badge">
-                                <Calendar size={10} /> {formatDate(task.due_date, 'MMM d')}
+                                <Calendar size={9} /> {formatDate(task.due_date, 'MMM d')}
                               </span>
                             )}
                           </div>
@@ -478,17 +515,12 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                             <div className="task-assignees-row">
                               {task.assignees.map(a => (
                                 <span key={a.id} className="task-assignee-chip">
-                                  <span
-                                    style={{
-                                      width: 16, height: 16, borderRadius: '50%',
-                                      background: getAvatarColor(a.name), color: 'white',
-                                      fontSize: '8px', display: 'inline-flex',
-                                      alignItems: 'center', justifyContent: 'center',
-                                      flexShrink: 0
-                                    }}
-                                  >
-                                    {getInitials(a.name)}
-                                  </span>
+                                  <span style={{
+                                    width: 14, height: 14, borderRadius: '50%',
+                                    background: getAvatarColor(a.name), color: 'white',
+                                    fontSize: '7px', display: 'inline-flex',
+                                    alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                                  }}>{getInitials(a.name)}</span>
                                   {a.name}
                                 </span>
                               ))}
@@ -496,7 +528,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                           )}
                         </div>
                         <button className="task-delete" onClick={() => deleteTask(task.id)}>
-                          <Trash2 size={13} />
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     ))
@@ -505,70 +537,71 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
               </div>
             )}
 
-            {/* ── Comments Tab ── */}
+            {/* ── COMMENTS TAB ── */}
             {activeTab === 'Comments' && (
-              <div className="detail-content">
+              <div className="detail-content comments-tab">
                 <div className="comment-list">
                   {comments.length === 0 ? (
                     <div className="empty-state-sm">
-                      <MessageSquare size={32} color="#e2e8f0" />
-                      <p>No comments yet. Start the conversation.</p>
+                      <MessageSquare size={36} color="#e2e8f0" />
+                      <p>No comments yet — start a discussion about this story.</p>
                     </div>
                   ) : (
                     comments.map(c => (
                       <div key={c.id} className="comment-item">
                         <div
-                          className="avatar avatar-sm"
-                          style={{ background: getAvatarColor(c.user_name), color: 'white', fontSize: '10px' }}
+                          className="comment-avatar"
+                          style={{ background: getAvatarColor(c.user_name) }}
+                          title={c.user_name}
                         >
                           {getInitials(c.user_name)}
                         </div>
-                        <div className="comment-content">
-                          <div className="comment-meta">
-                            <strong>{c.user_name}</strong>
-                            <span>{timeAgo(c.created_at)}</span>
+                        <div className="comment-bubble">
+                          <div className="comment-bubble-header">
+                            <strong className="comment-author">{c.user_name}</strong>
+                            <span className="comment-time">{timeAgo(c.created_at)}</span>
                           </div>
-                          <p className="comment-text">{c.content}</p>
+                          <p className="comment-body">{c.content}</p>
                         </div>
                       </div>
                     ))
                   )}
                 </div>
 
-                <div className="comment-input-row">
+                <div className="comment-compose">
                   <div
-                    className="avatar avatar-sm"
-                    style={{ background: getAvatarColor(`${user.first_name} ${user.last_name}`), color: 'white', fontSize: '10px' }}
+                    className="comment-avatar comment-avatar-mine"
+                    style={{ background: getAvatarColor(`${user.first_name} ${user.last_name}`) }}
                   >
                     {getInitials(`${user.first_name} ${user.last_name}`)}
                   </div>
-                  <div className="comment-input-wrapper">
+                  <div className="comment-compose-box">
                     <textarea
-                      className="form-control comment-textarea"
-                      placeholder="Write a comment..."
+                      className="comment-compose-input"
+                      placeholder="Add a comment… (Enter to send, Shift+Enter for new line)"
                       value={comment}
                       onChange={e => setComment(e.target.value)}
-                      rows={2}
+                      rows={comment.split('\n').length > 1 ? 3 : 1}
                       onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          sendComment();
-                        }
+                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendComment(); }
                       }}
                     />
-                    <button
-                      className="btn btn-primary btn-sm comment-send"
-                      onClick={sendComment}
-                      disabled={sendingComment || !comment.trim()}
-                    >
-                      <Send size={14} />
-                    </button>
+                    <div className="comment-compose-footer">
+                      <span className="comment-hint">Shift+Enter for new line</span>
+                      <button
+                        className="btn btn-primary btn-sm comment-send-btn"
+                        onClick={sendComment}
+                        disabled={sendingComment || !comment.trim()}
+                      >
+                        <Send size={13} /> Send
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* ── Meetings Tab ── */}
+            {/* ── MEETINGS TAB ── */}
             {activeTab === 'Meetings' && (
               <div className="detail-content">
                 {meetings.length === 0 ? (
@@ -589,11 +622,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                           {m.location && <div className="mdi-loc">{m.location}</div>}
                         </div>
                         {(m.meeting_link || m.ms_teams_join_url) && (
-                          <a
-                            href={m.ms_teams_join_url || m.meeting_link}
-                            target="_blank" rel="noreferrer"
-                            className="btn btn-primary btn-sm"
-                          >
+                          <a href={m.ms_teams_join_url || m.meeting_link} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
                             <ExternalLink size={13} /> Join
                           </a>
                         )}
@@ -604,7 +633,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
               </div>
             )}
 
-            {/* ── Activity Tab ── */}
+            {/* ── ACTIVITY TAB ── */}
             {activeTab === 'Activity' && (
               <div className="detail-content">
                 {changeLogs.length === 0 ? (
@@ -613,38 +642,33 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                     <p>No activity recorded yet.</p>
                   </div>
                 ) : (
-                  <div className="changelog-list">
-                    {changeLogs.map(log => (
-                      <div key={log.id} className="changelog-item">
-                        <div
-                          className="avatar avatar-sm"
-                          style={{ background: getAvatarColor(log.changed_by_name), color: 'white', fontSize: '10px' }}
-                        >
-                          {getInitials(log.changed_by_name)}
+                  <div className="timeline">
+                    {changeLogs.map((log, idx) => (
+                      <div key={log.id} className={`timeline-item ${idx === changeLogs.length - 1 ? 'last' : ''}`}>
+                        <div className="timeline-indicator">
+                          <span className={`timeline-dot tl-${log.change_type}`}>
+                            {ACTIVITY_ICONS[log.change_type] || '·'}
+                          </span>
                         </div>
-                        <div className="changelog-content">
-                          <div className="changelog-text">
+                        <div className="timeline-content">
+                          <div className="timeline-sentence">
                             <strong>{log.changed_by_name}</strong>
-                            {' '}
-                            {log.change_type === 'created' && 'created this story'}
+                            {log.change_type === 'created' && <> created this story</>}
                             {log.change_type === 'moved' && (
-                              <>moved the story from <em>{log.old_value}</em> to <em>{log.new_value}</em></>
+                              <> moved the story from <em className="tl-old">{log.old_value}</em> to <em className="tl-new">{log.new_value}</em></>
                             )}
                             {log.change_type === 'update' && log.field_name && (
-                              <>updated <em>{log.field_name}</em></>
+                              <> updated <em className="tl-field">{log.field_name}</em>
+                                {log.old_value && log.new_value && (
+                                  <> from <em className="tl-old">{log.old_value}</em> to <em className="tl-new">{log.new_value}</em></>
+                                )}
+                              </>
                             )}
                             {log.change_type === 'update' && !log.field_name && log.comment && (
-                              <> — {log.comment}</>
+                              <> — <span className="tl-comment">{log.comment}</span></>
                             )}
                           </div>
-                          {log.change_type === 'update' && log.old_value && log.new_value && (
-                            <div className="changelog-diff">
-                              <span className="diff-old">{log.old_value}</span>
-                              <span className="diff-arrow">→</span>
-                              <span className="diff-new">{log.new_value}</span>
-                            </div>
-                          )}
-                          <div className="changelog-time">{formatDateTime(log.created_at)}</div>
+                          <div className="timeline-time">{formatDateTime(log.created_at)}</div>
                         </div>
                       </div>
                     ))}
@@ -663,6 +687,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
           users={users}
           existingTeamIds={teamAssignments.map(t => t.team_id)}
           existingMemberIds={memberAssignments.map(m => m.user_id)}
+          existingIndustryIds={industryAssignments.map(i => i.industry_id)}
           onClose={() => setShowEdit(false)}
           onSaved={handleUpdated}
         />

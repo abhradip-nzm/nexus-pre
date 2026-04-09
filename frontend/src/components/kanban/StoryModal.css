@@ -179,3 +179,56 @@
   border-radius: var(--radius-full);
   white-space: nowrap;
 }
+
+/* Tag autocomplete dropdown */
+.tag-autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 2px;
+}
+
+.tag-autocomplete-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background var(--transition);
+}
+
+.tag-autocomplete-option:hover { background: var(--bg-secondary); }
+
+.tag-option-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tag-create-new {
+  color: var(--primary);
+  font-weight: 500;
+  border-top: 1px solid var(--border-light);
+}
+
+/* Horizontal industries checklist */
+.assign-checklist-horiz {
+  flex-direction: row;
+  flex-wrap: wrap;
+  max-height: none;
+}

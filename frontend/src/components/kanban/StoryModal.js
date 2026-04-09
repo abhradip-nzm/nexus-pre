@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, User, DollarSign, Calendar, Tag, Building, Briefcase, Users } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Save, User, DollarSign, Calendar, Tag, Building, Briefcase, Users, Plus, Layers } from 'lucide-react';
 import api from '../../utils/api';
 import PhoneInput from '../PhoneInput';
 import toast from 'react-hot-toast';
@@ -21,10 +21,12 @@ export default function StoryModal({
   users,
   existingTeamIds = [],
   existingMemberIds = [],
+  existingIndustryIds = [],
   onClose,
   onSaved
 }) {
   const isEdit = !!story;
+  const tagInputRef = useRef(null);
 
   const [form, setForm] = useState({
     title: story?.title || '',
@@ -43,37 +45,38 @@ export default function StoryModal({
     business_team_member_id: story?.business_team_member_id || '',
     team_ids: existingTeamIds,
     member_ids: existingMemberIds,
+    industry_ids: existingIndustryIds,
   });
 
   const [saving, setSaving] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [businessTeam, setBusinessTeam] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [tagOptions, setTagOptions] = useState([]);
+  const [industryOptions, setIndustryOptions] = useState([]);
 
-  // Load business team and teams data
   useEffect(() => {
     Promise.all([
       api.get('/business-team').catch(() => ({ data: [] })),
       api.get('/teams').catch(() => ({ data: { teams: [] } })),
-    ]).then(([btRes, teamsRes]) => {
-      const btData = Array.isArray(btRes.data) ? btRes.data : [];
-      setBusinessTeam(btData);
+      api.get('/tags').catch(() => ({ data: { tags: [] } })),
+      api.get('/industries').catch(() => ({ data: { industries: [] } })),
+    ]).then(([btRes, teamsRes, tagsRes, indRes]) => {
+      setBusinessTeam(Array.isArray(btRes.data) ? btRes.data : []);
       setTeams(teamsRes.data.teams || []);
+      setTagOptions(tagsRes.data.tags || []);
+      setIndustryOptions(indRes.data.industries || []);
     });
   }, []);
 
   const selectedColumn = columns.find(c => String(c.id) === String(form.column_id));
   const subStages = selectedColumn?.sub_stages || [];
-
-  // Sales managers from business team
   const salesManagers = businessTeam.filter(m => m.role === 'sales_manager');
-
-  // Assignable users: pre_sales_manager and pre_sales_executive
   const assignableUsers = users.filter(u =>
     ['pre_sales_manager', 'pre_sales_executive'].includes(u.role_name)
   );
 
-  // Build hierarchy chain for a selected SM (SM → ASD → CGO)
   const getSmHierarchy = (smId) => {
     if (!smId) return [];
     const chain = [];
@@ -87,12 +90,39 @@ export default function StoryModal({
 
   const smHierarchy = getSmHierarchy(form.business_team_member_id);
 
+  // Tag autocomplete: filter options not already selected
+  const filteredTagOptions = tagOptions.filter(t =>
+    !form.tags.includes(t.name) &&
+    (tagInput.trim() === '' || t.name.toLowerCase().includes(tagInput.toLowerCase()))
+  );
+
   const handleChange = (field, value) => {
     setForm(prev => ({
       ...prev,
       [field]: value,
       ...(field === 'column_id' ? { sub_stage_id: '' } : {})
     }));
+  };
+
+  const addTagByName = (name) => {
+    const tag = name.trim().toLowerCase();
+    if (tag && !form.tags.includes(tag)) {
+      setForm(prev => ({ ...prev, tags: [...prev.tags, tag] }));
+    }
+    setTagInput('');
+    setShowTagDropdown(false);
+  };
+
+  const handleTagKeyDown = (e) => {
+    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+      e.preventDefault();
+      addTagByName(tagInput);
+    }
+    if (e.key === 'Escape') setShowTagDropdown(false);
+  };
+
+  const removeTag = (tag) => {
+    setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
   };
 
   const toggleTeam = (teamId) => {
@@ -113,19 +143,13 @@ export default function StoryModal({
     }));
   };
 
-  const addTag = (e) => {
-    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
-      e.preventDefault();
-      const tag = tagInput.trim().toLowerCase();
-      if (!form.tags.includes(tag)) {
-        setForm(prev => ({ ...prev, tags: [...prev.tags, tag] }));
-      }
-      setTagInput('');
-    }
-  };
-
-  const removeTag = (tag) => {
-    setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
+  const toggleIndustry = (industryId) => {
+    setForm(prev => ({
+      ...prev,
+      industry_ids: prev.industry_ids.includes(industryId)
+        ? prev.industry_ids.filter(id => id !== industryId)
+        : [...prev.industry_ids, industryId]
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -134,7 +158,6 @@ export default function StoryModal({
       toast.error('Title and stage are required');
       return;
     }
-
     setSaving(true);
     try {
       const payload = {
@@ -145,7 +168,6 @@ export default function StoryModal({
         due_date: form.due_date || null,
         business_team_member_id: form.business_team_member_id || null,
       };
-
       let res;
       if (isEdit) {
         res = await api.put(`/stories/${story.id}`, payload);
@@ -154,7 +176,6 @@ export default function StoryModal({
         res = await api.post('/stories', payload);
         toast.success('Story created!');
       }
-
       onSaved(isEdit ? { ...story, ...payload } : res.data.story);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to save story');
@@ -173,10 +194,10 @@ export default function StoryModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'contents' }}>
           <div className="modal-body">
             <div className="story-form-grid">
-              {/* Left column */}
+              {/* ── Left column ── */}
               <div className="story-form-main">
                 <div className="form-group">
                   <label className="form-label">Story Title *</label>
@@ -197,7 +218,7 @@ export default function StoryModal({
                     placeholder="Describe the requirement, context, and key details..."
                     value={form.description}
                     onChange={e => handleChange('description', e.target.value)}
-                    rows={4}
+                    rows={3}
                   />
                 </div>
 
@@ -244,28 +265,78 @@ export default function StoryModal({
                   </div>
                 </div>
 
-                <div className="form-group">
+                {/* Industries */}
+                {industryOptions.length > 0 && (
+                  <div className="form-group">
+                    <label className="form-label"><Layers size={12} /> Industries</label>
+                    <div className="assign-checklist assign-checklist-horiz">
+                      {industryOptions.map(ind => (
+                        <label key={ind.id} className="assign-check-item">
+                          <input
+                            type="checkbox"
+                            checked={form.industry_ids.includes(ind.id)}
+                            onChange={() => toggleIndustry(ind.id)}
+                          />
+                          <span className="assign-check-label">{ind.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags */}
+                <div className="form-group" style={{ position: 'relative' }}>
                   <label className="form-label"><Tag size={12} /> Tags</label>
                   <div className="tags-input-wrapper">
-                    {form.tags.map(tag => (
-                      <span key={tag} className="tag-chip">
-                        {tag}
-                        <button type="button" onClick={() => removeTag(tag)} className="tag-remove">×</button>
-                      </span>
-                    ))}
+                    {form.tags.map(tag => {
+                      const opt = tagOptions.find(t => t.name === tag);
+                      return (
+                        <span key={tag} className="tag-chip" style={opt ? { background: opt.color + '22', color: opt.color } : {}}>
+                          {tag}
+                          <button type="button" onClick={() => removeTag(tag)} className="tag-remove">×</button>
+                        </span>
+                      );
+                    })}
                     <input
+                      ref={tagInputRef}
                       type="text"
                       className="tag-input"
-                      placeholder="Type tag + Enter"
+                      placeholder={form.tags.length === 0 ? "Type or select a tag..." : "Add more..."}
                       value={tagInput}
-                      onChange={e => setTagInput(e.target.value)}
-                      onKeyDown={addTag}
+                      onChange={e => { setTagInput(e.target.value); setShowTagDropdown(true); }}
+                      onFocus={() => setShowTagDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowTagDropdown(false), 150)}
+                      onKeyDown={handleTagKeyDown}
                     />
                   </div>
+                  {showTagDropdown && (filteredTagOptions.length > 0 || tagInput.trim()) && (
+                    <div className="tag-autocomplete-dropdown">
+                      {filteredTagOptions.slice(0, 8).map(t => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          className="tag-autocomplete-option"
+                          onMouseDown={e => { e.preventDefault(); addTagByName(t.name); }}
+                        >
+                          <span className="tag-option-dot" style={{ background: t.color || '#3e72ae' }} />
+                          {t.name}
+                        </button>
+                      ))}
+                      {tagInput.trim() && !filteredTagOptions.some(t => t.name.toLowerCase() === tagInput.toLowerCase()) && (
+                        <button
+                          type="button"
+                          className="tag-autocomplete-option tag-create-new"
+                          onMouseDown={e => { e.preventDefault(); addTagByName(tagInput); }}
+                        >
+                          <Plus size={11} /> Create "{tagInput}"
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Right sidebar */}
+              {/* ── Right sidebar ── */}
               <div className="story-form-sidebar">
                 <div className="form-group">
                   <label className="form-label">Stage *</label>
@@ -298,6 +369,22 @@ export default function StoryModal({
                 )}
 
                 <div className="form-group">
+                  <label className="form-label">Priority</label>
+                  <div className="priority-selector">
+                    {PRIORITIES.map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        className={`priority-btn ${form.priority === p ? 'active' : ''} priority-${p}`}
+                        onClick={() => handleChange('priority', p)}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="form-group">
                   <label className="form-label"><User size={12} /> Assigned To</label>
                   <select
                     className="form-control"
@@ -306,14 +393,36 @@ export default function StoryModal({
                   >
                     <option value="">Unassigned</option>
                     {users.map(u => (
-                      <option key={u.id} value={u.id}>
-                        {u.first_name} {u.last_name}
-                      </option>
+                      <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Sales Manager from Business Team */}
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label"><DollarSign size={12} /> Est. Value</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      placeholder="0.00"
+                      value={form.estimated_value}
+                      onChange={e => handleChange('estimated_value', e.target.value)}
+                      min="0"
+                      step="100"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label"><Calendar size={12} /> Due Date</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={form.due_date}
+                      onChange={e => handleChange('due_date', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Sales Manager */}
                 <div className="form-group">
                   <label className="form-label"><Briefcase size={12} /> Sales Manager</label>
                   <select
@@ -342,7 +451,7 @@ export default function StoryModal({
                 {/* Team Assignment */}
                 {teams.length > 0 && (
                   <div className="form-group">
-                    <label className="form-label"><Users size={12} /> Assign to Teams</label>
+                    <label className="form-label"><Users size={12} /> Assign Teams</label>
                     <div className="assign-checklist">
                       {teams.map(team => (
                         <label key={team.id} className="assign-check-item">
@@ -351,10 +460,7 @@ export default function StoryModal({
                             checked={form.team_ids.includes(team.id)}
                             onChange={() => toggleTeam(team.id)}
                           />
-                          <span
-                            className="assign-check-dot"
-                            style={{ background: team.accent_color || '#3e72ae' }}
-                          />
+                          <span className="assign-check-dot" style={{ background: team.accent_color || '#3e72ae' }} />
                           <span className="assign-check-label">{team.name}</span>
                         </label>
                       ))}
@@ -374,64 +480,21 @@ export default function StoryModal({
                             checked={form.member_ids.includes(u.id)}
                             onChange={() => toggleMember(u.id)}
                           />
-                          <span className="assign-check-label">
-                            {u.first_name} {u.last_name}
-                          </span>
+                          <span className="assign-check-label">{u.first_name} {u.last_name}</span>
                           <span className="assign-check-role">
-                            {u.role_name === 'pre_sales_manager' ? 'Manager' : 'Executive'}
+                            {u.role_name === 'pre_sales_manager' ? 'Mgr' : 'Exec'}
                           </span>
                         </label>
                       ))}
                     </div>
                   </div>
                 )}
-
-                <div className="form-group">
-                  <label className="form-label">Priority</label>
-                  <div className="priority-selector">
-                    {PRIORITIES.map(p => (
-                      <button
-                        key={p}
-                        type="button"
-                        className={`priority-btn ${form.priority === p ? 'active' : ''} priority-${p}`}
-                        onClick={() => handleChange('priority', p)}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label"><DollarSign size={12} /> Est. Deal Value</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    placeholder="0.00"
-                    value={form.estimated_value}
-                    onChange={e => handleChange('estimated_value', e.target.value)}
-                    min="0"
-                    step="100"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label"><Calendar size={12} /> Due Date</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={form.due_date}
-                    onChange={e => handleChange('due_date', e.target.value)}
-                  />
-                </div>
               </div>
             </div>
           </div>
 
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Cancel
-            </button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <span className="btn-spinner" /> : <Save size={15} />}
               {saving ? 'Saving...' : isEdit ? 'Update Story' : 'Create Story'}
