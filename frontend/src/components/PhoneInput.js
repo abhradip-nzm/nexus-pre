@@ -76,8 +76,7 @@ export default function PhoneInput({ value = '', onChange, placeholder = '123 45
     const p = parse(value);
     setCountryCode(p.countryCode);
     setNumber(p.number);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, [value]); // value is the only dependency needed here
 
   const handleCodeChange = (code) => {
     setCountryCode(code);
