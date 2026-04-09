@@ -139,13 +139,16 @@
   background: var(--primary-50);
 }
 
-/* Single drop area per stage column */
+/* Single drop area per stage — cards laid out in a horizontal wrapping row */
 .stage-drop-area {
-  padding: 10px;
+  padding: 10px 12px 12px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 120px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 130px;
+  align-items: flex-start;
+  align-content: flex-start;
   transition: background var(--transition);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
@@ -155,13 +158,13 @@
 }
 
 .stage-drop-empty {
+  width: 100%;
   text-align: center;
   font-size: 11px;
   color: var(--text-light);
   padding: 24px 8px;
   border: 1.5px dashed var(--border-light);
   border-radius: var(--radius);
-  margin: 4px 0;
 }
 
 /* Sub-stage tag on the story card */
@@ -187,8 +190,12 @@
   text-overflow: ellipsis;
 }
 
-/* Story Card */
+/* Story Card — fixed width so cards line up in a consistent grid */
 .story-card {
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
+  flex-shrink: 0;
   background: linear-gradient(135deg, #eef4fa 0%, #ffffff 100%);
   border-radius: var(--radius-md);
   padding: 10px;
