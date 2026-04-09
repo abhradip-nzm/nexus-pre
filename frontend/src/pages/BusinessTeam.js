@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Users, Plus, Edit2, Trash2, X, ChevronRight,
+  Plus, Edit2, Trash2, X, ChevronRight,
   Network, List, Phone, Mail, AlertCircle, UserCheck,
-  ChevronDown, ChevronUp, Search
+  ChevronDown, Search, GitBranch
 } from 'lucide-react';
+import Header from '../components/layout/Header';
+import api from '../utils/api';
 import toast from 'react-hot-toast';
 import './BusinessTeam.css';
-
-const API = process.env.REACT_APP_API_URL || '/api';
 
 const ROLES = [
   { value: 'cgo', label: 'Chief Growth Officer', short: 'CGO', color: '#3e72ae' },
@@ -45,21 +45,19 @@ function RoleBadge({ role }) {
 }
 
 // ─── Tree Node ────────────────────────────────────────────────────────────────
-function TreeNode({ node, depth = 0, onEdit, onDelete }) {
+function TreeNode({ node, onEdit, onDelete }) {
   const [expanded, setExpanded] = useState(true);
   const info = getRoleInfo(node.role);
   const hasChildren = node.children && node.children.length > 0;
 
   return (
-    <div className="bt-tree-node" style={{ marginLeft: depth * 28 }}>
+    <div className="bt-tree-node">
       <div className="bt-tree-row">
         <button
           className={`bt-tree-expand ${!hasChildren ? 'invisible' : ''}`}
           onClick={() => setExpanded(v => !v)}
         >
-          {hasChildren ? (
-            expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />
-          ) : null}
+          {hasChildren ? (expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />) : null}
         </button>
 
         <div className="bt-tree-card" style={{ borderLeftColor: info.color }}>
@@ -70,12 +68,8 @@ function TreeNode({ node, depth = 0, onEdit, onDelete }) {
             <div className="bt-tree-name">{node.name}</div>
             <div className="bt-tree-meta">
               <RoleBadge role={node.role} />
-              <span className="bt-tree-contact">
-                <Phone size={11} /> {node.phone}
-              </span>
-              <span className="bt-tree-contact">
-                <Mail size={11} /> {node.email}
-              </span>
+              <span className="bt-tree-contact"><Phone size={11} /> {node.phone}</span>
+              <span className="bt-tree-contact"><Mail size={11} /> {node.email}</span>
             </div>
           </div>
           <div className="bt-tree-actions">
@@ -87,22 +81,12 @@ function TreeNode({ node, depth = 0, onEdit, onDelete }) {
             </button>
           </div>
         </div>
-
-        {hasChildren && (
-          <div className="bt-tree-line" style={{ borderColor: info.color + '40' }} />
-        )}
       </div>
 
       {hasChildren && expanded && (
         <div className="bt-tree-children">
           {node.children.map(child => (
-            <TreeNode
-              key={child.id}
-              node={child}
-              depth={0}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
+            <TreeNode key={child.id} node={child} onEdit={onEdit} onDelete={onDelete} />
           ))}
         </div>
       )}
@@ -110,7 +94,7 @@ function TreeNode({ node, depth = 0, onEdit, onDelete }) {
   );
 }
 
-// ─── Modal ────────────────────────────────────────────────────────────────────
+// ─── Member Modal ─────────────────────────────────────────────────────────────
 function MemberModal({ member, members, onClose, onSave }) {
   const isEdit = !!member?.id;
 
@@ -129,13 +113,11 @@ function MemberModal({ member, members, onClose, onSave }) {
     setErrors(e => ({ ...e, [key]: '' }));
   };
 
-  // When role changes, reset parent
   const handleRoleChange = (val) => {
     setForm(f => ({ ...f, role: val, parent_id: '' }));
     setErrors(e => ({ ...e, role: '', parent_id: '' }));
   };
 
-  // Filter eligible parents for selected role
   const eligibleParents = form.role && PARENT_ROLE[form.role]
     ? members.filter(m => m.role === PARENT_ROLE[form.role] && m.id !== member?.id)
     : [];
@@ -158,28 +140,21 @@ function MemberModal({ member, members, onClose, onSave }) {
     if (!validate()) return;
     setSaving(true);
     try {
-      const token = localStorage.getItem('token');
-      const url = isEdit
-        ? `${API}/business-team/${member.id}`
-        : `${API}/business-team`;
-      const method = isEdit ? 'PUT' : 'POST';
+      const payload = {
+        ...form,
+        parent_id: form.parent_id ? parseInt(form.parent_id) : null,
+      };
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          ...form,
-          parent_id: form.parent_id ? parseInt(form.parent_id) : null,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
-
-      toast.success(isEdit ? 'Member updated' : 'Member added');
+      if (isEdit) {
+        await api.put(`/business-team/${member.id}`, payload);
+        toast.success('Member updated');
+      } else {
+        await api.post('/business-team', payload);
+        toast.success('Member added');
+      }
       onSave();
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.response?.data?.error || 'Failed to save member');
     } finally {
       setSaving(false);
     }
@@ -195,7 +170,6 @@ function MemberModal({ member, members, onClose, onSave }) {
 
         <div className="modal-body">
           <div className="bt-form">
-            {/* Role first */}
             <div className="form-group">
               <label>Role <span className="req">*</span></label>
               <div className="bt-role-grid">
@@ -221,7 +195,6 @@ function MemberModal({ member, members, onClose, onSave }) {
               {errors.role && <span className="field-error">{errors.role}</span>}
             </div>
 
-            {/* Parent select — only shown for non-CGO */}
             {form.role && PARENT_ROLE[form.role] && (
               <div className="form-group">
                 <label>
@@ -239,7 +212,7 @@ function MemberModal({ member, members, onClose, onSave }) {
                     value={form.parent_id}
                     onChange={e => set('parent_id', e.target.value)}
                   >
-                    <option value="">Select {getRoleInfo(PARENT_ROLE[form.role]).label}...</option>
+                    <option value="">Select {getRoleInfo(PARENT_ROLE[form.role]).label}…</option>
                     {eligibleParents.map(p => (
                       <option key={p.id} value={String(p.id)}>{p.name}</option>
                     ))}
@@ -290,7 +263,7 @@ function MemberModal({ member, members, onClose, onSave }) {
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
-            {saving ? <><span className="btn-spinner" /> Saving...</> : isEdit ? 'Update Member' : 'Add Member'}
+            {saving ? <><span className="btn-spinner" /> Saving…</> : isEdit ? 'Update Member' : 'Add Member'}
           </button>
         </div>
       </div>
@@ -302,19 +275,16 @@ function MemberModal({ member, members, onClose, onSave }) {
 function DeleteModal({ member, onClose, onConfirm, loading }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-box" style={{ width: 400 }} onClick={e => e.stopPropagation()}>
+      <div className="modal-box" style={{ width: 420 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Remove Member</h3>
           <button className="modal-close" onClick={onClose}><X size={18} /></button>
         </div>
         <div className="modal-body">
           <div className="bt-delete-confirm">
-            <div className="bt-delete-icon">
-              <Trash2 size={22} />
-            </div>
+            <div className="bt-delete-icon"><Trash2 size={22} /></div>
             <p>
-              Are you sure you want to remove <strong>{member.name}</strong>?
-              <br />
+              Are you sure you want to remove <strong>{member.name}</strong>?<br />
               <span className="text-muted" style={{ fontSize: 12 }}>
                 This will fail if they have direct reports. Reassign or remove them first.
               </span>
@@ -324,7 +294,7 @@ function DeleteModal({ member, onClose, onConfirm, loading }) {
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn btn-danger" onClick={onConfirm} disabled={loading}>
-            {loading ? <><span className="btn-spinner" /> Removing...</> : 'Remove'}
+            {loading ? <><span className="btn-spinner" /> Removing…</> : 'Remove'}
           </button>
         </div>
       </div>
@@ -337,61 +307,50 @@ export default function BusinessTeam() {
   const [members, setMembers] = useState([]);
   const [tree, setTree] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('list'); // 'list' | 'tree'
+  const [view, setView] = useState('list');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [modalMember, setModalMember] = useState(null); // null=closed, {}=new, {id,...}=edit
+  const [modalMember, setModalMember] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  const token = localStorage.getItem('token');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [listRes, treeRes] = await Promise.all([
-        fetch(`${API}/business-team`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API}/business-team/tree`, { headers: { Authorization: `Bearer ${token}` } }),
+        api.get('/business-team'),
+        api.get('/business-team/tree'),
       ]);
-      const listData = await listRes.json();
-      const treeData = await treeRes.json();
-      setMembers(Array.isArray(listData) ? listData : []);
-      setTree(Array.isArray(treeData) ? treeData : []);
-    } catch (err) {
+      setMembers(listRes.data || []);
+      setTree(treeRes.data || []);
+    } catch {
       toast.error('Failed to load business team');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleDelete = async () => {
     setDeleteLoading(true);
     try {
-      const res = await fetch(`${API}/business-team/${deleteTarget.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      await api.delete(`/business-team/${deleteTarget.id}`);
       toast.success('Member removed');
       setDeleteTarget(null);
       fetchData();
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.response?.data?.error || 'Delete failed');
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  // Stats
   const stats = ROLES.map(r => ({
     ...r,
     count: members.filter(m => m.role === r.value).length,
   }));
 
-  // Filtered list
   const filtered = members.filter(m => {
     const q = search.toLowerCase();
     const matchSearch = !q || m.name.toLowerCase().includes(q)
@@ -401,198 +360,188 @@ export default function BusinessTeam() {
     return matchSearch && matchRole;
   });
 
+  if (loading) return (
+    <div className="page-loading">
+      <div className="page-spinner" />
+    </div>
+  );
+
   return (
-    <div className="bt-page">
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Business Team</h1>
-          <p className="page-subtitle">Manage your sales hierarchy — from CGO down to Sales Executives</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => setModalMember({})}>
-          <Plus size={16} /> Add Member
-        </button>
-      </div>
+    <div className="page-container">
+      <Header title="Business Team" subtitle="Manage your sales hierarchy — CGO, ASD, Sales Managers and Executives" />
 
-      {/* Stats Strip */}
-      <div className="bt-stats">
-        {stats.map(s => (
-          <div className="bt-stat-card" key={s.value} style={{ borderTopColor: s.color }}>
-            <div className="bt-stat-count" style={{ color: s.color }}>{s.count}</div>
-            <div className="bt-stat-label">{s.label}</div>
-            <div className="bt-stat-short" style={{ background: s.color + '15', color: s.color }}>{s.short}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Toolbar */}
-      <div className="bt-toolbar">
-        <div className="users-search">
-          <Search size={15} />
-          <input
-            className="users-search-input"
-            placeholder="Search by name, email or phone…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          {search && (
-            <button className="search-clear" onClick={() => setSearch('')}><X size={14} /></button>
-          )}
-        </div>
-
-        <select
-          className="filter-select"
-          value={roleFilter}
-          onChange={e => setRoleFilter(e.target.value)}
-        >
-          <option value="">All Roles</option>
-          {ROLES.map(r => (
-            <option key={r.value} value={r.value}>{r.label}</option>
+      <div className="bt-content">
+        {/* Stats Strip */}
+        <div className="bt-stats">
+          {stats.map(s => (
+            <div className="bt-stat-card" key={s.value} style={{ borderTopColor: s.color }}>
+              <div className="bt-stat-count" style={{ color: s.color }}>{s.count}</div>
+              <div className="bt-stat-label">{s.label}</div>
+              <div className="bt-stat-short" style={{ background: s.color + '15', color: s.color }}>{s.short}</div>
+            </div>
           ))}
-        </select>
+        </div>
 
-        <div className="bt-view-toggle">
-          <button
-            className={`bt-view-btn ${view === 'list' ? 'active' : ''}`}
-            onClick={() => setView('list')}
+        {/* Toolbar */}
+        <div className="bt-toolbar">
+          <div className="users-search">
+            <Search size={15} />
+            <input
+              className="users-search-input"
+              placeholder="Search by name, email or phone…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="search-clear" onClick={() => setSearch('')}><X size={14} /></button>
+            )}
+          </div>
+
+          <select
+            className="filter-select"
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value)}
           >
-            <List size={15} /> List
-          </button>
-          <button
-            className={`bt-view-btn ${view === 'tree' ? 'active' : ''}`}
-            onClick={() => setView('tree')}
-          >
-            <Network size={15} /> Tree View
+            <option value="">All Roles</option>
+            {ROLES.map(r => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+
+          <div className="bt-view-toggle">
+            <button
+              className={`bt-view-btn ${view === 'list' ? 'active' : ''}`}
+              onClick={() => setView('list')}
+            >
+              <List size={15} /> List
+            </button>
+            <button
+              className={`bt-view-btn ${view === 'tree' ? 'active' : ''}`}
+              onClick={() => setView('tree')}
+            >
+              <Network size={15} /> Tree View
+            </button>
+          </div>
+
+          <button className="btn btn-primary" onClick={() => setModalMember({})}>
+            <Plus size={16} /> Add Member
           </button>
         </div>
-      </div>
 
-      {/* Content */}
-      {loading ? (
-        <div className="bt-loading">
-          <div className="page-spinner" />
-          <p>Loading team…</p>
-        </div>
-      ) : view === 'list' ? (
-        /* ── List View ── */
-        <div className="users-table-wrap">
-          {filtered.length === 0 ? (
-            <div className="bt-empty">
-              <UserCheck size={36} />
-              <p>
-                {members.length === 0
-                  ? 'No team members yet. Add your first member to get started.'
-                  : 'No members match your search.'}
-              </p>
-              {members.length === 0 && (
+        {/* List View */}
+        {view === 'list' && (
+          <div className="users-table-wrap">
+            {filtered.length === 0 ? (
+              <div className="bt-empty">
+                <UserCheck size={36} />
+                <p>
+                  {members.length === 0
+                    ? 'No team members yet. Add your first member to get started.'
+                    : 'No members match your search.'}
+                </p>
+                {members.length === 0 && (
+                  <button className="btn btn-primary" onClick={() => setModalMember({})}>
+                    <Plus size={15} /> Add First Member
+                  </button>
+                )}
+              </div>
+            ) : (
+              <table className="users-table">
+                <thead>
+                  <tr>
+                    <th>Member</th>
+                    <th>Role</th>
+                    <th>Phone</th>
+                    <th>Reports To</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(m => {
+                    const info = getRoleInfo(m.role);
+                    return (
+                      <tr key={m.id}>
+                        <td>
+                          <div className="user-cell">
+                            <div
+                              className="avatar avatar-sm"
+                              style={{ background: info.color + '20', color: info.color, fontSize: 13, fontWeight: 700 }}
+                            >
+                              {m.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="user-name">{m.name}</div>
+                              <div className="user-email">{m.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td><RoleBadge role={m.role} /></td>
+                        <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{m.phone}</td>
+                        <td>
+                          {m.parent_name ? (
+                            <span className="bt-parent-cell">
+                              {m.parent_name} <RoleBadge role={m.parent_role} />
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-light)', fontSize: 12 }}>—</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="user-actions">
+                            <button className="btn btn-secondary btn-xs" onClick={() => setModalMember(m)}>
+                              <Edit2 size={12} /> Edit
+                            </button>
+                            <button className="btn btn-danger btn-xs" onClick={() => setDeleteTarget(m)}>
+                              <Trash2 size={12} /> Remove
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* Tree View */}
+        {view === 'tree' && (
+          <div className="bt-tree-wrap">
+            {tree.length === 0 ? (
+              <div className="bt-empty">
+                <GitBranch size={36} />
+                <p>No hierarchy to display yet. Add team members to build your tree.</p>
                 <button className="btn btn-primary" onClick={() => setModalMember({})}>
                   <Plus size={15} /> Add First Member
                 </button>
-              )}
-            </div>
-          ) : (
-            <table className="users-table">
-              <thead>
-                <tr>
-                  <th>Member</th>
-                  <th>Role</th>
-                  <th>Phone</th>
-                  <th>Reports To</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(m => {
-                  const info = getRoleInfo(m.role);
-                  return (
-                    <tr key={m.id}>
-                      <td>
-                        <div className="user-cell">
-                          <div
-                            className="avatar avatar-sm"
-                            style={{ background: info.color + '20', color: info.color, fontSize: 13, fontWeight: 700 }}
-                          >
-                            {m.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="user-name">{m.name}</div>
-                            <div className="user-email">{m.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td><RoleBadge role={m.role} /></td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{m.phone}</td>
-                      <td>
-                        {m.parent_name ? (
-                          <span className="bt-parent-cell">
-                            {m.parent_name}
-                            <RoleBadge role={m.parent_role} />
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--text-light)', fontSize: 12 }}>—</span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="user-actions">
-                          <button
-                            className="btn btn-secondary btn-xs"
-                            onClick={() => setModalMember(m)}
-                          >
-                            <Edit2 size={12} /> Edit
-                          </button>
-                          <button
-                            className="btn btn-danger btn-xs"
-                            onClick={() => setDeleteTarget(m)}
-                          >
-                            <Trash2 size={12} /> Remove
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      ) : (
-        /* ── Tree View ── */
-        <div className="bt-tree-wrap">
-          {tree.length === 0 ? (
-            <div className="bt-empty">
-              <Network size={36} />
-              <p>No hierarchy to display yet. Add team members to build your tree.</p>
-              <button className="btn btn-primary" onClick={() => setModalMember({})}>
-                <Plus size={15} /> Add First Member
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="bt-tree-legend">
-                {ROLES.map(r => (
-                  <span key={r.value} className="bt-legend-item">
-                    <span className="bt-legend-dot" style={{ background: r.color }} />
-                    {r.label}
-                  </span>
-                ))}
               </div>
-              <div className="bt-tree-root">
-                {tree.map(node => (
-                  <TreeNode
-                    key={node.id}
-                    node={node}
-                    depth={0}
-                    onEdit={setModalMember}
-                    onDelete={setDeleteTarget}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+            ) : (
+              <>
+                <div className="bt-tree-legend">
+                  {ROLES.map(r => (
+                    <span key={r.value} className="bt-legend-item">
+                      <span className="bt-legend-dot" style={{ background: r.color }} />
+                      {r.label}
+                    </span>
+                  ))}
+                </div>
+                <div className="bt-tree-root">
+                  {tree.map(node => (
+                    <TreeNode
+                      key={node.id}
+                      node={node}
+                      onEdit={setModalMember}
+                      onDelete={setDeleteTarget}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
-      {/* Add / Edit Modal */}
       {modalMember !== null && (
         <MemberModal
           member={modalMember}
@@ -602,7 +551,6 @@ export default function BusinessTeam() {
         />
       )}
 
-      {/* Delete Modal */}
       {deleteTarget && (
         <DeleteModal
           member={deleteTarget}
