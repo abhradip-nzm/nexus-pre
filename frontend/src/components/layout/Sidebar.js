@@ -6,7 +6,7 @@ import {
   ChevronDown, LogOut, MessageSquare, Activity,
   Shield, UsersRound, LayoutGrid, UserCog,
   Calendar as CalendarIcon, Tag as TagIcon, Building2,
-  GitBranch
+  GitBranch, CalendarCheck
 } from 'lucide-react';
 import { formatRoleName } from '../../utils/helpers';
 import './Sidebar.css';
@@ -24,6 +24,7 @@ function getNavItems(role) {
     return [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
+      { to: '/my-tasks', icon: CalendarCheck, label: 'My Tasks' },
       teamItem,
       { to: '/calendar', icon: CalendarIcon, label: 'Calendar' },
       { to: '/activity', icon: Activity, label: 'Activity Log' },
@@ -33,6 +34,7 @@ function getNavItems(role) {
     return [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
+      { to: '/my-tasks', icon: CalendarCheck, label: 'My Tasks' },
       { to: '/calendar', icon: CalendarIcon, label: 'Calendar' },
       { to: '/whatsapp', icon: MessageSquare, label: 'WhatsApp' },
     ];
@@ -42,6 +44,7 @@ function getNavItems(role) {
 
 const adminNavItems = [
   { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
+  { to: '/my-tasks', icon: CalendarCheck, label: 'My Tasks' },
   { to: '/admin/users', icon: UserCog, label: 'User Management' },
   { to: '/admin/teams', icon: UsersRound, label: 'Teams' },
   { to: '/admin/business-team', icon: GitBranch, label: 'Business Team' },

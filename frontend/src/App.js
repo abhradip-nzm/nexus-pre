@@ -20,6 +20,7 @@ import AdminKanban from './pages/AdminKanban';
 import AdminTags from './pages/AdminTags';
 import AdminIndustries from './pages/AdminIndustries';
 import BusinessTeam from './pages/BusinessTeam';
+import MyTasks from './pages/MyTasks';
 import './styles/global.css';
 
 function ProtectedRoute({ children, roles }) {
@@ -198,6 +199,12 @@ function App() {
           <Route path="/settings" element={
             <ProtectedRoute roles={['system_admin']}>
               <AppLayout><Settings /></AppLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/my-tasks" element={
+            <ProtectedRoute roles={['system_admin', 'super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
+              <AppLayout><MyTasks /></AppLayout>
             </ProtectedRoute>
           } />
 

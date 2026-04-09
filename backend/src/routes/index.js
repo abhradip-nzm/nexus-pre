@@ -37,7 +37,7 @@ router.delete('/kanban/sub-stages/:id', authenticate, requireManager, deleteSubS
 // Stories
 const {
   getAllStories, getStoryById, createStory, updateStory, moveStory, deleteStory,
-  getTasksByStory, createTask, updateTask, deleteTask, addComment
+  getTasksByStory, createTask, updateTask, deleteTask, getMyTasks, addComment
 } = require('../controllers/storyController');
 router.get('/stories', authenticate, getAllStories);
 router.post('/stories', authenticate, createStory);
@@ -51,6 +51,9 @@ router.get('/stories/:storyId/tasks', authenticate, getTasksByStory);
 router.post('/stories/:storyId/tasks', authenticate, createTask);
 router.put('/tasks/:id', authenticate, updateTask);
 router.delete('/tasks/:id', authenticate, deleteTask);
+
+// My Tasks
+router.get('/tasks/my', authenticate, getMyTasks);
 
 // Comments
 router.post('/stories/:storyId/comments', authenticate, addComment);

@@ -622,6 +622,42 @@ const deleteTask = async (req, res) => {
   }
 };
 
+// ── My Tasks ──────────────────────────────────────────────────────────────────
+
+const getMyTasks = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await query(`
+      SELECT
+        t.id, t.title, t.description, t.status, t.due_date, t.completed_at,
+        t.created_at, t.updated_at,
+        us.id   AS story_id,
+        us.title AS story_title,
+        cb.first_name || ' ' || cb.last_name AS created_by_name,
+        COALESCE(
+          (SELECT json_agg(jsonb_build_object('id', u2.id, 'name', u2.first_name || ' ' || u2.last_name))
+           FROM task_assignees ta2
+           JOIN users u2 ON u2.id = ta2.user_id
+           WHERE ta2.task_id = t.id),
+          '[]'
+        ) AS assignees
+      FROM tasks t
+      JOIN user_stories us ON us.id = t.user_story_id
+      LEFT JOIN users cb ON cb.id = t.created_by
+      WHERE t.id IN (
+        SELECT task_id FROM task_assignees WHERE user_id = $1
+      )
+      ORDER BY t.due_date ASC NULLS LAST, t.created_at ASC
+    `, [userId]);
+
+    res.json({ tasks: result.rows });
+  } catch (error) {
+    console.error('Get my tasks error:', error);
+    res.status(500).json({ error: 'Failed to get tasks' });
+  }
+};
+
 // ── Comments ───────────────────────────────────────────────────────────────────
 
 const addComment = async (req, res) => {
@@ -639,5 +675,5 @@ const addComment = async (req, res) => {
 
 module.exports = {
   getAllStories, getStoryById, createStory, updateStory, moveStory, deleteStory,
-  getTasksByStory, createTask, updateTask, deleteTask, addComment
+  getTasksByStory, createTask, updateTask, deleteTask, getMyTasks, addComment
 };
