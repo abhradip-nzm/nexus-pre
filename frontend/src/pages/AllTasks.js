@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   ChevronLeft, ChevronRight, CalendarCheck, CheckSquare,
-  Clock, AlertCircle, ExternalLink, Check, Users
+  Clock, AlertCircle, ExternalLink, Check, Users, Download
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
+import { exportToExcel } from '../utils/exportExcel';
 import './MyTasks.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -353,7 +354,28 @@ export default function AllTasks() {
         {/* Task list below calendar */}
         {tasks.length > 0 && (
           <div className="mytasks-list-section">
-            <h3 className="mytasks-list-title">All Tasks</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <h3 className="mytasks-list-title" style={{ margin: 0 }}>All Tasks</h3>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  const data = tasks.map(t => ({
+                    'Title': t.title,
+                    'Story Title': t.story_title || '',
+                    'Status': t.status || '',
+                    'Priority': t.priority || '',
+                    'Assignees': (t.assignees || []).map(a => a.name).join(', '),
+                    'Start Date': t.start_date ? new Date(t.start_date).toLocaleDateString() : '',
+                    'Due Date': t.due_date ? new Date(t.due_date).toLocaleDateString() : '',
+                    'Created': t.created_at ? new Date(t.created_at).toLocaleDateString() : '',
+                  }));
+                  exportToExcel(data, 'all-tasks');
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <Download size={15} /> Export Excel
+              </button>
+            </div>
             <div className="mytasks-list">
               {tasks.map(task => {
                 const cat = getTaskCategory(task, today);

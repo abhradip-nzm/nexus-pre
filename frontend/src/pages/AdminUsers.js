@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, X, Check, RefreshCw, KeyRound, Copy } from 'lucide-react';
+import { Plus, Search, X, Check, RefreshCw, KeyRound, Copy, Download } from 'lucide-react';
 import { formatRoleName } from '../utils/helpers';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
+import { exportToExcel } from '../utils/exportExcel';
 import './AdminUsers.css';
 
 const FEATURES = [
@@ -236,6 +237,23 @@ export default function AdminUsers() {
             <span className="stat-pill active">{users.filter(u => u.is_active).length} active</span>
           </div>
 
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              const data = filtered.map(u => ({
+                'First Name': u.first_name,
+                'Last Name': u.last_name,
+                'Email': u.email,
+                'Role': formatRoleName(u.role_name),
+                'Status': u.is_active ? 'Active' : 'Inactive',
+                'Created': u.created_at ? new Date(u.created_at).toLocaleDateString() : '',
+              }));
+              exportToExcel(data, 'users');
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Download size={15} /> Export Excel
+          </button>
           <button className="btn btn-primary btn-sm" onClick={openCreate}>
             <Plus size={14} /> Add User
           </button>

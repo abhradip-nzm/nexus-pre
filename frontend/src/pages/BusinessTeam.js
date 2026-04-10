@@ -2,12 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Edit2, Trash2, X, ChevronRight,
   Network, List, Phone, Mail, AlertCircle, UserCheck,
-  ChevronDown, Search, GitBranch
+  ChevronDown, Search, GitBranch, Download
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import PhoneInput from '../components/PhoneInput';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
+import { exportToExcel } from '../utils/exportExcel';
 import './BusinessTeam.css';
 
 const ROLES = [
@@ -422,6 +423,23 @@ export default function BusinessTeam() {
               <Network size={15} /> Tree View
             </button>
           </div>
+
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              const data = filtered.map(m => ({
+                'Name': m.name,
+                'Role': getRoleInfo(m.role).label,
+                'Email': m.email,
+                'Phone': m.phone,
+                'Parent/Manager': m.parent_name || '',
+              }));
+              exportToExcel(data, 'business-team');
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Download size={15} /> Export Excel
+          </button>
 
           <button className="btn btn-primary" onClick={() => setModalMember({})}>
             <Plus size={16} /> Add Member

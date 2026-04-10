@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers, Download } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
+import { exportToExcel } from '../utils/exportExcel';
 import './Prospects.css';
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
@@ -169,6 +170,28 @@ export default function Prospects() {
           <div className="prospects-count">
             {prospects.length} prospect{prospects.length !== 1 ? 's' : ''}
           </div>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              const data = prospects.map(p => ({
+                'Title': p.title,
+                'Company': p.company_name || '',
+                'Contact Name': p.contact_name || '',
+                'Email': p.contact_email || '',
+                'Phone': p.contact_phone || '',
+                'Source': p.source || '',
+                'Priority': p.priority || '',
+                'Estimated Value': p.estimated_value || '',
+                'Industry': p.industry_name || '',
+                'Notes': p.notes || '',
+                'Created': p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
+              }));
+              exportToExcel(data, 'prospects');
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Download size={15} /> Export Excel
+          </button>
           <button className="btn btn-primary btn-sm" onClick={openCreate}>
             <Plus size={14} /> Add Prospect
           </button>

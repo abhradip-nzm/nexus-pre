@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, X, Users, UserCheck, Crown } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Users, UserCheck, Crown, Download } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import { formatRoleName } from '../utils/helpers';
 import toast from 'react-hot-toast';
+import { exportToExcel } from '../utils/exportExcel';
 import './AdminTeams.css';
 
 const ACCENT_COLORS = [
@@ -142,6 +143,20 @@ export default function AdminTeams() {
 
         <div className="teams-header">
           <div className="teams-count">{teams.length} team{teams.length !== 1 ? 's' : ''}</div>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              const data = teams.map(t => ({
+                'Team Name': t.name,
+                'Members Count': (t.members || []).length,
+                'Created': t.created_at ? new Date(t.created_at).toLocaleDateString() : '',
+              }));
+              exportToExcel(data, 'teams');
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Download size={15} /> Export Excel
+          </button>
           <button className="btn btn-primary btn-sm" onClick={openCreate}>
             <Plus size={14} /> Create Team
           </button>

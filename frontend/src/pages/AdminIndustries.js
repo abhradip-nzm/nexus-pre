@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Pencil, Trash2, X } from 'lucide-react';
+import { Building2, Pencil, Trash2, X, Download } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
+import { exportToExcel } from '../utils/exportExcel';
 import './AdminIndustries.css';
 
 export default function AdminIndustries() {
@@ -70,6 +71,19 @@ export default function AdminIndustries() {
           <div className="ind-list-panel">
             <div className="ind-list-header">
               <span className="ind-count">{industries.length} industries</span>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  const data = industries.map(ind => ({
+                    'Industry Name': ind.name,
+                    'Created': ind.created_at ? new Date(ind.created_at).toLocaleDateString() : '',
+                  }));
+                  exportToExcel(data, 'industries');
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <Download size={15} /> Export Excel
+              </button>
             </div>
             {industries.length === 0 ? (
               <div className="ind-empty">

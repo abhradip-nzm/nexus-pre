@@ -7,7 +7,7 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare, SlidersHorizontal } from 'lucide-react';
+import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare, SlidersHorizontal, Download, LayoutGrid, List } from 'lucide-react';
 import Header from '../components/layout/Header';
 import StoryModal from '../components/kanban/StoryModal';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
@@ -15,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency, getInitials, getAvatarColor, getSourceIcon } from '../utils/helpers';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
+import { exportToExcel } from '../utils/exportExcel';
 import './Kanban.css';
 
 const PRIORITY_COLORS = {
@@ -201,6 +202,7 @@ export default function KanbanBoard() {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [filterOptions, setFilterOptions] = useState({ teams: [], industries: [], tags: [] });
+  const [viewMode, setViewMode] = useState('board'); // 'board' | 'list'
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -378,6 +380,33 @@ export default function KanbanBoard() {
     filters.assigned_member.length > 0,
   ].filter(Boolean).length;
 
+  // All filtered stories across all columns (used in list view)
+  const allFilteredStories = columns.flatMap(col =>
+    filteredStories(col.id).map(s => ({ ...s, column_name: col.name }))
+  );
+
+  const handleListExport = () => {
+    const data = allFilteredStories.map(s => ({
+      'Title': s.title,
+      'Company': s.client_company || '',
+      'Contact Name': s.client_name || '',
+      'Contact Email': s.client_email || '',
+      'Contact Phone': s.client_phone || '',
+      'Stage': s.column_name || '',
+      'Sub Stage': s.sub_stage_name || '',
+      'Priority': s.priority || '',
+      'Estimated Value': s.estimated_value || '',
+      'Effective Start Date': s.effective_start_date ? new Date(s.effective_start_date).toLocaleDateString() : '',
+      'Assigned Teams': (s.team_assignments || []).map(t => t.name).join(', '),
+      'Assigned Members': (s.member_assignments || []).map(m => m.name).join(', '),
+      'Sales Executive': s.business_team_member_name || '',
+      'Source': s.source || '',
+      'Tags': Array.isArray(s.tags) ? s.tags.join(', ') : (s.tags || ''),
+      'Created': new Date(s.created_at).toLocaleDateString(),
+    }));
+    exportToExcel(data, 'kanban-stories');
+  };
+
   if (loading) return (
     <div className="page-loading">
       <div className="page-spinner" />
@@ -406,6 +435,22 @@ export default function KanbanBoard() {
             )}
           </div>
           <div className="kanban-actions">
+            <div className="view-toggle">
+              <button
+                className={`view-btn ${viewMode === 'board' ? 'active' : ''}`}
+                onClick={() => setViewMode('board')}
+                title="Board View"
+              >
+                <LayoutGrid size={16} />
+              </button>
+              <button
+                className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => setViewMode('list')}
+                title="List View"
+              >
+                <List size={16} />
+              </button>
+            </div>
             <button
               className={`btn btn-sm ${showFilters || activeFilterCount > 0 ? 'btn-secondary' : 'btn-ghost'}`}
               onClick={() => setShowFilters(v => !v)}
@@ -510,36 +555,87 @@ export default function KanbanBoard() {
           </div>
         )}
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={rectIntersection}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="kanban-board">
-            {columns.map(column => (
-              <StageColumn
-                key={column.id}
-                column={column}
-                stories={filteredStories(column.id)}
-                subStageMap={subStageMap}
-                onAdd={(colId) => { setDefaultColumnId(colId); setShowCreateModal(true); }}
-                onView={setViewStory}
-              />
-            ))}
-          </div>
+        {viewMode === 'board' && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={rectIntersection}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="kanban-board">
+              {columns.map(column => (
+                <StageColumn
+                  key={column.id}
+                  column={column}
+                  stories={filteredStories(column.id)}
+                  subStageMap={subStageMap}
+                  onAdd={(colId) => { setDefaultColumnId(colId); setShowCreateModal(true); }}
+                  onView={setViewStory}
+                />
+              ))}
+            </div>
 
-          <DragOverlay>
-            {activeStory && (
-              <div className="story-card drag-overlay">
-                <div className="story-title">{activeStory.title}</div>
-                {activeStory.client_company && (
-                  <div className="story-company">{activeStory.client_company}</div>
-                )}
-              </div>
-            )}
-          </DragOverlay>
-        </DndContext>
+            <DragOverlay>
+              {activeStory && (
+                <div className="story-card drag-overlay">
+                  <div className="story-title">{activeStory.title}</div>
+                  {activeStory.client_company && (
+                    <div className="story-company">{activeStory.client_company}</div>
+                  )}
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+        )}
+
+        {viewMode === 'list' && (
+          <div className="kanban-list-view">
+            <div className="klv-toolbar">
+              <span className="klv-count">{allFilteredStories.length} stories</span>
+              <button className="btn btn-secondary btn-sm klv-export-btn" onClick={handleListExport}>
+                <Download size={15} /> Export Excel
+              </button>
+            </div>
+            <table className="klv-table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Company</th>
+                  <th>Contact</th>
+                  <th>Stage</th>
+                  <th>Sub Stage</th>
+                  <th>Priority</th>
+                  <th>Est. Value</th>
+                  <th>Effective Start</th>
+                  <th>Assigned Team</th>
+                  <th>Assigned Members</th>
+                  <th>Sales Executive</th>
+                  <th>Source</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allFilteredStories.map(story => (
+                  <tr key={story.id} className="klv-row" onClick={() => setViewStory(story)}>
+                    <td className="klv-title">{story.title}</td>
+                    <td>{story.client_company || '—'}</td>
+                    <td>{story.client_name || '—'}</td>
+                    <td><span className="klv-stage-badge">{story.column_name}</span></td>
+                    <td>{story.sub_stage_name || '—'}</td>
+                    <td><span className={`priority-badge priority-${story.priority}`}>{story.priority}</span></td>
+                    <td>{story.estimated_value ? `$${parseFloat(story.estimated_value).toLocaleString()}` : '—'}</td>
+                    <td>{story.effective_start_date ? new Date(story.effective_start_date).toLocaleDateString() : '—'}</td>
+                    <td>{(story.team_assignments || []).map(t => t.name).join(', ') || '—'}</td>
+                    <td>{(story.member_assignments || []).map(m => m.name).join(', ') || '—'}</td>
+                    <td>{story.business_team_member_name || '—'}</td>
+                    <td>{story.source || '—'}</td>
+                    <td>{new Date(story.created_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {showCreateModal && (
