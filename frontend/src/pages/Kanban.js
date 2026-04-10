@@ -7,7 +7,7 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare, SlidersHorizontal, Download, LayoutGrid, List } from 'lucide-react';
+import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare, SlidersHorizontal, Download, LayoutGrid, List, User, Calendar, Tag, Users, Briefcase } from 'lucide-react';
 import Header from '../components/layout/Header';
 import StoryModal from '../components/kanban/StoryModal';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
@@ -89,9 +89,57 @@ function StoryCard({ story, subStageName, onView }) {
           </div>
         )}
 
+        {story.client_name && (
+          <div className="story-contact-name">
+            <User size={9} />
+            {story.client_name}
+          </div>
+        )}
+
         {subStageName && (
           <div className="story-stage-tags">
             <span className="story-substage-tag">{subStageName}</span>
+          </div>
+        )}
+
+        {Array.isArray(story.tags) && story.tags.length > 0 && (
+          <div className="story-card-tags">
+            {story.tags.slice(0, 3).map((tag, i) => (
+              <span key={i} className="story-card-tag" style={{ background: '#eef4fb', color: '#3e72ae', border: '1px solid #d4e4f4' }}>
+                {tag}
+              </span>
+            ))}
+            {story.tags.length > 3 && <span className="story-card-tag" style={{ background: '#f0f4ff', color: '#718096' }}>+{story.tags.length - 3}</span>}
+          </div>
+        )}
+
+        {story.industry_assignments?.length > 0 && (
+          <div className="story-card-industries">
+            {story.industry_assignments.slice(0, 2).map((ind, i) => (
+              <span key={i} className="story-card-industry">{ind.name}</span>
+            ))}
+            {story.industry_assignments.length > 2 && <span className="story-card-industry">+{story.industry_assignments.length - 2}</span>}
+          </div>
+        )}
+
+        {story.effective_start_date && (
+          <div className="story-card-meta-row">
+            <Calendar size={9} />
+            {new Date(story.effective_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </div>
+        )}
+
+        {story.team_assignments?.length > 0 && (
+          <div className="story-card-assignments">
+            <Users size={9} style={{ display: 'inline', marginRight: 3 }} />
+            {story.team_assignments.map(t => t.name).filter(Boolean).join(', ')}
+          </div>
+        )}
+
+        {story.business_team_member_name && (
+          <div className="story-card-meta-row">
+            <Briefcase size={9} />
+            {story.business_team_member_name}
           </div>
         )}
 
@@ -404,6 +452,8 @@ export default function KanbanBoard() {
       'Sales Executive': s.business_team_member_name || '',
       'Source': s.source || '',
       'Description': s.description || '',
+      'Contact Email': s.client_email || '',
+      'Contact Phone': s.client_phone || '',
       'Created By': s.created_by_name || '',
       'Created': new Date(s.created_at).toLocaleDateString(),
     }));
@@ -616,21 +666,24 @@ export default function KanbanBoard() {
                   <th>Tags</th>
                   <th>Sales Executive</th>
                   <th>Source</th>
+                  <th>Description</th>
                   <th>Contact Email</th>
                   <th>Contact Phone</th>
+                  <th>Created By</th>
                   <th>Created</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {allFilteredStories.map(story => (
-                  <tr key={story.id} className="klv-row" onClick={() => setViewStory(story)}>
+                  <tr key={story.id} className="klv-row">
                     <td className="klv-title">{story.title}</td>
                     <td>{story.client_company || '—'}</td>
                     <td>{story.client_name || '—'}</td>
-                    <td><span className="klv-stage-badge">{story.column_name}</span></td>
-                    <td>{story.sub_stage_name || '—'}</td>
+                    <td><span className="klv-stage-badge" style={story.column_color ? { background: `${story.column_color}20`, color: story.column_color, borderColor: `${story.column_color}50` } : {}}>{story.column_name}</span></td>
+                    <td>{story.sub_stage_name ? <span className="klv-substage-badge">{story.sub_stage_name}</span> : '—'}</td>
                     <td><span className={`priority-badge priority-${story.priority}`}>{story.priority}</span></td>
-                    <td>{story.estimated_value ? `$${parseFloat(story.estimated_value).toLocaleString()}` : '—'}</td>
+                    <td style={{ color: 'var(--success)', fontWeight: 600 }}>{story.estimated_value ? `$${parseFloat(story.estimated_value).toLocaleString()}` : '—'}</td>
                     <td>{story.effective_start_date ? new Date(story.effective_start_date).toLocaleDateString() : '—'}</td>
                     <td>{(story.team_assignments || []).map(t => t.name).filter(Boolean).join(', ') || '—'}</td>
                     <td>{(story.member_assignments || []).map(m => m.name).filter(Boolean).join(', ') || '—'}</td>
@@ -638,9 +691,19 @@ export default function KanbanBoard() {
                     <td>{Array.isArray(story.tags) ? story.tags.join(', ') || '—' : (story.tags || '—')}</td>
                     <td>{story.business_team_member_name || '—'}</td>
                     <td>{story.source || '—'}</td>
+                    <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{story.description || '—'}</td>
                     <td>{story.client_email || '—'}</td>
                     <td>{story.client_phone || '—'}</td>
+                    <td>{story.created_by_name || '—'}</td>
                     <td>{new Date(story.created_at).toLocaleDateString()}</td>
+                    <td>
+                      <button
+                        className="klv-view-btn"
+                        onClick={e => { e.stopPropagation(); setViewStory(story); }}
+                      >
+                        <Eye size={11} /> View
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

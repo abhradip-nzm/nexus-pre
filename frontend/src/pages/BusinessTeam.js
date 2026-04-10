@@ -75,12 +75,8 @@ function TreeNode({ node, onEdit, onDelete }) {
             </div>
           </div>
           <div className="bt-tree-actions">
-            <button className="btn btn-ghost btn-icon btn-xs" onClick={() => onEdit(node)} title="Edit">
-              <Edit2 size={13} />
-            </button>
-            <button className="btn btn-ghost btn-icon btn-xs text-error" onClick={() => onDelete(node)} title="Delete">
-              <Trash2 size={13} />
-            </button>
+            <button className="btn btn-ghost btn-xs" onClick={() => onEdit(node)}>Edit</button>
+            <button className="btn btn-ghost btn-xs" style={{ color: 'var(--error)' }} onClick={() => onDelete(node)}>Remove</button>
           </div>
         </div>
       </div>
@@ -436,7 +432,7 @@ export default function BusinessTeam() {
               }));
               exportToExcel(data, 'business-team');
             }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}
           >
             <Download size={15} /> Export Excel
           </button>

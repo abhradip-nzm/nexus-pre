@@ -184,11 +184,11 @@ select {
 .btn-primary:disabled { transform: none; box-shadow: none; opacity: 0.6; }
 
 .btn-secondary {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  border-color: var(--border);
+  background: var(--primary-50, #eef4fb);
+  color: var(--primary);
+  border-color: var(--primary-100, #d4e4f4);
 }
-.btn-secondary:hover { background: var(--bg-secondary); }
+.btn-secondary:hover { background: var(--primary-100, #d4e4f4); border-color: var(--primary); }
 
 .btn-ghost {
   background: transparent;

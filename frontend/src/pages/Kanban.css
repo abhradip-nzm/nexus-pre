@@ -453,6 +453,61 @@
   white-space: nowrap;
 }
 
+/* Story card extra info rows */
+.story-contact-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-bottom: 3px;
+}
+.story-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.story-card-tag {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.story-card-industries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 3px;
+}
+.story-card-industry {
+  font-size: 9px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  background: #f0f9f6;
+  color: #16a085;
+  border: 1px solid #c6f0e7;
+  white-space: nowrap;
+}
+.story-card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+.story-card-assignments {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* View Toggle */
 .view-toggle {
   display: flex;
@@ -504,11 +559,13 @@
   box-shadow: 0 1px 4px rgba(0,0,0,0.07);
 }
 .klv-table th {
-  background: var(--bg-secondary, #f8f9fa);
+  background: #ebe7e3;
   padding: 10px 13px;
   text-align: left;
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--text-secondary);
   border-bottom: 1.5px solid var(--border-light);
   white-space: nowrap;
@@ -519,11 +576,10 @@
   color: var(--text-primary);
   vertical-align: middle;
 }
-.klv-row {
-  cursor: pointer;
-  transition: background 0.12s;
-}
-.klv-row:hover { background: var(--bg-hover, #f0f4ff); }
+.klv-row { cursor: pointer; transition: background 0.12s; }
+.klv-table tbody tr:nth-child(even) td { background: #d3e3fd; }
+.klv-table tbody tr:nth-child(even):hover td { background: #b8d0f7; }
+.klv-table tbody tr:nth-child(odd):hover td { background: var(--bg-hover, #f0f4ff); }
 .klv-title {
   font-weight: 500;
   max-width: 220px;
@@ -532,13 +588,41 @@
   text-overflow: ellipsis;
 }
 .klv-stage-badge {
-  background: var(--primary-light, #e8f0fe);
-  color: var(--primary);
-  padding: 2px 8px;
+  display: inline-block;
+  padding: 3px 9px;
   border-radius: 20px;
   font-size: 11px;
   font-weight: 600;
+  background: var(--primary-50, #eef4fb);
+  color: var(--primary);
+  border: 1px solid var(--primary-100, #d4e4f4);
 }
+.klv-substage-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  background: #f0f9f6;
+  color: #16a085;
+  border: 1px solid #c6f0e7;
+}
+.klv-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-50, #eef4fb);
+  border: 1px solid var(--primary-100, #d4e4f4);
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.klv-view-btn:hover { background: var(--primary-100, #d4e4f4); border-color: var(--primary); }
 .priority-badge {
   padding: 2px 8px;
   border-radius: 20px;

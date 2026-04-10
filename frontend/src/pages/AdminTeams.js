@@ -145,6 +145,7 @@ export default function AdminTeams() {
           <div className="teams-count">{teams.length} team{teams.length !== 1 ? 's' : ''}</div>
           <button
             className="btn btn-secondary btn-sm"
+            style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}
             onClick={() => {
               const data = teams.map(t => ({
                 'Team Name': t.name,
@@ -153,7 +154,6 @@ export default function AdminTeams() {
               }));
               exportToExcel(data, 'teams');
             }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <Download size={15} /> Export Excel
           </button>
