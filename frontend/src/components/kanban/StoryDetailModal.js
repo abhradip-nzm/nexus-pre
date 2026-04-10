@@ -443,6 +443,12 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                         <span className="ss-value text-success">${parseFloat(story.estimated_value).toLocaleString()}</span>
                       </div>
                     )}
+                    {story.effective_start_date && (
+                      <div className="sidebar-stat">
+                        <span className="ss-label">Effective Start Date</span>
+                        <span className="ss-value">{formatDate(story.effective_start_date)}</span>
+                      </div>
+                    )}
                     {story.business_team_member_name && (
                       <div className="sidebar-stat">
                         <span className="ss-label">Sales Executive</span>

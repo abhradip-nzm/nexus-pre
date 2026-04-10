@@ -39,6 +39,7 @@ export default function StoryModal({
     sub_stage_id: story?.sub_stage_id || '',
     priority: story?.priority || 'medium',
     estimated_value: story?.estimated_value || '',
+    effective_start_date: story?.effective_start_date ? story.effective_start_date.slice(0, 10) : '',
     tags: story?.tags || [],
     business_team_member_id: story?.business_team_member_id || '',
     team_ids: existingTeamIds,
@@ -396,6 +397,16 @@ export default function StoryModal({
                     onChange={e => handleChange('estimated_value', e.target.value)}
                     min="0"
                     step="100"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Effective Start Date</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={form.effective_start_date}
+                    onChange={e => handleChange('effective_start_date', e.target.value)}
                   />
                 </div>
 

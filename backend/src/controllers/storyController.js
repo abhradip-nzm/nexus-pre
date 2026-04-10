@@ -292,7 +292,7 @@ const createStory = async (req, res) => {
     const {
       title, description, client_name, client_company, client_email,
       client_phone, column_id, sub_stage_id, assigned_to, priority,
-      estimated_value, tags, due_date, business_team_member_id, team_ids, member_ids, industry_ids
+      estimated_value, tags, due_date, effective_start_date, business_team_member_id, team_ids, member_ids, industry_ids
     } = req.body;
 
     if (!title || !column_id) {
@@ -310,14 +310,14 @@ const createStory = async (req, res) => {
       `INSERT INTO user_stories
        (title, description, client_name, client_company, client_email, client_phone,
         column_id, sub_stage_id, assigned_to, created_by, priority, estimated_value,
-        tags, due_date, position, business_team_member_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+        tags, due_date, effective_start_date, position, business_team_member_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
        RETURNING *`,
       [title, description || null, client_name || null, client_company || null,
        client_email || null, client_phone || null,
        column_id, sub_stage_id || null, assigned_to || null, req.user.id,
        priority || 'medium', estimated_value || null, tags || null,
-       due_date || null, position, business_team_member_id || null]
+       due_date || null, effective_start_date || null, position, business_team_member_id || null]
     );
 
     const storyId = result.rows[0].id;
@@ -379,7 +379,7 @@ const updateStory = async (req, res) => {
     const {
       title, description, client_name, client_company, client_email, client_phone,
       column_id, sub_stage_id, assigned_to, priority, estimated_value, tags, due_date,
-      business_team_member_id, team_ids, member_ids, industry_ids
+      effective_start_date, business_team_member_id, team_ids, member_ids, industry_ids
     } = req.body;
 
     const updates = [];
@@ -440,6 +440,7 @@ const updateStory = async (req, res) => {
     }
     if (tags !== undefined) { updates.push(`tags = $${idx++}`); values.push(tags); }
     if (due_date !== undefined) { updates.push(`due_date = $${idx++}`); values.push(due_date || null); }
+    if (effective_start_date !== undefined) { updates.push(`effective_start_date = $${idx++}`); values.push(effective_start_date || null); }
     if (business_team_member_id !== undefined) {
       await trackChange('business_team_member_id', old.business_team_member_id, business_team_member_id || null);
       updates.push(`business_team_member_id = $${idx++}`); values.push(business_team_member_id || null);
