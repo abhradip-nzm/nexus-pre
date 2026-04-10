@@ -280,13 +280,30 @@ export default function MyTasks() {
           </div>
         </div>
 
-        {/* Legend */}
+        {/* Legend + Export */}
         <div className="mytasks-legend">
           <span className="legend-item"><span className="legend-dot legend-active" /> Active</span>
           <span className="legend-item"><span className="legend-dot legend-upcoming" /> Upcoming</span>
           <span className="legend-item"><span className="legend-dot legend-overdue" /> Overdue</span>
           <span className="legend-item"><span className="legend-dot legend-completed" /> Completed</span>
           <span className="legend-hint">Click the circle on a task bar to mark complete / incomplete</span>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              const data = tasks.map(t => ({
+                'Title': t.title,
+                'Story Title': t.story_title || '',
+                'Status': t.status || '',
+                'Priority': t.priority || '',
+                'Start Date': t.start_date ? new Date(t.start_date).toLocaleDateString() : '',
+                'Due Date': t.due_date ? new Date(t.due_date).toLocaleDateString() : '',
+              }));
+              exportToExcel(data, 'my-tasks');
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}
+          >
+            <Download size={15} /> Export Excel
+          </button>
         </div>
 
         {/* Calendar */}
@@ -331,26 +348,7 @@ export default function MyTasks() {
         {/* Task list below calendar */}
         {tasks.length > 0 && (
           <div className="mytasks-list-section">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <h3 className="mytasks-list-title" style={{ margin: 0 }}>All Assigned Tasks</h3>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  const data = tasks.map(t => ({
-                    'Title': t.title,
-                    'Story Title': t.story_title || '',
-                    'Status': t.status || '',
-                    'Priority': t.priority || '',
-                    'Start Date': t.start_date ? new Date(t.start_date).toLocaleDateString() : '',
-                    'Due Date': t.due_date ? new Date(t.due_date).toLocaleDateString() : '',
-                  }));
-                  exportToExcel(data, 'my-tasks');
-                }}
-                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-              >
-                <Download size={15} /> Export Excel
-              </button>
-            </div>
+            <h3 className="mytasks-list-title">All Assigned Tasks</h3>
             <div className="mytasks-list">
               {tasks.map(task => {
                 const cat = getTaskCategory(task, today);

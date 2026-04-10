@@ -104,13 +104,23 @@ const getAllStories = async (req, res) => {
               COUNT(DISTINCT CASE WHEN t.status = 'done' THEN t.id END) as completed_task_count,
               COUNT(DISTINCT sc.id) as comment_count,
               COALESCE((
-                SELECT json_agg(jsonb_build_object('team_id', sta.team_id))
-                FROM story_team_assignments sta WHERE sta.story_id = us.id
+                SELECT json_agg(jsonb_build_object('team_id', sta.team_id, 'name', t_ref.name))
+                FROM story_team_assignments sta
+                JOIN teams t_ref ON t_ref.id = sta.team_id
+                WHERE sta.story_id = us.id
               ), '[]') as team_assignments,
               COALESCE((
-                SELECT json_agg(jsonb_build_object('user_id', sma.user_id))
-                FROM story_member_assignments sma WHERE sma.story_id = us.id
-              ), '[]') as member_assignments
+                SELECT json_agg(jsonb_build_object('user_id', sma.user_id, 'name', u_ref.first_name || ' ' || u_ref.last_name))
+                FROM story_member_assignments sma
+                JOIN users u_ref ON u_ref.id = sma.user_id
+                WHERE sma.story_id = us.id
+              ), '[]') as member_assignments,
+              COALESCE((
+                SELECT json_agg(jsonb_build_object('industry_id', si.industry_id, 'name', i_ref.name))
+                FROM story_industries si
+                JOIN industries i_ref ON i_ref.id = si.industry_id
+                WHERE si.story_id = us.id
+              ), '[]') as industry_assignments
        FROM user_stories us
        LEFT JOIN kanban_columns kc ON us.column_id = kc.id
        LEFT JOIN kanban_sub_stages kss ON us.sub_stage_id = kss.id

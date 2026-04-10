@@ -166,9 +166,9 @@ export default function Prospects() {
       <Header title="Probable Prospects" subtitle="Manage and track potential opportunities before promoting to the pipeline" />
       <div className="page-content prospects-page">
 
-        <div className="prospects-toolbar">
-          <div className="prospects-count">
-            {prospects.length} prospect{prospects.length !== 1 ? 's' : ''}
+        <div className="users-toolbar">
+          <div className="users-stats">
+            <span className="stat-pill">{prospects.length} prospect{prospects.length !== 1 ? 's' : ''}</span>
           </div>
           <button
             className="btn btn-secondary btn-sm"
@@ -212,8 +212,8 @@ export default function Prospects() {
             </button>
           </div>
         ) : (
-          <div className="prospects-table-wrapper">
-            <table className="prospects-table">
+          <div className="users-table-wrap">
+            <table className="users-table">
               <thead>
                 <tr>
                   <th>Title</th>
@@ -232,65 +232,66 @@ export default function Prospects() {
                   return (
                     <tr key={prospect.id}>
                       <td>
-                        <div className="prospect-title">{prospect.title}</div>
+                        <div className="user-name">{prospect.title}</div>
                         {prospect.source && (
-                          <div className="prospect-source">{prospect.source}</div>
+                          <div className="user-email">{prospect.source}</div>
                         )}
                       </td>
                       <td>
                         {prospect.company_name ? (
-                          <span className="prospect-company">
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}>
                             <Building size={12} /> {prospect.company_name}
                           </span>
-                        ) : '—'}
+                        ) : <span className="user-email">—</span>}
                       </td>
                       <td>
-                        <div className="prospect-contact">
+                        <div>
                           {prospect.contact_name && (
-                            <div><User size={11} /> {prospect.contact_name}</div>
+                            <div className="user-name" style={{ fontSize: 13 }}>{prospect.contact_name}</div>
                           )}
                           {prospect.contact_email && (
-                            <div className="prospect-contact-detail"><Mail size={11} /> {prospect.contact_email}</div>
+                            <div className="user-email">{prospect.contact_email}</div>
                           )}
                           {prospect.contact_phone && (
-                            <div className="prospect-contact-detail"><Phone size={11} /> {prospect.contact_phone}</div>
+                            <div className="user-email">{prospect.contact_phone}</div>
                           )}
-                          {!prospect.contact_name && !prospect.contact_email && !prospect.contact_phone && '—'}
+                          {!prospect.contact_name && !prospect.contact_email && !prospect.contact_phone && <span className="user-email">—</span>}
                         </div>
                       </td>
                       <td>
                         <span
-                          className="prospect-priority-badge"
+                          className="role-badge"
                           style={{ background: `${pColor}20`, color: pColor, border: `1px solid ${pColor}40` }}
                         >
                           {prospect.priority}
                         </span>
                       </td>
-                      <td className="prospect-value">{formatValue(prospect.estimated_value)}</td>
-                      <td>{prospect.industry_name || '—'}</td>
-                      <td className="prospect-date">{formatDate(prospect.created_at)}</td>
+                      <td style={{ fontWeight: 500, color: 'var(--success)' }}>{formatValue(prospect.estimated_value)}</td>
+                      <td>{prospect.industry_name || <span className="user-email">—</span>}</td>
+                      <td className="last-login">{formatDate(prospect.created_at)}</td>
                       <td>
-                        <div className="prospect-actions">
+                        <div className="user-actions">
                           <button
-                            className="btn btn-ghost btn-icon-sm"
+                            className="btn btn-ghost btn-xs"
                             onClick={() => openEdit(prospect)}
                             title="Edit"
                           >
-                            <Pencil size={13} />
+                            Edit
                           </button>
                           <button
-                            className="btn btn-ghost btn-icon-sm btn-danger-hover"
+                            className="btn btn-ghost btn-xs"
+                            style={{ color: 'var(--error)' }}
                             onClick={() => setDeleteConfirm(prospect.id)}
                             title="Delete"
                           >
-                            <Trash2 size={13} />
+                            Delete
                           </button>
                           <button
-                            className="btn btn-primary btn-sm prospect-promote-btn"
+                            className="btn btn-primary btn-xs"
                             onClick={() => setPromoteConfirm(prospect)}
                             title="Promote to Story"
                           >
-                            <ArrowUpCircle size={13} /> Promote
+                            <ArrowUpCircle size={12} /> Promote
                           </button>
                         </div>
                       </td>

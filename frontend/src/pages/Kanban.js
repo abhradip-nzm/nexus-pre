@@ -397,11 +397,14 @@ export default function KanbanBoard() {
       'Priority': s.priority || '',
       'Estimated Value': s.estimated_value || '',
       'Effective Start Date': s.effective_start_date ? new Date(s.effective_start_date).toLocaleDateString() : '',
-      'Assigned Teams': (s.team_assignments || []).map(t => t.name).join(', '),
-      'Assigned Members': (s.member_assignments || []).map(m => m.name).join(', '),
+      'Assigned Teams': (s.team_assignments || []).map(t => t.name).filter(Boolean).join(', '),
+      'Assigned Members': (s.member_assignments || []).map(m => m.name).filter(Boolean).join(', '),
+      'Industries': (s.industry_assignments || []).map(i => i.name).filter(Boolean).join(', '),
+      'Tags': Array.isArray(s.tags) ? s.tags.join(', ') : (s.tags || ''),
       'Sales Executive': s.business_team_member_name || '',
       'Source': s.source || '',
-      'Tags': Array.isArray(s.tags) ? s.tags.join(', ') : (s.tags || ''),
+      'Description': s.description || '',
+      'Created By': s.created_by_name || '',
       'Created': new Date(s.created_at).toLocaleDateString(),
     }));
     exportToExcel(data, 'kanban-stories');
@@ -606,11 +609,15 @@ export default function KanbanBoard() {
                   <th>Sub Stage</th>
                   <th>Priority</th>
                   <th>Est. Value</th>
-                  <th>Effective Start</th>
-                  <th>Assigned Team</th>
+                  <th>Eff. Start Date</th>
+                  <th>Assigned Teams</th>
                   <th>Assigned Members</th>
+                  <th>Industries</th>
+                  <th>Tags</th>
                   <th>Sales Executive</th>
                   <th>Source</th>
+                  <th>Contact Email</th>
+                  <th>Contact Phone</th>
                   <th>Created</th>
                 </tr>
               </thead>
@@ -625,10 +632,14 @@ export default function KanbanBoard() {
                     <td><span className={`priority-badge priority-${story.priority}`}>{story.priority}</span></td>
                     <td>{story.estimated_value ? `$${parseFloat(story.estimated_value).toLocaleString()}` : '—'}</td>
                     <td>{story.effective_start_date ? new Date(story.effective_start_date).toLocaleDateString() : '—'}</td>
-                    <td>{(story.team_assignments || []).map(t => t.name).join(', ') || '—'}</td>
-                    <td>{(story.member_assignments || []).map(m => m.name).join(', ') || '—'}</td>
+                    <td>{(story.team_assignments || []).map(t => t.name).filter(Boolean).join(', ') || '—'}</td>
+                    <td>{(story.member_assignments || []).map(m => m.name).filter(Boolean).join(', ') || '—'}</td>
+                    <td>{(story.industry_assignments || []).map(i => i.name).filter(Boolean).join(', ') || '—'}</td>
+                    <td>{Array.isArray(story.tags) ? story.tags.join(', ') || '—' : (story.tags || '—')}</td>
                     <td>{story.business_team_member_name || '—'}</td>
                     <td>{story.source || '—'}</td>
+                    <td>{story.client_email || '—'}</td>
+                    <td>{story.client_phone || '—'}</td>
                     <td>{new Date(story.created_at).toLocaleDateString()}</td>
                   </tr>
                 ))}
