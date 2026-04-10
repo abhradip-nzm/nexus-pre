@@ -3,12 +3,13 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Kanban, Users, Settings,
-  ChevronDown, LogOut,
+  ChevronDown, LogOut, KeyRound,
   UsersRound, LayoutGrid, UserCog,
   Calendar as CalendarIcon, Tag as TagIcon, Building2,
   GitBranch, CalendarCheck, Target
 } from 'lucide-react';
 import { formatRoleName } from '../../utils/helpers';
+import api from '../../utils/api';
 import './Sidebar.css';
 
 function getNavItems(role) {
@@ -57,6 +58,45 @@ export default function Sidebar() {
   const { user, logout } = useAuth();
   const [expanded, setExpanded] = useState({});
   const location = useLocation();
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+
+  const openChangePw = () => {
+    setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setPwError('');
+    setPwSuccess('');
+    setShowChangePw(true);
+  };
+
+  const handleChangePw = async (e) => {
+    e.preventDefault();
+    setPwError('');
+    setPwSuccess('');
+    if (pwForm.newPassword.length < 8) {
+      setPwError('New password must be at least 8 characters.');
+      return;
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwError('New passwords do not match.');
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await api.put('/auth/change-password', {
+        currentPassword: pwForm.currentPassword,
+        newPassword: pwForm.newPassword,
+      });
+      setPwSuccess('Password changed successfully!');
+      setTimeout(() => setShowChangePw(false), 1500);
+    } catch (err) {
+      setPwError(err.response?.data?.error || 'Failed to change password.');
+    } finally {
+      setPwSaving(false);
+    }
+  };
 
   const isAdminUser = user?.role_name === 'system_admin' || user?.role_name === 'super_admin';
 
@@ -147,11 +187,69 @@ export default function Sidebar() {
             <div className="sidebar-user-name">{user?.first_name} {user?.last_name}</div>
             <div className="sidebar-user-role">{formatRoleName(user?.role_name)}</div>
           </div>
+          <button className="btn btn-ghost btn-icon" onClick={openChangePw} title="Change Password">
+            <KeyRound size={16} />
+          </button>
           <button className="btn btn-ghost btn-icon" onClick={logout} title="Logout">
             <LogOut size={16} />
           </button>
         </div>
       </div>
+
+      {showChangePw && (
+        <div className="cpw-overlay" onClick={() => setShowChangePw(false)}>
+          <div className="cpw-modal" onClick={e => e.stopPropagation()}>
+            <div className="cpw-header">
+              <KeyRound size={16} />
+              <span>Change Password</span>
+              <button className="cpw-close" onClick={() => setShowChangePw(false)}>×</button>
+            </div>
+            <form onSubmit={handleChangePw} className="cpw-body">
+              <div className="cpw-field">
+                <label>Current Password</label>
+                <input
+                  type="password"
+                  className="form-control"
+                  value={pwForm.currentPassword}
+                  onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))}
+                  required
+                  autoFocus
+                />
+              </div>
+              <div className="cpw-field">
+                <label>New Password</label>
+                <input
+                  type="password"
+                  className="form-control"
+                  value={pwForm.newPassword}
+                  onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))}
+                  required
+                  minLength={8}
+                  placeholder="Min. 8 characters"
+                />
+              </div>
+              <div className="cpw-field">
+                <label>Confirm New Password</label>
+                <input
+                  type="password"
+                  className="form-control"
+                  value={pwForm.confirmPassword}
+                  onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                  required
+                />
+              </div>
+              {pwError && <div className="cpw-error">{pwError}</div>}
+              {pwSuccess && <div className="cpw-success">{pwSuccess}</div>}
+              <div className="cpw-footer">
+                <button type="button" className="btn btn-ghost" onClick={() => setShowChangePw(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={pwSaving}>
+                  {pwSaving ? 'Saving…' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }
