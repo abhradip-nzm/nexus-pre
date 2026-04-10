@@ -381,6 +381,26 @@ const migrations = [
     new_value TEXT,
     change_type VARCHAR(50) DEFAULT 'update',
     created_at TIMESTAMP DEFAULT NOW()
+  )`,
+
+  // Probable Prospects pipeline
+  `CREATE TABLE IF NOT EXISTS probable_prospects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(500) NOT NULL,
+    company_name VARCHAR(255),
+    contact_name VARCHAR(255),
+    contact_email VARCHAR(255),
+    contact_phone VARCHAR(100),
+    source VARCHAR(100),
+    priority VARCHAR(50) DEFAULT 'medium',
+    notes TEXT,
+    estimated_value NUMERIC(12,2),
+    industry_id INTEGER REFERENCES industries(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    promoted_at TIMESTAMP,
+    promoted_to_story_id UUID REFERENCES user_stories(id) ON DELETE SET NULL
   )`
 ];
 

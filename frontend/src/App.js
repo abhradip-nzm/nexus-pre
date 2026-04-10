@@ -22,6 +22,7 @@ import AdminIndustries from './pages/AdminIndustries';
 import BusinessTeam from './pages/BusinessTeam';
 import MyTasks from './pages/MyTasks';
 import AllTasks from './pages/AllTasks';
+import Prospects from './pages/Prospects';
 import './styles/global.css';
 
 function ProtectedRoute({ children, roles }) {
@@ -68,7 +69,7 @@ function AdminRoute({ children }) {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role_name !== 'system_admin') return <Navigate to="/dashboard" replace />;
+  if (!['system_admin', 'super_admin'].includes(user.role_name)) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -77,7 +78,7 @@ function DefaultRedirect() {
 
   if (loading) return null;
   if (!user) return <Navigate to="/" replace />;
-  if (user.role_name === 'system_admin') return <Navigate to="/admin/users" replace />;
+  if (['system_admin', 'super_admin'].includes(user.role_name)) return <Navigate to="/admin/users" replace />;
   return <Navigate to="/dashboard" replace />;
 }
 
@@ -210,8 +211,14 @@ function App() {
           } />
 
           <Route path="/all-tasks" element={
-            <ProtectedRoute roles={['system_admin']}>
+            <ProtectedRoute roles={['system_admin', 'super_admin']}>
               <AppLayout><AllTasks /></AppLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/prospects" element={
+            <ProtectedRoute roles={['system_admin', 'super_admin']}>
+              <AppLayout><Prospects /></AppLayout>
             </ProtectedRoute>
           } />
 

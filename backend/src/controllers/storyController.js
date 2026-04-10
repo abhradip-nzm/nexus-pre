@@ -102,7 +102,15 @@ const getAllStories = async (req, res) => {
               u2.first_name || ' ' || u2.last_name as created_by_name,
               COUNT(DISTINCT t.id) as task_count,
               COUNT(DISTINCT CASE WHEN t.status = 'done' THEN t.id END) as completed_task_count,
-              COUNT(DISTINCT sc.id) as comment_count
+              COUNT(DISTINCT sc.id) as comment_count,
+              COALESCE((
+                SELECT json_agg(jsonb_build_object('team_id', sta.team_id))
+                FROM story_team_assignments sta WHERE sta.story_id = us.id
+              ), '[]') as team_assignments,
+              COALESCE((
+                SELECT json_agg(jsonb_build_object('user_id', sma.user_id))
+                FROM story_member_assignments sma WHERE sma.story_id = us.id
+              ), '[]') as member_assignments
        FROM user_stories us
        LEFT JOIN kanban_columns kc ON us.column_id = kc.id
        LEFT JOIN kanban_sub_stages kss ON us.sub_stage_id = kss.id
@@ -568,6 +576,40 @@ const logTaskChange = async (taskId, changedBy, changeType, fieldName, oldVal, n
 
 const getTasksByStory = async (req, res) => {
   try {
+    const { storyId } = req.params;
+    const userRole = req.user.role_name;
+    const userId = req.user.id;
+
+    // Check story visibility for non-admin users
+    if (!['system_admin', 'super_admin'].includes(userRole)) {
+      const accessCheck = await query(`
+        SELECT 1 FROM user_stories us
+        WHERE us.id = $1 AND (
+          EXISTS (
+            SELECT 1 FROM story_team_assignments sta
+            JOIN team_members tm ON tm.team_id = sta.team_id
+            WHERE sta.story_id = us.id AND tm.user_id = $2
+          )
+          OR
+          EXISTS (
+            SELECT 1 FROM story_member_assignments sma
+            WHERE sma.story_id = us.id AND sma.user_id = $2
+          )
+          OR
+          EXISTS (
+            SELECT 1 FROM story_member_assignments sma
+            JOIN team_members tm_assigned ON tm_assigned.user_id = sma.user_id
+            JOIN team_members tm_mine ON tm_mine.team_id = tm_assigned.team_id AND tm_mine.user_id = $2
+            WHERE sma.story_id = us.id
+          )
+        )
+      `, [storyId, userId]);
+
+      if (accessCheck.rows.length === 0) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+
     const result = await query(`
       SELECT t.*,
         COALESCE(
@@ -599,7 +641,7 @@ const getTasksByStory = async (req, res) => {
       WHERE t.user_story_id = $1
       GROUP BY t.id
       ORDER BY t.created_at ASC
-    `, [req.params.storyId]);
+    `, [storyId]);
     res.json({ tasks: result.rows });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get tasks' });
@@ -755,13 +797,18 @@ const deleteTask = async (req, res) => {
 const getMyTasks = async (req, res) => {
   try {
     const userId = req.user.id;
-    const isAdmin = req.user.role_name === 'system_admin';
-    const filterUserId = req.query.assignee_id || (isAdmin ? null : userId);
+    const isAdmin = ['system_admin', 'super_admin'].includes(req.user.role_name);
+    const assigneeFilter = req.query.assignee_id;
+    const filterUserId = assigneeFilter || (isAdmin ? null : userId);
 
     let whereClause = '';
     let params = [];
 
-    if (!isAdmin) {
+    if (assigneeFilter === 'none') {
+      // Tasks with no assignees
+      whereClause = 'WHERE t.id NOT IN (SELECT task_id FROM task_assignees)';
+      params = [];
+    } else if (!isAdmin) {
       whereClause = 'WHERE t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $1)';
       params = [userId];
     } else if (filterUserId) {

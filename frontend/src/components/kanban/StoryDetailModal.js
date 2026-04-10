@@ -253,9 +253,6 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                   <DollarSign size={13} /> ${parseFloat(story.estimated_value).toLocaleString()}
                 </span>
               )}
-              {story.due_date && (
-                <span className="detail-meta-item"><Calendar size={13} /> Due {formatDate(story.due_date)}</span>
-              )}
               <span className="detail-meta-item text-muted">
                 <Clock size={13} /> {timeAgo(story.created_at)}
               </span>

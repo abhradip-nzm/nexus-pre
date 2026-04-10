@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, User, DollarSign, Calendar, Tag, Building, Briefcase, Users, Plus, Layers } from 'lucide-react';
+import { X, Save, User, DollarSign, Tag, Building, Briefcase, Users, Plus, Layers } from 'lucide-react';
 import api from '../../utils/api';
 import PhoneInput from '../PhoneInput';
 import toast from 'react-hot-toast';
@@ -39,7 +39,6 @@ export default function StoryModal({
     sub_stage_id: story?.sub_stage_id || '',
     priority: story?.priority || 'medium',
     estimated_value: story?.estimated_value || '',
-    due_date: story?.due_date ? story.due_date.slice(0, 10) : '',
     tags: story?.tags || [],
     business_team_member_id: story?.business_team_member_id || '',
     team_ids: existingTeamIds,
@@ -169,7 +168,6 @@ export default function StoryModal({
         ...form,
         estimated_value: form.estimated_value ? parseFloat(form.estimated_value) : null,
         sub_stage_id: form.sub_stage_id || null,
-        due_date: form.due_date || null,
         business_team_member_id: form.business_team_member_id || null,
       };
       let res;
@@ -398,15 +396,6 @@ export default function StoryModal({
                     onChange={e => handleChange('estimated_value', e.target.value)}
                     min="0"
                     step="100"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label"><Calendar size={12} /> Due Date</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={form.due_date}
-                    onChange={e => handleChange('due_date', e.target.value)}
                   />
                 </div>
 

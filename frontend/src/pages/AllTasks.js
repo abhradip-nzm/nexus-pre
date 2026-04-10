@@ -266,6 +266,7 @@ export default function AllTasks() {
             onChange={e => setSelectedAssignee(e.target.value)}
           >
             <option value="">All assignees</option>
+            <option value="none">Not assigned to anyone</option>
             {allUsers.map(u => (
               <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
             ))}

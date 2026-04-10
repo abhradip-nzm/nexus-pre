@@ -12,7 +12,7 @@ import Header from '../components/layout/Header';
 import StoryModal from '../components/kanban/StoryModal';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
 import { useAuth } from '../contexts/AuthContext';
-import { formatCurrency, formatDate, getInitials, getAvatarColor, getPriorityColor, getSourceIcon } from '../utils/helpers';
+import { formatCurrency, getInitials, getAvatarColor, getSourceIcon } from '../utils/helpers';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import './Kanban.css';
@@ -121,9 +121,6 @@ function StoryCard({ story, subStageName, onView }) {
             )}
           </div>
           <div className="story-footer-right">
-            {story.due_date && (
-              <span className="story-due">{formatDate(story.due_date, 'MMM d')}</span>
-            )}
             {story.task_count > 0 && (
               <span className="story-count-badge">
                 <CheckSquare size={9} /> {story.completed_task_count}/{story.task_count}
@@ -199,6 +196,8 @@ export default function KanbanBoard() {
   const [filters, setFilters] = useState({
     priority: '',
     has_incomplete_tasks: false,
+    assigned_team: [],
+    assigned_member: [],
   });
   const [showFilters, setShowFilters] = useState(false);
   const [filterOptions, setFilterOptions] = useState({ teams: [], industries: [], tags: [] });
@@ -345,12 +344,38 @@ export default function KanbanBoard() {
     if (filters.has_incomplete_tasks) {
       colStories = colStories.filter(s => s.task_count > 0 && s.completed_task_count < s.task_count);
     }
+    if (filters.assigned_team.length > 0) {
+      colStories = colStories.filter(s => {
+        const teamIds = (s.team_assignments || []).map(ta => String(ta.team_id));
+        if (filters.assigned_team.includes('none') && teamIds.length === 0) return true;
+        return filters.assigned_team.some(id => id !== 'none' && teamIds.includes(String(id)));
+      });
+    }
+    if (filters.assigned_member.length > 0) {
+      colStories = colStories.filter(s => {
+        const memberIds = (s.member_assignments || []).map(ma => String(ma.user_id));
+        if (filters.assigned_member.includes('none') && memberIds.length === 0) return true;
+        return filters.assigned_member.some(id => id !== 'none' && memberIds.includes(String(id)));
+      });
+    }
     return colStories;
+  };
+
+  const toggleFilterChip = (field, value) => {
+    setFilters(f => {
+      const arr = f[field];
+      return {
+        ...f,
+        [field]: arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]
+      };
+    });
   };
 
   const activeFilterCount = [
     filters.priority,
     filters.has_incomplete_tasks,
+    filters.assigned_team.length > 0,
+    filters.assigned_member.length > 0,
   ].filter(Boolean).length;
 
   if (loading) return (
@@ -430,10 +455,54 @@ export default function KanbanBoard() {
                 </label>
               </div>
             </div>
+            {filterOptions.teams.length > 0 && (
+              <div className="filter-group">
+                <label className="filter-label">Assigned Team</label>
+                <div className="filter-chips">
+                  <button
+                    className={`filter-chip ${filters.assigned_team.includes('none') ? 'active' : ''}`}
+                    onClick={() => toggleFilterChip('assigned_team', 'none')}
+                  >
+                    Not Assigned
+                  </button>
+                  {filterOptions.teams.map(team => (
+                    <button
+                      key={team.id}
+                      className={`filter-chip ${filters.assigned_team.includes(team.id) ? 'active' : ''}`}
+                      onClick={() => toggleFilterChip('assigned_team', team.id)}
+                    >
+                      {team.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {users.length > 0 && (
+              <div className="filter-group">
+                <label className="filter-label">Assigned Member</label>
+                <div className="filter-chips">
+                  <button
+                    className={`filter-chip ${filters.assigned_member.includes('none') ? 'active' : ''}`}
+                    onClick={() => toggleFilterChip('assigned_member', 'none')}
+                  >
+                    Not Assigned
+                  </button>
+                  {users.filter(u => ['pre_sales_manager', 'pre_sales_executive'].includes(u.role_name)).map(u => (
+                    <button
+                      key={u.id}
+                      className={`filter-chip ${filters.assigned_member.includes(u.id) ? 'active' : ''}`}
+                      onClick={() => toggleFilterChip('assigned_member', u.id)}
+                    >
+                      {u.first_name} {u.last_name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {activeFilterCount > 0 && (
               <button
                 className="btn btn-ghost btn-sm filter-clear-btn"
-                onClick={() => setFilters({ priority: '', has_incomplete_tasks: false })}
+                onClick={() => setFilters({ priority: '', has_incomplete_tasks: false, assigned_team: [], assigned_member: [] })}
               >
                 <X size={12} /> Clear filters
               </button>

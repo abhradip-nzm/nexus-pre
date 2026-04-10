@@ -3,16 +3,16 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Kanban, Users, Settings,
-  ChevronDown, LogOut, MessageSquare, Activity,
-  Shield, UsersRound, LayoutGrid, UserCog,
+  ChevronDown, LogOut,
+  UsersRound, LayoutGrid, UserCog,
   Calendar as CalendarIcon, Tag as TagIcon, Building2,
-  GitBranch, CalendarCheck
+  GitBranch, CalendarCheck, Target
 } from 'lucide-react';
 import { formatRoleName } from '../../utils/helpers';
 import './Sidebar.css';
 
 function getNavItems(role) {
-  const teamItem = {
+  const teamItemWithChildren = {
     label: 'Team', icon: Users,
     children: [
       { to: '/team', label: 'Team Members' },
@@ -20,14 +20,13 @@ function getNavItems(role) {
     ]
   };
 
-  if (role === 'super_admin' || role === 'pre_sales_manager') {
+  if (role === 'pre_sales_manager') {
     return [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
       { to: '/my-tasks', icon: CalendarCheck, label: 'My Tasks' },
-      teamItem,
+      { to: '/executives', icon: Users, label: 'Team' },
       { to: '/calendar', icon: CalendarIcon, label: 'Calendar' },
-      { to: '/activity', icon: Activity, label: 'Activity Log' },
     ];
   }
   if (role === 'pre_sales_executive') {
@@ -36,7 +35,6 @@ function getNavItems(role) {
       { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
       { to: '/my-tasks', icon: CalendarCheck, label: 'My Tasks' },
       { to: '/calendar', icon: CalendarIcon, label: 'Calendar' },
-      { to: '/whatsapp', icon: MessageSquare, label: 'WhatsApp' },
     ];
   }
   return [];
@@ -44,15 +42,14 @@ function getNavItems(role) {
 
 const adminNavItems = [
   { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
-  { to: '/my-tasks', icon: CalendarCheck, label: 'My Tasks' },
   { to: '/all-tasks', icon: CalendarCheck, label: 'All Tasks' },
   { to: '/admin/users', icon: UserCog, label: 'User Management' },
   { to: '/admin/teams', icon: UsersRound, label: 'Teams' },
   { to: '/admin/business-team', icon: GitBranch, label: 'Business Team' },
-  { to: '/admin/roles', icon: Shield, label: 'Roles & Permissions' },
   { to: '/admin/kanban', icon: LayoutGrid, label: 'Kanban Setup' },
   { to: '/admin/tags', icon: TagIcon, label: 'Manage Tags' },
   { to: '/admin/industries', icon: Building2, label: 'Manage Industries' },
+  { to: '/prospects', icon: Target, label: 'Probable Prospects' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -61,9 +58,14 @@ export default function Sidebar() {
   const [expanded, setExpanded] = useState({});
   const location = useLocation();
 
-  const isSystemAdmin = user?.role_name === 'system_admin';
+  const isAdminUser = user?.role_name === 'system_admin' || user?.role_name === 'super_admin';
 
   const toggle = (label) => setExpanded(p => ({ ...p, [label]: !p[label] }));
+
+  // For super_admin: show adminNavItems excluding Settings
+  const visibleAdminItems = user?.role_name === 'super_admin'
+    ? adminNavItems.filter(item => item.to !== '/settings')
+    : adminNavItems;
 
   return (
     <aside className="sidebar">
@@ -78,10 +80,10 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {isSystemAdmin ? (
+        {isAdminUser ? (
           <>
             <div className="nav-section-label">Admin Console</div>
-            {adminNavItems.map((item) => (
+            {visibleAdminItems.map((item) => (
               <NavLink key={item.to} to={item.to} className="nav-item">
                 <item.icon size={18} />
                 <span>{item.label}</span>

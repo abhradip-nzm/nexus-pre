@@ -158,6 +158,14 @@ router.post('/business-team', authenticate, requireSystemAdmin, createBizMember)
 router.put('/business-team/:id', authenticate, requireSystemAdmin, updateBizMember);
 router.delete('/business-team/:id', authenticate, requireSystemAdmin, deleteBizMember);
 
+// Probable Prospects
+const { getProspects, createProspect, updateProspect, deleteProspect, promoteProspect } = require('../controllers/prospectController');
+router.get('/prospects', authenticate, getProspects);
+router.post('/prospects', authenticate, createProspect);
+router.put('/prospects/:id', authenticate, updateProspect);
+router.delete('/prospects/:id', authenticate, deleteProspect);
+router.post('/prospects/:id/promote', authenticate, promoteProspect);
+
 // Global error handler middleware
 router.use((err, req, res, next) => {
   console.error('Unhandled route error:', err);
