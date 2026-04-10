@@ -177,6 +177,7 @@
 
 .user-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
 }
 
@@ -191,6 +192,29 @@
   padding: 4px 10px;
   font-size: 11px;
 }
+
+/* ── Circular table action buttons (global) ── */
+.tbl-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+  flex-shrink: 0;
+}
+.tbl-btn:hover { opacity: 0.85; transform: scale(1.08); }
+.tbl-btn:active { transform: scale(0.95); }
+.tbl-btn-edit   { background: #28a745; color: #fff; }
+.tbl-btn-delete { background: #dc3545; color: #fff; }
+.tbl-btn-view   { background: #e9ecef; color: #495057; }
+.tbl-btn-promote { background: #3e72ae; color: #fff; }
+.tbl-btn-toggle-on  { background: #fd7e14; color: #fff; }
+.tbl-btn-toggle-off { background: #28a745; color: #fff; }
+.tbl-btn-key    { background: #6c757d; color: #fff; }
 
 /* Modal */
 .modal-backdrop {

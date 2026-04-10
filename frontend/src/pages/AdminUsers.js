@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, X, Check, RefreshCw, KeyRound, Copy, Download } from 'lucide-react';
+import { Plus, Search, X, Check, RefreshCw, KeyRound, Copy, Download, Pencil, Eye, ToggleLeft, ToggleRight } from 'lucide-react';
 import { formatRoleName } from '../utils/helpers';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
@@ -303,15 +303,18 @@ export default function AdminUsers() {
                   </td>
                   <td>
                     <div className="user-actions">
-                      <button className="btn btn-ghost btn-xs" onClick={() => openEdit(user)}>Edit</button>
-                      <button
-                        className={`btn btn-xs ${user.is_active ? 'btn-ghost' : 'btn-primary'}`}
-                        onClick={() => toggleUserStatus(user)}
-                      >
-                        {user.is_active ? 'Deactivate' : 'Activate'}
+                      <button className="tbl-btn tbl-btn-edit" onClick={() => openEdit(user)} title="Edit">
+                        <Pencil size={13} />
                       </button>
-                      <button className="btn btn-ghost btn-xs" onClick={() => regeneratePassword(user)} title="Reset Password">
-                        <KeyRound size={12} />
+                      <button
+                        className={`tbl-btn ${user.is_active ? 'tbl-btn-toggle-on' : 'tbl-btn-toggle-off'}`}
+                        onClick={() => toggleUserStatus(user)}
+                        title={user.is_active ? 'Deactivate' : 'Activate'}
+                      >
+                        {user.is_active ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                      </button>
+                      <button className="tbl-btn tbl-btn-key" onClick={() => regeneratePassword(user)} title="Reset Password">
+                        <KeyRound size={13} />
                       </button>
                     </div>
                   </td>

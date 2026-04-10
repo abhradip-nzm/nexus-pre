@@ -649,6 +649,7 @@ export default function KanbanBoard() {
                 <Download size={15} /> Export Excel
               </button>
             </div>
+            <div className="klv-table-wrapper">
             <table className="klv-table">
               <thead>
                 <tr>
@@ -708,6 +709,7 @@ export default function KanbanBoard() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

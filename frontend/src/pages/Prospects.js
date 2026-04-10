@@ -271,27 +271,14 @@ export default function Prospects() {
                       <td className="last-login">{formatDate(prospect.created_at)}</td>
                       <td>
                         <div className="user-actions">
-                          <button
-                            className="btn btn-ghost btn-xs"
-                            onClick={() => openEdit(prospect)}
-                            title="Edit"
-                          >
-                            Edit
+                          <button className="tbl-btn tbl-btn-edit" onClick={() => openEdit(prospect)} title="Edit">
+                            <Pencil size={13} />
                           </button>
-                          <button
-                            className="btn btn-ghost btn-xs"
-                            style={{ color: 'var(--error)' }}
-                            onClick={() => setDeleteConfirm(prospect.id)}
-                            title="Delete"
-                          >
-                            Delete
+                          <button className="tbl-btn tbl-btn-delete" onClick={() => setDeleteConfirm(prospect.id)} title="Delete">
+                            <Trash2 size={13} />
                           </button>
-                          <button
-                            className="btn btn-primary btn-xs"
-                            onClick={() => setPromoteConfirm(prospect)}
-                            title="Promote to Story"
-                          >
-                            <ArrowUpCircle size={12} /> Promote
+                          <button className="tbl-btn tbl-btn-promote" onClick={() => setPromoteConfirm(prospect)} title="Promote to Story">
+                            <ArrowUpCircle size={13} />
                           </button>
                         </div>
                       </td>

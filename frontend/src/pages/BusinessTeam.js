@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Edit2, Trash2, X, ChevronRight,
+  Plus, Pencil, Trash2, X, ChevronRight,
   Network, List, Phone, Mail, AlertCircle, UserCheck,
   ChevronDown, Search, GitBranch, Download
 } from 'lucide-react';
@@ -75,8 +75,8 @@ function TreeNode({ node, onEdit, onDelete }) {
             </div>
           </div>
           <div className="bt-tree-actions">
-            <button className="btn btn-ghost btn-xs" onClick={() => onEdit(node)}>Edit</button>
-            <button className="btn btn-ghost btn-xs" style={{ color: 'var(--error)' }} onClick={() => onDelete(node)}>Remove</button>
+            <button className="tbl-btn tbl-btn-edit" onClick={() => onEdit(node)} title="Edit"><Pencil size={13} /></button>
+            <button className="tbl-btn tbl-btn-delete" onClick={() => onDelete(node)} title="Remove"><Trash2 size={13} /></button>
           </div>
         </div>
       </div>
@@ -502,12 +502,8 @@ export default function BusinessTeam() {
                         </td>
                         <td>
                           <div className="user-actions">
-                            <button className="btn btn-secondary btn-xs" onClick={() => setModalMember(m)}>
-                              <Edit2 size={12} /> Edit
-                            </button>
-                            <button className="btn btn-danger btn-xs" onClick={() => setDeleteTarget(m)}>
-                              <Trash2 size={12} /> Remove
-                            </button>
+                            <button className="tbl-btn tbl-btn-edit" onClick={() => setModalMember(m)} title="Edit"><Pencil size={13} /></button>
+                            <button className="tbl-btn tbl-btn-delete" onClick={() => setDeleteTarget(m)} title="Remove"><Trash2 size={13} /></button>
                           </div>
                         </td>
                       </tr>
