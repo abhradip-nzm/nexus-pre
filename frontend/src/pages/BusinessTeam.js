@@ -432,7 +432,7 @@ export default function BusinessTeam() {
               }));
               exportToExcel(data, 'business-team');
             }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <Download size={15} /> Export Excel
           </button>

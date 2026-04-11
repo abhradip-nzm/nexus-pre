@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   ChevronLeft, ChevronRight, CalendarCheck, CheckSquare,
-  Clock, AlertCircle, ExternalLink, Check, Users, Download
+  Clock, AlertCircle, ExternalLink, Check, Users, Download, X
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../utils/exportExcel';
@@ -130,6 +131,7 @@ function WeekRow({ weekDays, taskBars, today, onToggleComplete, onViewStory }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AllTasks() {
+  const { user } = useAuth();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -140,6 +142,8 @@ export default function AllTasks() {
   const [viewingStoryId, setViewingStoryId] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
   const [selectedAssignee, setSelectedAssignee] = useState('');
+  const [completingTask, setCompletingTask] = useState(null);
+  const [responseDetails, setResponseDetails] = useState('');
 
   const loadUsers = useCallback(async () => {
     try {
@@ -168,15 +172,34 @@ export default function AllTasks() {
   }, [loadUsers, loadTasks, selectedAssignee]);
 
   const handleToggleComplete = async (task) => {
-    const newStatus = task.status === 'done' ? 'todo' : 'done';
+    if (task.status !== 'done') {
+      setCompletingTask(task);
+      setResponseDetails('');
+      return;
+    }
     try {
-      await api.put(`/tasks/${task.id}`, { status: newStatus });
+      await api.put(`/tasks/${task.id}`, { status: 'todo' });
       setTasks(prev => prev.map(t =>
-        t.id === task.id
-          ? { ...t, status: newStatus, completed_at: newStatus === 'done' ? new Date().toISOString() : null }
+        t.id === task.id ? { ...t, status: 'todo', completed_at: null } : t
+      ));
+      toast.success('Task reopened!');
+    } catch {
+      toast.error('Failed to update task');
+    }
+  };
+
+  const handleConfirmComplete = async () => {
+    if (!responseDetails.trim() || !completingTask) return;
+    try {
+      await api.put(`/tasks/${completingTask.id}`, { status: 'done', response_details: responseDetails.trim() });
+      setTasks(prev => prev.map(t =>
+        t.id === completingTask.id
+          ? { ...t, status: 'done', completed_at: new Date().toISOString(), response_details: responseDetails.trim() }
           : t
       ));
-      toast.success(newStatus === 'done' ? 'Task marked complete!' : 'Task reopened!');
+      toast.success('Task marked complete!');
+      setCompletingTask(null);
+      setResponseDetails('');
     } catch {
       toast.error('Failed to update task');
     }
@@ -244,13 +267,59 @@ export default function AllTasks() {
 
   return (
     <>
+      {/* Task Response Details mini-modal */}
+      {completingTask && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => e.target === e.currentTarget && setCompletingTask(null)}>
+          <div style={{ background: 'white', borderRadius: 12, width: 420, maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: '1px solid var(--border-light)' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Complete Task</h3>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, borderRadius: 6, display: 'flex', alignItems: 'center' }} onClick={() => setCompletingTask(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}><strong>{completingTask.title}</strong></p>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
+                  Task Response Details <span style={{ color: '#dc3545' }}>*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  placeholder="Describe what was done, outcomes, notes…"
+                  value={responseDetails}
+                  onChange={e => setResponseDetails(e.target.value)}
+                  autoFocus
+                  style={{ width: '100%', padding: '9px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontFamily: 'inherit', fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+                />
+                {!responseDetails.trim() && (
+                  <p style={{ fontSize: 11, color: '#dc3545', marginTop: 4, marginBottom: 0 }}>Response details are required before marking complete.</p>
+                )}
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 20px', borderTop: '1px solid var(--border-light)' }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setCompletingTask(null)}>Cancel</button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleConfirmComplete}
+                disabled={!responseDetails.trim()}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <Check size={14} /> Mark Complete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {viewingStoryId && (
         <StoryDetailModal
           storyId={viewingStoryId}
           columns={[]}
-          users={[]}
-          readOnly={true}
+          users={allUsers}
+          readOnly={false}
           onClose={() => setViewingStoryId(null)}
+          onUpdated={() => loadTasks(selectedAssignee)}
         />
       )}
       <Header title="All Tasks" subtitle="All tasks across all user stories" />

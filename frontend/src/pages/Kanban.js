@@ -699,10 +699,11 @@ export default function KanbanBoard() {
                     <td>{new Date(story.created_at).toLocaleDateString()}</td>
                     <td>
                       <button
-                        className="klv-view-btn"
+                        className="tbl-btn tbl-btn-view"
                         onClick={e => { e.stopPropagation(); setViewStory(story); }}
+                        title="View"
                       >
-                        <Eye size={11} /> View
+                        <Eye size={13} />
                       </button>
                     </td>
                   </tr>

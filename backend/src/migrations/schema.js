@@ -402,7 +402,10 @@ const migrations = [
     promoted_at TIMESTAMP,
     promoted_to_story_id UUID REFERENCES user_stories(id) ON DELETE SET NULL
   )`,
-  `ALTER TABLE user_stories ADD COLUMN IF NOT EXISTS effective_start_date DATE`
+  `ALTER TABLE user_stories ADD COLUMN IF NOT EXISTS effective_start_date DATE`,
+
+  // Task response details (mandatory before marking complete)
+  `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS response_details TEXT`
 ];
 
 async function runMigrations() {

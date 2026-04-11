@@ -51,6 +51,9 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
   const [editForm, setEditForm] = useState({ title: '', start_date: '', due_date: '', assignee_ids: [] });
   // Task activity expansion
   const [expandedActivity, setExpandedActivity] = useState(new Set());
+  // Task completion with response details
+  const [completingTask, setCompletingTask] = useState(null);
+  const [responseDetails, setResponseDetails] = useState('');
 
   // Comment state
   const [comment, setComment] = useState('');
@@ -103,15 +106,37 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
   };
 
   const toggleTask = async (task) => {
-    const newStatus = task.status === 'done' ? 'todo' : 'done';
+    if (task.status !== 'done') {
+      // Require response details before marking complete
+      setCompletingTask(task);
+      setResponseDetails('');
+      return;
+    }
+    // Reopen task (no response needed)
     try {
-      await api.put(`/tasks/${task.id}`, { status: newStatus });
+      await api.put(`/tasks/${task.id}`, { status: 'todo' });
       setData(prev => ({
         ...prev,
         tasks: prev.tasks.map(t => t.id === task.id
-          ? { ...t, status: newStatus, completed_at: newStatus === 'done' ? new Date().toISOString() : null }
+          ? { ...t, status: 'todo', completed_at: null }
           : t)
       }));
+    } catch { toast.error('Failed to update task'); }
+  };
+
+  const confirmCompleteTask = async () => {
+    if (!responseDetails.trim()) return;
+    const task = completingTask;
+    try {
+      await api.put(`/tasks/${task.id}`, { status: 'done', response_details: responseDetails.trim() });
+      setData(prev => ({
+        ...prev,
+        tasks: prev.tasks.map(t => t.id === task.id
+          ? { ...t, status: 'done', completed_at: new Date().toISOString(), response_details: responseDetails.trim() }
+          : t)
+      }));
+      setCompletingTask(null);
+      setResponseDetails('');
     } catch { toast.error('Failed to update task'); }
   };
 
@@ -217,6 +242,49 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
 
   return (
     <>
+      {/* Task Response Details mini-modal */}
+      {completingTask && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={e => e.target === e.currentTarget && setCompletingTask(null)}>
+          <div className="modal" style={{ maxWidth: 420, width: '95vw' }}>
+            <div className="modal-header">
+              <h3>Complete Task</h3>
+              <button className="modal-close" onClick={() => setCompletingTask(null)}><X size={18} /></button>
+            </div>
+            <div className="modal-body" style={{ gap: 12 }}>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
+                <strong>{completingTask.title}</strong>
+              </p>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
+                  Task Response Details <span style={{ color: 'var(--error)' }}>*</span>
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={4}
+                  placeholder="Describe what was done, outcomes, notes…"
+                  value={responseDetails}
+                  onChange={e => setResponseDetails(e.target.value)}
+                  autoFocus
+                  style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
+                />
+                {!responseDetails.trim() && (
+                  <p style={{ fontSize: 11, color: 'var(--error)', marginTop: 4 }}>Response details are required to mark this task complete.</p>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost btn-sm" onClick={() => setCompletingTask(null)}>Cancel</button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={confirmCompleteTask}
+                disabled={!responseDetails.trim()}
+              >
+                <Check size={14} /> Mark Complete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
         <div className="modal modal-xl story-detail-modal">
 
@@ -645,6 +713,12 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                                     {a.name}
                                   </span>
                                 ))}
+                              </div>
+                            )}
+                            {task.response_details && (
+                              <div style={{ marginTop: 5, padding: '6px 8px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, fontSize: 11, color: '#166534', lineHeight: 1.5 }}>
+                                <strong style={{ display: 'block', marginBottom: 2, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Response Details</strong>
+                                {task.response_details}
                               </div>
                             )}
                             {isDone && (() => {

@@ -123,9 +123,7 @@
 }
 
 .users-table tr:last-child td { border-bottom: none; }
-.users-table tbody tr:nth-child(even) td { background: #d3e3fd; }
-.users-table tbody tr:nth-child(even):hover td { background: #b8d0f7; }
-.users-table tbody tr:nth-child(odd):hover td { background: var(--bg-secondary); }
+.users-table tbody tr:hover td { background: var(--bg-secondary); }
 
 .user-cell {
   display: flex;

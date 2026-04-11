@@ -621,9 +621,7 @@
   vertical-align: middle;
 }
 .klv-row { cursor: pointer; transition: background 0.12s; }
-.klv-table tbody tr:nth-child(even) td { background: #d3e3fd; }
-.klv-table tbody tr:nth-child(even):hover td { background: #b8d0f7; }
-.klv-table tbody tr:nth-child(odd):hover td { background: var(--bg-hover, #f0f4ff); }
+.klv-row:hover td { background: var(--bg-secondary); }
 .klv-title {
   font-weight: 500;
   max-width: 220px;

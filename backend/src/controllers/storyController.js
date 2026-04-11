@@ -726,7 +726,7 @@ const createTask = async (req, res) => {
 const updateTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, status, assignee_ids, start_date, due_date } = req.body;
+    const { title, description, status, assignee_ids, start_date, due_date, response_details } = req.body;
 
     // Fetch current state for change logging
     const current = await query('SELECT * FROM tasks WHERE id = $1', [id]);
@@ -744,6 +744,7 @@ const updateTask = async (req, res) => {
     }
     if (start_date !== undefined) { updates.push(`start_date = $${idx++}`); values.push(start_date || null); }
     if (due_date !== undefined) { updates.push(`due_date = $${idx++}`); values.push(due_date || null); }
+    if (response_details !== undefined) { updates.push(`response_details = $${idx++}`); values.push(response_details || null); }
 
     updates.push(`updated_at = NOW()`);
     values.push(id);

@@ -69,8 +69,8 @@ export const slugify = (str) =>
   str?.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || '';
 
 export const getSourceIcon = (source) => {
-  const map = { whatsapp: '💬', email: '📧', manual: '✏️', teams: '📹' };
-  return map[source] || '📌';
+  const map = { whatsapp: 'WhatsApp', email: 'Email', manual: 'Manual', teams: 'Teams' };
+  return map[source] || (source || 'Direct');
 };
 
 export const formatRoleName = (roleName) => {
