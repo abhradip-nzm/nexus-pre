@@ -1,199 +1,260 @@
-.dashboard-period { margin-bottom: 20px; }
-
-.period-tabs {
+/* ── Dashboard Page ─────────────────────────────────────────── */
+.dash-page {
   display: flex;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius);
-  padding: 3px;
-  gap: 2px;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.period-tab {
-  padding: 5px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all var(--transition);
-}
-
-.period-tab.active {
-  background: white;
-  color: var(--primary);
-  box-shadow: var(--shadow-xs);
-}
-
-.kpi-grid {
+/* ── KPI Cards ───────────────────────────────────────────────── */
+.dash-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
 }
 
-.stat-card-inner {
+.dash-stat-card {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  padding: 16px 18px;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  gap: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.dash-stat-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  transform: translateY(-1px);
 }
 
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
+.dash-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.stat-sub {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-.dashboard-chart-card { grid-column: span 1; }
-.dashboard-activity { grid-column: span 1; }
-
-.card-title {
-  font-size: 14px;
-  font-weight: 700;
+.dash-stat-body { flex: 1; min-width: 0; }
+.dash-stat-value {
+  font-size: 22px;
+  font-weight: 800;
   color: var(--text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
 }
-
-.card-subtitle {
+.dash-stat-label {
   font-size: 12px;
   color: var(--text-muted);
+  font-weight: 500;
   margin-top: 2px;
 }
-
-/* Meeting items */
-.meeting-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 24px;
-  transition: background var(--transition);
-}
-
-.meeting-item:hover { background: var(--bg-secondary); }
-
-.meeting-time {
-  text-align: center;
-  min-width: 48px;
-}
-
-.meeting-date {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--primary);
-  text-transform: uppercase;
-}
-
-.meeting-hour {
+.dash-stat-sub {
   font-size: 11px;
   color: var(--text-muted);
-}
-
-.meeting-info { flex: 1; min-width: 0; }
-
-.meeting-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
+  margin-top: 3px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.dash-stat-trend {
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+.dash-stat-trend.up { background: #f0fdf4; color: #16a34a; }
+.dash-stat-trend.down { background: #fef2f2; color: #dc3545; }
+
+/* ── Secondary Grid ──────────────────────────────────────────── */
+.dash-secondary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.dash-mini-stats {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 0 4px;
+}
+.dash-mini-stat { text-align: center; }
+.dash-mini-stat-val { font-size: 20px; font-weight: 800; line-height: 1.2; }
+.dash-mini-stat-label { font-size: 10px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
+
+/* ── Cards ────────────────────────────────────────────────────── */
+.dash-card {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.dash-card-wide { flex: 2; min-width: 0; }
+.dash-card-full { width: 100%; }
+.dash-card-table { flex: 1.5; min-width: 0; overflow: hidden; }
+
+/* ── Section Title ───────────────────────────────────────────── */
+.dash-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-light);
+}
+.dash-section-title svg { color: var(--primary); }
+
+/* ── Charts Row ──────────────────────────────────────────────── */
+.dash-charts-row {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+}
+.dash-charts-row > .dash-card { flex: 1; min-width: 0; }
+.dash-charts-row > .dash-card-wide { flex: 2; }
+
+/* ── Empty ───────────────────────────────────────────────────── */
+.dash-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 160px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── Bottom Row ──────────────────────────────────────────────── */
+.dash-bottom-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.dash-bottom-row > .dash-card { flex: 1; min-width: 0; }
+
+/* ── Table ───────────────────────────────────────────────────── */
+.dash-table-wrap { overflow-x: auto; }
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.dash-table th {
+  background: #ebe7e3;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
   white-space: nowrap;
 }
-
-.meeting-company {
-  font-size: 11px;
-  color: var(--text-muted);
+.dash-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  vertical-align: middle;
 }
+.dash-table tr:last-child td { border-bottom: none; }
+.dash-table tbody tr:hover td { background: var(--bg-secondary); }
 
-/* Activity */
-.activity-item {
+.dash-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dash-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.dash-role-badge {
+  background: var(--primary-50, #eef4fb);
+  color: var(--primary);
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dash-num { font-weight: 600; }
+.dash-num--purple { color: #8b5cf6; }
+.dash-num--red { color: #dc3545; }
+.dash-num--bold { font-weight: 800; }
+
+/* ── Team List ───────────────────────────────────────────────── */
+.dash-team-list { display: flex; flex-direction: column; gap: 10px; }
+.dash-team-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.dash-team-item:last-child { border-bottom: none; }
+.dash-team-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dash-team-info { flex: 1; min-width: 0; }
+.dash-team-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.dash-team-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 6px; margin-top: 2px; }
+.dash-team-bars { width: 80px; display: flex; flex-direction: column; gap: 3px; }
+.dash-team-bar-wrap { background: var(--bg-secondary); border-radius: 4px; height: 5px; overflow: hidden; }
+.dash-team-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+/* ── Activity List ───────────────────────────────────────────── */
+.dash-activity-list { display: flex; flex-direction: column; gap: 0; }
+.dash-activity-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 24px;
-  transition: background var(--transition);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-light);
 }
-
-.activity-item:hover { background: var(--bg-secondary); }
-
-.activity-content { flex: 1; min-width: 0; }
-
-.activity-text {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.activity-link {
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.activity-link:hover { text-decoration: underline; }
-
-.activity-time {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-/* Team */
-.team-item {
+.dash-activity-item:last-child { border-bottom: none; }
+.dash-activity-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 24px;
-  transition: background var(--transition);
+  justify-content: center;
+  flex-shrink: 0;
 }
+.dash-activity-body { flex: 1; font-size: 12px; color: var(--text-primary); line-height: 1.5; }
+.dash-activity-user { font-weight: 700; }
+.dash-activity-action { color: var(--text-muted); }
+.dash-activity-story { color: var(--primary); font-weight: 500; }
+.dash-activity-time { font-size: 10px; color: var(--text-muted); white-space: nowrap; padding-top: 2px; }
 
-.team-item:hover { background: var(--bg-secondary); }
-
-.team-rank {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-light);
-  width: 20px;
-  text-align: center;
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .dash-charts-row { flex-wrap: wrap; }
+  .dash-charts-row > .dash-card { min-width: calc(50% - 7px); }
+  .dash-bottom-row { flex-wrap: wrap; }
+  .dash-secondary-grid { grid-template-columns: 1fr; }
 }
-
-.team-info { flex: 1; }
-.team-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.team-stats { font-size: 11px; color: var(--text-muted); }
-
-.team-value {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--success);
-}
-
-/* Empty states */
-.empty-state-sm {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 32px;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-
-@media (max-width: 1200px) {
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  .dashboard-grid { grid-template-columns: 1fr; }
+@media (max-width: 640px) {
+  .dash-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-charts-row > .dash-card { min-width: 100%; }
+  .dash-bottom-row > .dash-card { min-width: 100%; }
 }

@@ -1,363 +1,407 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area
 } from 'recharts';
 import {
-  TrendingUp, TrendingDown, Users, Target, DollarSign,
-  Calendar, Clock, ArrowRight, Activity, Briefcase
+  Target, CheckSquare, BookOpen, ListChecks, Clock, AlertTriangle,
+  TrendingUp, Users, Briefcase, ArrowRight, BarChart2, Activity,
+  CheckCircle2, Circle, AlertCircle, Calendar, DollarSign
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { useAuth } from '../contexts/AuthContext';
-import { formatCurrency, formatDate, formatTime, getInitials, getAvatarColor, timeAgo } from '../utils/helpers';
 import api from '../utils/api';
+import { timeAgo } from '../utils/helpers';
 import './Dashboard.css';
 
-const COLORS = ['#3e72ae', '#6b5ea8', '#e67e22', '#27ae60', '#e74c3c', '#7f8c8d'];
+const PRIORITY_COLORS = { critical: '#dc3545', high: '#e67e22', medium: '#f59e0b', low: '#28a745' };
+const CHART_COLORS = ['#3e72ae', '#6b5ea8', '#e67e22', '#27ae60', '#e74c3c', '#14b8a6', '#f59e0b', '#8b5cf6'];
+
+const fmt = (n) => Number(n || 0).toLocaleString();
+const fmtCurrency = (n) => {
+  const v = Number(n || 0);
+  if (v >= 1000000) return `$${(v / 1000000).toFixed(1)}M`;
+  if (v >= 1000) return `$${(v / 1000).toFixed(0)}K`;
+  return `$${v.toLocaleString()}`;
+};
+
+function StatCard({ icon: Icon, label, value, sub, color = '#3e72ae', trend }) {
+  return (
+    <div className="dash-stat-card">
+      <div className="dash-stat-icon" style={{ background: color + '18', color }}>
+        <Icon size={20} />
+      </div>
+      <div className="dash-stat-body">
+        <div className="dash-stat-value">{value}</div>
+        <div className="dash-stat-label">{label}</div>
+        {sub && <div className="dash-stat-sub">{sub}</div>}
+      </div>
+      {trend !== undefined && (
+        <div className={`dash-stat-trend ${trend >= 0 ? 'up' : 'down'}`}>
+          <TrendingUp size={12} />
+          {Math.abs(trend)}%
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SectionTitle({ icon: Icon, children }) {
+  return (
+    <div className="dash-section-title">
+      {Icon && <Icon size={16} />}
+      <span>{children}</span>
+    </div>
+  );
+}
 
 const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div style={{
-        background: 'white', border: '1px solid #e2e8f0', borderRadius: 8,
-        padding: '10px 14px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-      }}>
-        <p style={{ fontSize: 12, color: '#718096', marginBottom: 4 }}>{label}</p>
-        {payload.map((p, i) => (
-          <p key={i} style={{ fontSize: 13, fontWeight: 600, color: p.color }}>
-            {p.name}: {p.value}
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: 12 }}>
+      {label && <p style={{ color: '#718096', marginBottom: 4, fontWeight: 600 }}>{label}</p>}
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: p.color || '#3e72ae', fontWeight: 600, margin: '2px 0' }}>
+          {p.name}: {typeof p.value === 'number' && p.value > 999 ? p.value.toLocaleString() : p.value}
+        </p>
+      ))}
+    </div>
+  );
 };
 
 export default function Dashboard() {
-  const { user, isManager } = useAuth();
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState('30');
 
   useEffect(() => {
-    loadDashboard();
-  }, [period]);
-
-  const loadDashboard = async () => {
-    try {
-      const res = await api.get(`/dashboard?period=${period}`);
-      setData(res.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    api.get('/dashboard')
+      .then(r => setData(r.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   if (loading) return (
     <div className="page-loading">
       <div className="page-spinner" />
-      <p>Loading dashboard...</p>
+      <p>Loading dashboard…</p>
     </div>
   );
 
-  const kpis = data?.kpis || {};
-  const pipeline = data?.pipeline || [];
-  const trend = data?.trend || [];
-  const activity = data?.recentActivity || [];
-  const upcomingMeetings = data?.upcomingMeetings || [];
-  const teamPerf = data?.teamPerformance || [];
+  if (!data) return null;
 
-  const winRate = kpis.total_stories > 0
-    ? Math.round((kpis.won / kpis.total_stories) * 100)
-    : 0;
+  const {
+    storyStats = {}, storyTaskStats = {}, prospectStats = {}, prospectTaskStats = {},
+    pipeline = [], storyPriority = [], prospectPriority = [],
+    userBreakdown = [], teamBreakdown = [], trend = [],
+    recentActivity = [], taskCompletion = [], isAdmin,
+  } = data;
 
-  const statCards = [
-    {
-      label: 'Total Pipeline',
-      value: formatCurrency(kpis.pipeline_value),
-      icon: DollarSign,
-      color: '#3e72ae',
-      bg: '#eef4fb',
-      sub: `${kpis.total_stories || 0} active deals`
-    },
-    {
-      label: 'Won Revenue',
-      value: formatCurrency(kpis.won_value),
-      icon: TrendingUp,
-      color: '#27ae60',
-      bg: '#e8f5eb',
-      sub: `${kpis.won || 0} deals closed`
-    },
-    {
-      label: 'Win Rate',
-      value: `${winRate}%`,
-      icon: Target,
-      color: '#6b5ea8',
-      bg: '#f0eef8',
-      sub: `${kpis.new_this_period || 0} new this period`
-    },
-    {
-      label: 'Today\'s Meetings',
-      value: kpis.today_meetings || 0,
-      icon: Calendar,
-      color: '#e67e22',
-      bg: '#fef3ea',
-      sub: `${kpis.upcoming_meetings || 0} upcoming`
-    },
-  ];
+  const totalTasks = (Number(storyTaskStats.total || 0) + Number(prospectTaskStats.total || 0));
+  const completedTasks = (Number(storyTaskStats.completed || 0) + Number(prospectTaskStats.completed || 0));
+  const overdueTasks = (Number(storyTaskStats.overdue || 0) + Number(prospectTaskStats.overdue || 0));
+  const inProgressTasks = (Number(storyTaskStats.in_progress || 0) + Number(prospectTaskStats.in_progress || 0));
+  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-  const getChangeLabel = (label) => {
-    const map = {
-      title: 'Renamed', client_name: 'Client updated', column_id: 'Stage changed',
-      assigned_to: 'Reassigned', estimated_value: 'Value updated'
-    };
-    return map[label] || 'Updated';
+  // Priority chart data
+  const priorityData = ['critical', 'high', 'medium', 'low'].map(p => ({
+    name: p.charAt(0).toUpperCase() + p.slice(1),
+    Stories: Number((storyPriority.find(x => x.priority === p) || {}).count || 0),
+    Prospects: Number((prospectPriority.find(x => x.priority === p) || {}).count || 0),
+    color: PRIORITY_COLORS[p],
+  })).filter(d => d.Stories > 0 || d.Prospects > 0);
+
+  // Task status pie
+  const taskStatusData = [
+    { name: 'Completed', value: completedTasks, color: '#16a34a' },
+    { name: 'In Progress', value: inProgressTasks, color: '#3e72ae' },
+    { name: 'Overdue', value: overdueTasks, color: '#dc3545' },
+    { name: 'Upcoming', value: Number(storyTaskStats.upcoming || 0) + Number(prospectTaskStats.upcoming || 0), color: '#f59e0b' },
+  ].filter(d => d.value > 0);
+
+  // Trend chart
+  const trendData = trend.map(t => ({
+    month: t.month,
+    Stories: Number(t.stories),
+    Value: Number(t.value),
+  }));
+
+  const activityIcon = (type) => {
+    if (type === 'moved') return <ArrowRight size={13} color="#3e72ae" />;
+    if (type === 'created') return <CheckCircle2 size={13} color="#16a34a" />;
+    if (type === 'completed') return <CheckCircle2 size={13} color="#16a34a" />;
+    if (type === 'comment') return <Activity size={13} color="#8b5cf6" />;
+    return <Circle size={13} color="#718096" />;
   };
+
+  const firstName = user?.first_name || 'there';
 
   return (
     <>
       <Header
-        title={`Good ${new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}, ${user?.first_name}`}
-        subtitle="Here's what's happening with your pre-sales pipeline"
+        title={`Welcome back, ${firstName} 👋`}
+        subtitle={isAdmin ? 'System overview across all teams, stories, and prospects' : 'Your assigned stories and prospects overview'}
       />
-      <div className="page-content">
-        {/* Period selector */}
-        <div className="dashboard-period">
-          <div className="page-header" style={{ marginBottom: 0 }}>
-            <div>
-              <h1 className="page-title">Dashboard</h1>
-              <p className="page-subtitle">Pre-sales performance overview</p>
+      <div className="page-content dash-page">
+
+        {/* ── KPI Row ────────────────────────────────────────────────── */}
+        <div className="dash-kpi-grid">
+          <StatCard icon={BookOpen} label="User Stories" value={fmt(storyStats.total_stories)} color="#3e72ae"
+            sub={fmtCurrency(storyStats.pipeline_value) + ' pipeline'} />
+          <StatCard icon={Target} label="Prospects" value={fmt(prospectStats.total_prospects)} color="#8b5cf6" />
+          <StatCard icon={ListChecks} label="Total Tasks" value={fmt(totalTasks)} color="#e67e22"
+            sub={`${completionRate}% completion rate`} />
+          <StatCard icon={CheckCircle2} label="Completed Tasks" value={fmt(completedTasks)} color="#16a34a" />
+          <StatCard icon={AlertTriangle} label="Overdue Tasks" value={fmt(overdueTasks)} color="#dc3545"
+            sub={`${fmt(storyTaskStats.overdue || 0)} story · ${fmt(prospectTaskStats.overdue || 0)} prospect`} />
+          <StatCard icon={Clock} label="In Progress Tasks" value={fmt(inProgressTasks)} color="#f59e0b"
+            sub={`${fmt(storyTaskStats.in_progress || 0)} story · ${fmt(prospectTaskStats.in_progress || 0)} prospect`} />
+        </div>
+
+        {/* ── Secondary Stats ────────────────────────────────────────── */}
+        <div className="dash-secondary-grid">
+          <div className="dash-card">
+            <SectionTitle icon={BarChart2}>Story Tasks Breakdown</SectionTitle>
+            <div className="dash-mini-stats">
+              {[
+                { label: 'Total', val: fmt(storyTaskStats.total), color: '#3e72ae' },
+                { label: 'In Progress', val: fmt(storyTaskStats.in_progress), color: '#f59e0b' },
+                { label: 'Overdue', val: fmt(storyTaskStats.overdue), color: '#dc3545' },
+                { label: 'Completed', val: fmt(storyTaskStats.completed), color: '#16a34a' },
+                { label: 'Upcoming', val: fmt(storyTaskStats.upcoming), color: '#8b5cf6' },
+              ].map(s => (
+                <div key={s.label} className="dash-mini-stat">
+                  <div className="dash-mini-stat-val" style={{ color: s.color }}>{s.val}</div>
+                  <div className="dash-mini-stat-label">{s.label}</div>
+                </div>
+              ))}
             </div>
-            <div className="period-tabs">
-              {['7', '30', '90'].map(p => (
-                <button
-                  key={p}
-                  className={`period-tab ${period === p ? 'active' : ''}`}
-                  onClick={() => setPeriod(p)}
-                >
-                  {p}d
-                </button>
+          </div>
+          <div className="dash-card">
+            <SectionTitle icon={Target}>Prospect Tasks Breakdown</SectionTitle>
+            <div className="dash-mini-stats">
+              {[
+                { label: 'Total', val: fmt(prospectTaskStats.total), color: '#8b5cf6' },
+                { label: 'In Progress', val: fmt(prospectTaskStats.in_progress), color: '#f59e0b' },
+                { label: 'Overdue', val: fmt(prospectTaskStats.overdue), color: '#dc3545' },
+                { label: 'Completed', val: fmt(prospectTaskStats.completed), color: '#16a34a' },
+                { label: 'Upcoming', val: fmt(prospectTaskStats.upcoming), color: '#14b8a6' },
+              ].map(s => (
+                <div key={s.label} className="dash-mini-stat">
+                  <div className="dash-mini-stat-val" style={{ color: s.color }}>{s.val}</div>
+                  <div className="dash-mini-stat-label">{s.label}</div>
+                </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className="kpi-grid">
-          {statCards.map((stat, i) => (
-            <div className="stat-card" key={i}>
-              <div className="stat-card-inner">
-                <div>
-                  <div className="stat-label">{stat.label}</div>
-                  <div className="stat-value" style={{ color: stat.color }}>{stat.value}</div>
-                  <div className="stat-sub">{stat.sub}</div>
-                </div>
-                <div className="stat-icon" style={{ background: stat.bg, color: stat.color }}>
-                  <stat.icon size={22} />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="dashboard-grid">
+        {/* ── Charts Row 1 ───────────────────────────────────────────── */}
+        <div className="dash-charts-row">
           {/* Pipeline by Stage */}
-          <div className="card dashboard-chart-card">
-            <div className="card-header">
-              <div>
-                <h3 className="card-title">Pipeline by Stage</h3>
-                <p className="card-subtitle">Deal distribution across stages</p>
-              </div>
-            </div>
-            <div className="card-body">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={pipeline} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#718096' }} />
-                  <YAxis tick={{ fontSize: 11, fill: '#718096' }} />
+          <div className="dash-card dash-card-wide">
+            <SectionTitle icon={BarChart2}>Pipeline by Stage</SectionTitle>
+            {pipeline.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={pipeline} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f4ff" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" fill="#3e72ae" radius={[4, 4, 0, 0]} name="Deals" />
+                  <Bar dataKey="count" name="Stories" radius={[4, 4, 0, 0]}>
+                    {pipeline.map((entry, i) => (
+                      <Cell key={i} fill={entry.color || CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            ) : <div className="dash-empty">No pipeline data</div>}
           </div>
 
-          {/* Trend */}
-          <div className="card dashboard-chart-card">
-            <div className="card-header">
-              <div>
-                <h3 className="card-title">New Leads Trend</h3>
-                <p className="card-subtitle">Last 30 days</p>
-              </div>
-            </div>
-            <div className="card-body">
-              <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={trend} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3e72ae" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#3e72ae" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#718096' }}
-                    tickFormatter={d => d ? d.slice(5) : ''} />
-                  <YAxis tick={{ fontSize: 11, fill: '#718096' }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="count" stroke="#3e72ae" strokeWidth={2}
-                    fill="url(#colorCount)" name="New Leads" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Pipeline Distribution */}
-          <div className="card">
-            <div className="card-header">
-              <div>
-                <h3 className="card-title">Stage Distribution</h3>
-                <p className="card-subtitle">By deal count</p>
-              </div>
-            </div>
-            <div className="card-body">
-              <ResponsiveContainer width="100%" height={180}>
+          {/* Task Status Pie */}
+          <div className="dash-card">
+            <SectionTitle icon={CheckSquare}>Task Status</SectionTitle>
+            {taskStatusData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                  <Pie
-                    data={pipeline.filter(p => p.count > 0)}
-                    cx="50%" cy="50%"
-                    innerRadius={50} outerRadius={80}
-                    dataKey="count"
-                    nameKey="name"
-                    paddingAngle={2}
-                  >
-                    {pipeline.map((entry, index) => (
-                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                  <Pie data={taskStatusData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                    dataKey="value" nameKey="name" paddingAngle={2}>
+                    {taskStatusData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v, n) => [v, n]} />
-                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontSize: 11 }} />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
+            ) : <div className="dash-empty">No tasks yet</div>}
           </div>
 
-          {/* Upcoming Meetings */}
-          <div className="card">
-            <div className="card-header">
-              <div>
-                <h3 className="card-title">Upcoming Meetings</h3>
-                <p className="card-subtitle">Next 7 days</p>
-              </div>
-              <Link to="/calendar" className="btn btn-ghost btn-sm">
-                View all <ArrowRight size={14} />
-              </Link>
-            </div>
-            <div className="card-body" style={{ padding: '8px 0' }}>
-              {upcomingMeetings.length === 0 ? (
-                <div className="empty-state-sm">
-                  <Calendar size={32} color="#e2e8f0" />
-                  <p>No upcoming meetings</p>
-                </div>
-              ) : (
-                upcomingMeetings.map(meeting => (
-                  <div key={meeting.id} className="meeting-item">
-                    <div className="meeting-time">
-                      <div className="meeting-date">{formatDate(meeting.start_time, 'MMM d')}</div>
-                      <div className="meeting-hour">{formatTime(meeting.start_time)}</div>
-                    </div>
-                    <div className="meeting-info">
-                      <div className="meeting-title">{meeting.title}</div>
-                      {meeting.client_company && (
-                        <div className="meeting-company">{meeting.client_company}</div>
-                      )}
-                    </div>
-                    {meeting.meeting_link && (
-                      <a href={meeting.meeting_link} target="_blank" rel="noreferrer"
-                        className="btn btn-primary btn-sm">
-                        Join
-                      </a>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
+          {/* Priority Distribution */}
+          <div className="dash-card">
+            <SectionTitle icon={AlertCircle}>Priority Distribution</SectionTitle>
+            {priorityData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={priorityData} layout="vertical" margin={{ top: 4, right: 8, left: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f4ff" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={60} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="Stories" fill="#3e72ae" radius={[0, 4, 4, 0]} stackId="a" />
+                  <Bar dataKey="Prospects" fill="#8b5cf6" radius={[0, 4, 4, 0]} stackId="a" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <div className="dash-empty">No data</div>}
           </div>
+        </div>
+
+        {/* ── Story Trend ────────────────────────────────────────────── */}
+        {trendData.length > 0 && (
+          <div className="dash-card dash-card-full">
+            <SectionTitle icon={TrendingUp}>Story Creation Trend (Last 6 Months)</SectionTitle>
+            <ResponsiveContainer width="100%" height={180}>
+              <AreaChart data={trendData} margin={{ top: 4, right: 16, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorStories" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3e72ae" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#3e72ae" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f4ff" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="Stories" stroke="#3e72ae" strokeWidth={2}
+                  fill="url(#colorStories)" name="Stories Created" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* ── Bottom Row ─────────────────────────────────────────────── */}
+        <div className="dash-bottom-row">
+          {/* Per-user breakdown */}
+          {userBreakdown.length > 0 && (
+            <div className="dash-card dash-card-table">
+              <SectionTitle icon={Users}>Team Members — Task Overview</SectionTitle>
+              <div className="dash-table-wrap">
+                <table className="dash-table">
+                  <thead>
+                    <tr>
+                      <th>Member</th>
+                      <th>Role</th>
+                      <th>Story Tasks</th>
+                      <th>Prospect Tasks</th>
+                      <th>Overdue</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {userBreakdown.map(u => {
+                      const total = Number(u.story_tasks) + Number(u.prospect_tasks);
+                      const totalOverdue = Number(u.story_overdue) + Number(u.prospect_overdue);
+                      return (
+                        <tr key={u.id}>
+                          <td>
+                            <div className="dash-user-cell">
+                              <div className="dash-avatar" style={{ background: '#3e72ae22', color: '#3e72ae' }}>
+                                {u.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                              </div>
+                              {u.name}
+                            </div>
+                          </td>
+                          <td>
+                            <span className="dash-role-badge">
+                              {u.role_name === 'pre_sales_manager' ? 'Manager' : 'Executive'}
+                            </span>
+                          </td>
+                          <td><span className="dash-num">{fmt(u.story_tasks)}</span></td>
+                          <td><span className="dash-num dash-num--purple">{fmt(u.prospect_tasks)}</span></td>
+                          <td>
+                            {totalOverdue > 0
+                              ? <span className="dash-num dash-num--red">{fmt(totalOverdue)}</span>
+                              : <span style={{ color: '#16a34a', fontWeight: 600 }}>—</span>}
+                          </td>
+                          <td><span className="dash-num dash-num--bold">{fmt(total)}</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Per-team breakdown */}
+          {teamBreakdown.length > 0 && (
+            <div className="dash-card">
+              <SectionTitle icon={Briefcase}>Teams Overview</SectionTitle>
+              <div className="dash-team-list">
+                {teamBreakdown.map(team => (
+                  <div key={team.id} className="dash-team-item">
+                    <div className="dash-team-dot" style={{ background: team.accent_color || '#3e72ae' }} />
+                    <div className="dash-team-info">
+                      <div className="dash-team-name">{team.name}</div>
+                      <div className="dash-team-meta">
+                        <span>{fmt(team.story_count)} stories</span>
+                        <span>·</span>
+                        <span>{fmt(team.prospect_count)} prospects</span>
+                        <span>·</span>
+                        <span>{fmt(team.task_count)} tasks</span>
+                      </div>
+                    </div>
+                    <div className="dash-team-bars">
+                      <div className="dash-team-bar-wrap" title={`${team.story_count} stories`}>
+                        <div className="dash-team-bar" style={{ width: `${Math.min(100, (Number(team.story_count) / Math.max(1, ...teamBreakdown.map(t => Number(t.story_count)))) * 100)}%`, background: team.accent_color || '#3e72ae' }} />
+                      </div>
+                      <div className="dash-team-bar-wrap" title={`${team.prospect_count} prospects`}>
+                        <div className="dash-team-bar" style={{ width: `${Math.min(100, (Number(team.prospect_count) / Math.max(1, ...teamBreakdown.map(t => Number(t.prospect_count)))) * 100)}%`, background: '#8b5cf6' }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Recent Activity */}
-          <div className="card dashboard-activity">
-            <div className="card-header">
-              <div>
-                <h3 className="card-title">Recent Activity</h3>
-                <p className="card-subtitle">Latest pipeline updates</p>
-              </div>
-            </div>
-            <div className="card-body" style={{ padding: '8px 0' }}>
-              {activity.length === 0 ? (
-                <div className="empty-state-sm">
-                  <Activity size={32} color="#e2e8f0" />
-                  <p>No recent activity</p>
-                </div>
-              ) : (
-                activity.map(log => (
-                  <div key={log.id} className="activity-item">
-                    <div
-                      className="avatar avatar-sm"
-                      style={{ background: getAvatarColor(log.user_name), color: 'white', fontSize: '10px', flexShrink: 0 }}
-                    >
-                      {getInitials(log.user_name)}
+          {recentActivity.length > 0 && (
+            <div className="dash-card">
+              <SectionTitle icon={Activity}>Recent Activity</SectionTitle>
+              <div className="dash-activity-list">
+                {recentActivity.map((item, i) => (
+                  <div key={i} className="dash-activity-item">
+                    <div className="dash-activity-icon">{activityIcon(item.change_type)}</div>
+                    <div className="dash-activity-body">
+                      <span className="dash-activity-user">{item.user_name}</span>
+                      <span className="dash-activity-action"> {item.change_type} </span>
+                      <span className="dash-activity-story">"{item.story_title}"</span>
                     </div>
-                    <div className="activity-content">
-                      <div className="activity-text">
-                        <strong>{log.user_name}</strong>
-                        {' '}{log.field_name ? getChangeLabel(log.field_name) : 'updated'}{' '}
-                        <Link to={`/kanban?story=${log.story_id}`} className="activity-link">
-                          {log.story_title}
-                        </Link>
-                      </div>
-                      <div className="activity-time">{timeAgo(log.created_at)}</div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Team Performance */}
-          {isManager() && teamPerf.length > 0 && (
-            <div className="card">
-              <div className="card-header">
-                <div>
-                  <h3 className="card-title">Team Performance</h3>
-                  <p className="card-subtitle">Executive leaderboard</p>
-                </div>
-                <Link to="/executives" className="btn btn-ghost btn-sm">
-                  View all <ArrowRight size={14} />
-                </Link>
-              </div>
-              <div className="card-body" style={{ padding: '8px 0' }}>
-                {teamPerf.map((member, i) => (
-                  <div key={member.id} className="team-item">
-                    <span className="team-rank">#{i + 1}</span>
-                    <div
-                      className="avatar avatar-sm"
-                      style={{ background: getAvatarColor(member.name), color: 'white', fontSize: '10px' }}
-                    >
-                      {getInitials(member.name)}
-                    </div>
-                    <div className="team-info">
-                      <div className="team-name">{member.name}</div>
-                      <div className="team-stats">{member.won} won · {member.total_stories} total</div>
-                    </div>
-                    <div className="team-value">{formatCurrency(member.won_value)}</div>
+                    <div className="dash-activity-time">{timeAgo(item.created_at)}</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
         </div>
+
+        {/* ── Task Completion Chart ─────────────────────────────────── */}
+        {taskCompletion.length > 0 && (
+          <div className="dash-card dash-card-full">
+            <SectionTitle icon={CheckSquare}>Task Completion (Last 30 Days)</SectionTitle>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={taskCompletion} margin={{ top: 4, right: 16, left: -20, bottom: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f4ff" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" interval={0} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="completed_30d" name="Completed" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total_assigned" name="Total Assigned" fill="#3e72ae22" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
       </div>
     </>
   );

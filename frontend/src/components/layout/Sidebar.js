@@ -42,6 +42,7 @@ function getNavItems(role) {
 }
 
 const adminNavItems = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
   { to: '/all-tasks', icon: CalendarCheck, label: 'All Tasks' },
   { to: '/calendar', icon: CalendarIcon, label: 'Calendar' },

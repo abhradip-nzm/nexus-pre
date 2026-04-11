@@ -3,6 +3,28 @@ const { createNotificationForAdmins } = require('../utils/notifications');
 
 const getProspects = async (req, res) => {
   try {
+    const userId = req.user.id;
+    const role = req.user.role_name;
+    const isAdmin = ['system_admin', 'super_admin'].includes(role);
+
+    let visibilityWhere = '';
+    let params = [];
+
+    if (!isAdmin) {
+      visibilityWhere = `AND (
+        EXISTS (
+          SELECT 1 FROM prospect_team_assignments pta
+          JOIN team_members tm ON tm.team_id = pta.team_id
+          WHERE pta.prospect_id = pp.id AND tm.user_id = $1
+        )
+        OR EXISTS (
+          SELECT 1 FROM prospect_member_assignments pma
+          WHERE pma.prospect_id = pp.id AND pma.user_id = $1
+        )
+      )`;
+      params = [userId];
+    }
+
     const result = await query(`
       SELECT pp.*,
         i.name as industry_name,
@@ -34,8 +56,9 @@ const getProspects = async (req, res) => {
       LEFT JOIN industries i ON i.id = pp.industry_id
       LEFT JOIN users u ON u.id = pp.created_by
       WHERE pp.promoted_at IS NULL
+      ${visibilityWhere}
       ORDER BY pp.created_at DESC
-    `);
+    `, params);
     res.json(result.rows);
   } catch (err) {
     console.error(err);

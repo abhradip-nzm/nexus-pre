@@ -79,7 +79,6 @@ function DefaultRedirect() {
 
   if (loading) return null;
   if (!user) return <Navigate to="/" replace />;
-  if (['system_admin', 'super_admin'].includes(user.role_name)) return <Navigate to="/admin/users" replace />;
   return <Navigate to="/dashboard" replace />;
 }
 
@@ -158,7 +157,7 @@ function App() {
 
           {/* Regular App Routes - not for system_admin */}
           <Route path="/dashboard" element={
-            <ProtectedRoute roles={['super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
+            <ProtectedRoute roles={['system_admin', 'super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
               <AppLayout><Dashboard /></AppLayout>
             </ProtectedRoute>
           } />
