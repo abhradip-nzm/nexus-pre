@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Pagination from '../components/common/Pagination';
 import { Building2, Pencil, Trash2, X, Download } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
@@ -13,6 +14,8 @@ export default function AdminIndustries() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '' });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   useEffect(() => { loadIndustries(); }, []);
 
@@ -93,9 +96,9 @@ export default function AdminIndustries() {
               </div>
             ) : (
               <div className="ind-items">
-                {industries.map((ind, idx) => (
+                {industries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((ind, idx) => (
                   <div key={ind.id} className={`ind-item ${editing?.id === ind.id ? 'ind-item-active' : ''}`}>
-                    <span className="ind-number">{idx + 1}</span>
+                    <span className="ind-number">{(page - 1) * PAGE_SIZE + idx + 1}</span>
                     <span className="ind-name">{ind.name}</span>
                     <div className="ind-item-actions">
                       <button className="btn btn-ghost btn-icon btn-xs" onClick={() => startEdit(ind)}>
@@ -107,6 +110,15 @@ export default function AdminIndustries() {
                     </div>
                   </div>
                 ))}
+                {Math.ceil(industries.length / PAGE_SIZE) > 1 && (
+                  <Pagination
+                    page={page}
+                    totalPages={Math.ceil(industries.length / PAGE_SIZE)}
+                    total={industries.length}
+                    limit={PAGE_SIZE}
+                    onPageChange={setPage}
+                  />
+                )}
               </div>
             )}
           </div>

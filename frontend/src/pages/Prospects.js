@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Pagination from '../components/common/Pagination';
 import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers, Download, Eye, Check, Users, Globe, Filter, Calendar, UserCheck } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { useAuth } from '../contexts/AuthContext';
@@ -363,20 +364,26 @@ export default function Prospects() {
   const [filterAsd, setFilterAsd] = useState('');
   const [filterTasks, setFilterTasks] = useState('');
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
+  const [refreshTick, setRefreshTick] = useState(0);
+
   const lblStyle = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 4 };
   const valStyle = { fontSize: 13, color: 'var(--text-primary)', margin: 0 };
 
   const loadData = useCallback(async () => {
     try {
       const [prospectsRes, industriesRes, teamsRes, tagsRes, usersRes, bizRes] = await Promise.all([
-        api.get('/prospects'),
+        api.get('/prospects', { params: { page: 1, limit: 20 } }),
         api.get('/industries').catch(() => ({ data: { industries: [] } })),
         api.get('/teams').catch(() => ({ data: { teams: [] } })),
         api.get('/tags').catch(() => ({ data: { tags: [] } })),
         api.get('/users').catch(() => ({ data: { users: [] } })),
         api.get('/business-team').catch(() => ({ data: [] })),
       ]);
-      setProspects(prospectsRes.data || []);
+      setProspects(prospectsRes.data.prospects || []);
+      setPagination(prospectsRes.data.pagination || null);
       setIndustries(industriesRes.data.industries || []);
       setTeams(teamsRes.data.teams || []);
       setTagOptions(tagsRes.data.tags || []);
@@ -390,6 +397,22 @@ export default function Prospects() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Reload prospects whenever page, filters, or refreshTick changes (after initial load)
+  useEffect(() => {
+    if (loading) return;
+    const params = { page, limit: 20 };
+    if (filterDateFrom) params.date_from = filterDateFrom;
+    if (filterDateTo)   params.date_to   = filterDateTo;
+    if (filterAsd)      params.asd        = filterAsd;
+    if (filterTasks)    params.tasks_filter = filterTasks;
+    api.get('/prospects', { params })
+      .then(res => {
+        setProspects(res.data.prospects || []);
+        setPagination(res.data.pagination || null);
+      })
+      .catch(() => toast.error('Failed to reload prospects'));
+  }, [page, filterDateFrom, filterDateTo, filterAsd, filterTasks, refreshTick]); // eslint-disable-line
 
   const openCreate = () => {
     setEditingProspect(null);
@@ -454,7 +477,7 @@ export default function Prospects() {
         toast.success('Prospect created');
       }
       closeModal();
-      loadData();
+      setRefreshTick(t => t + 1);
     } catch {
       toast.error('Failed to save prospect');
     } finally {
@@ -465,9 +488,14 @@ export default function Prospects() {
   const handleDelete = async (id) => {
     try {
       await api.delete(`/prospects/${id}`);
-      setProspects(prev => prev.filter(p => p.id !== id));
       setDeleteConfirm(null);
       toast.success('Prospect deleted');
+      // If we deleted the last item on this page, go back one page
+      if (prospects.length === 1 && page > 1) {
+        setPage(p => p - 1);
+      } else {
+        setRefreshTick(t => t + 1);
+      }
     } catch {
       toast.error('Failed to delete prospect');
     }
@@ -479,7 +507,7 @@ export default function Prospects() {
       await api.post(`/prospects/${id}/promote`);
       setPromoteConfirm(null);
       toast.success('Prospect promoted to Story at L1 stage');
-      loadData();
+      setRefreshTick(t => t + 1);
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to promote prospect');
     } finally {
@@ -501,27 +529,8 @@ export default function Prospects() {
     </div>
   );
 
-  // Apply filters
-  const filteredProspects = prospects.filter(p => {
-    if (filterDateFrom) {
-      const created = new Date(p.created_at);
-      if (created < new Date(filterDateFrom)) return false;
-    }
-    if (filterDateTo) {
-      const created = new Date(p.created_at);
-      const to = new Date(filterDateTo);
-      to.setHours(23, 59, 59, 999);
-      if (created > to) return false;
-    }
-    if (filterAsd && String(p.sales_director_id) !== filterAsd) return false;
-    if (filterTasks === 'has_tasks' && !(p.total_tasks_count > 0)) return false;
-    if (filterTasks === 'no_tasks' && p.total_tasks_count > 0) return false;
-    if (filterTasks === 'has_incomplete' && !((p.total_tasks_count - p.completed_tasks_count) > 0)) return false;
-    if (filterTasks === 'all_complete' && !(p.total_tasks_count > 0 && p.completed_tasks_count === p.total_tasks_count)) return false;
-    return true;
-  });
-
   const activeFilterCount = [filterDateFrom, filterDateTo, filterAsd, filterTasks].filter(Boolean).length;
+  const totalProspects = pagination?.total ?? prospects.length;
 
   return (
     <>
@@ -530,7 +539,7 @@ export default function Prospects() {
 
         <div className="users-toolbar">
           <div className="users-stats">
-            <span className="stat-pill">{filteredProspects.length} of {prospects.length} prospect{prospects.length !== 1 ? 's' : ''}</span>
+            <span className="stat-pill">{totalProspects} prospect{totalProspects !== 1 ? 's' : ''}</span>
           </div>
           <button
             className={`btn btn-sm ${showFilters || activeFilterCount > 0 ? 'btn-secondary' : 'btn-ghost'}`}
@@ -547,22 +556,32 @@ export default function Prospects() {
           </button>
           <button
             className="btn btn-secondary btn-sm"
-            onClick={() => {
-              const data = filteredProspects.map(p => ({
-                'Title': p.title,
-                'Company': p.company_name || '',
-                'Contact Name': p.contact_name || '',
-                'Email': p.contact_email || '',
-                'Phone': p.contact_phone || '',
-                'Source': p.source || '',
-                'Priority': p.priority || '',
-                'Estimated Value': p.estimated_value || '',
-                'Country': p.country || '',
-                'Notes': p.notes || '',
-                'Assoc. Sales Director': p.sales_director_name || '',
-                'Created': formatDate(p.created_at),
-              }));
-              exportToExcel(data, 'prospects');
+            onClick={async () => {
+              try {
+                const params = { page: 1, limit: 2000 };
+                if (filterDateFrom) params.date_from = filterDateFrom;
+                if (filterDateTo)   params.date_to   = filterDateTo;
+                if (filterAsd)      params.asd        = filterAsd;
+                if (filterTasks)    params.tasks_filter = filterTasks;
+                const res = await api.get('/prospects', { params });
+                const data = (res.data.prospects || []).map(p => ({
+                  'Title': p.title,
+                  'Company': p.company_name || '',
+                  'Contact Name': p.contact_name || '',
+                  'Email': p.contact_email || '',
+                  'Phone': p.contact_phone || '',
+                  'Source': p.source || '',
+                  'Priority': p.priority || '',
+                  'Estimated Value': p.estimated_value || '',
+                  'Country': p.country || '',
+                  'Notes': p.notes || '',
+                  'Assoc. Sales Director': p.sales_director_name || '',
+                  'Created': formatDate(p.created_at),
+                }));
+                exportToExcel(data, 'prospects');
+              } catch {
+                toast.error('Failed to export');
+              }
             }}
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           >
@@ -586,7 +605,7 @@ export default function Prospects() {
                   className="form-control form-control-sm"
                   style={{ width: 150 }}
                   value={filterDateFrom}
-                  onChange={e => setFilterDateFrom(e.target.value)}
+                  onChange={e => { setPage(1); setFilterDateFrom(e.target.value); }}
                 />
                 <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>to</span>
                 <input
@@ -594,7 +613,7 @@ export default function Prospects() {
                   className="form-control form-control-sm"
                   style={{ width: 150 }}
                   value={filterDateTo}
-                  onChange={e => setFilterDateTo(e.target.value)}
+                  onChange={e => { setPage(1); setFilterDateTo(e.target.value); }}
                 />
               </div>
             </div>
@@ -602,13 +621,13 @@ export default function Prospects() {
               <div className="filter-group">
                 <label className="filter-label"><UserCheck size={12} /> Assoc. Sales Director</label>
                 <div className="filter-chips">
-                  <button className={`filter-chip ${filterAsd === '' ? 'active' : ''}`} onClick={() => setFilterAsd('')}>All</button>
-                  <button className={`filter-chip ${filterAsd === 'none' ? 'active' : ''}`} onClick={() => setFilterAsd(filterAsd === 'none' ? '' : 'none')}>Not Assigned</button>
+                  <button className={`filter-chip ${filterAsd === '' ? 'active' : ''}`} onClick={() => { setPage(1); setFilterAsd(''); }}>All</button>
+                  <button className={`filter-chip ${filterAsd === 'none' ? 'active' : ''}`} onClick={() => { setPage(1); setFilterAsd(filterAsd === 'none' ? '' : 'none'); }}>Not Assigned</button>
                   {asdMembers.map(m => (
                     <button
                       key={m.id}
                       className={`filter-chip ${filterAsd === String(m.id) ? 'active' : ''}`}
-                      onClick={() => setFilterAsd(filterAsd === String(m.id) ? '' : String(m.id))}
+                      onClick={() => { setPage(1); setFilterAsd(filterAsd === String(m.id) ? '' : String(m.id)); }}
                     >{m.name}</button>
                   ))}
                 </div>
@@ -627,20 +646,20 @@ export default function Prospects() {
                   <button
                     key={opt.value}
                     className={`filter-chip ${filterTasks === opt.value ? 'active' : ''}`}
-                    onClick={() => setFilterTasks(opt.value)}
+                    onClick={() => { setPage(1); setFilterTasks(opt.value); }}
                   >{opt.label}</button>
                 ))}
               </div>
             </div>
             {activeFilterCount > 0 && (
-              <button className="btn btn-ghost btn-sm filter-clear-btn" onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); setFilterAsd(''); setFilterTasks(''); }}>
+              <button className="btn btn-ghost btn-sm filter-clear-btn" onClick={() => { setPage(1); setFilterDateFrom(''); setFilterDateTo(''); setFilterAsd(''); setFilterTasks(''); }}>
                 <X size={12} /> Clear filters
               </button>
             )}
           </div>
         )}
 
-        {prospects.length === 0 ? (
+        {totalProspects === 0 ? (
           <div className="prospects-empty">
             <div className="prospects-empty-icon">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -649,8 +668,11 @@ export default function Prospects() {
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
-            <p>No prospects yet. {canCreateContent ? 'Add your first probable prospect to get started.' : 'No probable prospects have been added yet.'}</p>
-            {canCreateContent && (
+            {activeFilterCount > 0
+              ? <p>No prospects match the current filters.</p>
+              : <p>No prospects yet. {canCreateContent ? 'Add your first probable prospect to get started.' : 'No probable prospects have been added yet.'}</p>
+            }
+            {canCreateContent && activeFilterCount === 0 && (
               <button className="btn btn-primary" onClick={openCreate}>
                 <Plus size={14} /> Add Prospect
               </button>
@@ -673,7 +695,7 @@ export default function Prospects() {
                 </tr>
               </thead>
               <tbody>
-                {filteredProspects.map(prospect => {
+                {prospects.map(prospect => {
                   const pColor = PRIORITY_COLORS[prospect.priority] || '#718096';
                   return (
                     <tr key={prospect.id}>
@@ -741,6 +763,15 @@ export default function Prospects() {
                 })}
               </tbody>
             </table>
+            {pagination && pagination.totalPages > 1 && (
+              <Pagination
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                total={pagination.total}
+                limit={pagination.limit}
+                onPageChange={setPage}
+              />
+            )}
           </div>
         )}
       </div>

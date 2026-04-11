@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Pagination from '../components/common/Pagination';
 import {
   DndContext, rectIntersection, PointerSensor, KeyboardSensor,
   useSensor, useSensors, DragOverlay, useDroppable
@@ -264,6 +265,9 @@ export default function KanbanBoard() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterOptions, setFilterOptions] = useState({ teams: [], industries: [], tags: [] });
   const [viewMode, setViewMode] = useState('board'); // 'board' | 'list'
+  const [listPage, setListPage] = useState(1);
+  const LIST_PAGE_SIZE = 25;
+  const prevFilterKey = useRef('');
   const [pendingMove, setPendingMove] = useState(null);
   const [showTransitionForm, setShowTransitionForm] = useState(false);
 
@@ -515,6 +519,15 @@ export default function KanbanBoard() {
   const allFilteredStories = columns.flatMap(col =>
     filteredStories(col.id).map(s => ({ ...s, column_name: col.name }))
   );
+
+  // Reset list page when filters change
+  const filterKey = JSON.stringify(filters) + search;
+  if (prevFilterKey.current !== filterKey) {
+    prevFilterKey.current = filterKey;
+    if (listPage !== 1) setListPage(1);
+  }
+  const listTotalPages = Math.ceil(allFilteredStories.length / LIST_PAGE_SIZE) || 1;
+  const pagedListStories = allFilteredStories.slice((listPage - 1) * LIST_PAGE_SIZE, listPage * LIST_PAGE_SIZE);
 
   const handleListExport = () => {
     const data = allFilteredStories.map(s => ({
@@ -769,7 +782,7 @@ export default function KanbanBoard() {
         {viewMode === 'list' && (
           <div className="kanban-list-view">
             <div className="klv-toolbar">
-              <span className="klv-count">{allFilteredStories.length} stories</span>
+              <span className="klv-count">{allFilteredStories.length} {allFilteredStories.length === 1 ? 'story' : 'stories'}</span>
               <button className="btn btn-secondary btn-sm klv-export-btn" onClick={handleListExport}>
                 <Download size={15} /> Export Excel
               </button>
@@ -801,7 +814,7 @@ export default function KanbanBoard() {
                 </tr>
               </thead>
               <tbody>
-                {allFilteredStories.map(story => (
+                {pagedListStories.map(story => (
                   <tr key={story.id} className="klv-row">
                     <td className="klv-title">{story.title}</td>
                     <td>{story.client_company || '—'}</td>
@@ -836,6 +849,15 @@ export default function KanbanBoard() {
               </tbody>
             </table>
             </div>
+            {listTotalPages > 1 && (
+              <Pagination
+                page={listPage}
+                totalPages={listTotalPages}
+                total={allFilteredStories.length}
+                limit={LIST_PAGE_SIZE}
+                onPageChange={setListPage}
+              />
+            )}
           </div>
         )}
       </div>

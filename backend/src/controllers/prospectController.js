@@ -7,24 +7,77 @@ const getProspects = async (req, res) => {
     const role = req.user.role_name;
     const isAdmin = ['system_admin', 'super_admin'].includes(role);
 
-    let visibilityWhere = '';
-    let params = [];
+    // Pagination params
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(200, Math.max(1, parseInt(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    // Filter params
+    const dateFrom     = req.query.date_from    || '';
+    const dateTo       = req.query.date_to      || '';
+    const asd          = req.query.asd          || '';   // sales_director_id
+    const tasksFilter  = req.query.tasks_filter || '';
+
+    const conditions = ['pp.promoted_at IS NULL'];
+    const params = [];
+    let idx = 1;
 
     if (!isAdmin) {
-      visibilityWhere = `AND (
+      conditions.push(`(
         EXISTS (
           SELECT 1 FROM prospect_team_assignments pta
           JOIN team_members tm ON tm.team_id = pta.team_id
-          WHERE pta.prospect_id = pp.id AND tm.user_id = $1
+          WHERE pta.prospect_id = pp.id AND tm.user_id = $${idx}
         )
         OR EXISTS (
           SELECT 1 FROM prospect_member_assignments pma
-          WHERE pma.prospect_id = pp.id AND pma.user_id = $1
+          WHERE pma.prospect_id = pp.id AND pma.user_id = $${idx}
         )
-      )`;
-      params = [userId];
+      )`);
+      params.push(userId);
+      idx++;
     }
 
+    if (dateFrom) {
+      conditions.push(`pp.created_at >= $${idx}::date`);
+      params.push(dateFrom);
+      idx++;
+    }
+    if (dateTo) {
+      conditions.push(`pp.created_at < ($${idx}::date + INTERVAL '1 day')`);
+      params.push(dateTo);
+      idx++;
+    }
+    if (asd === 'none') {
+      conditions.push(`pp.sales_director_id IS NULL`);
+    } else if (asd) {
+      conditions.push(`pp.sales_director_id = $${idx}`);
+      params.push(parseInt(asd, 10));
+      idx++;
+    }
+    if (tasksFilter === 'has_tasks') {
+      conditions.push(`(SELECT COUNT(*) FROM prospect_tasks WHERE prospect_id = pp.id) > 0`);
+    } else if (tasksFilter === 'no_tasks') {
+      conditions.push(`(SELECT COUNT(*) FROM prospect_tasks WHERE prospect_id = pp.id) = 0`);
+    } else if (tasksFilter === 'has_incomplete') {
+      conditions.push(`(SELECT COUNT(*) FROM prospect_tasks WHERE prospect_id = pp.id AND status != 'done') > 0`);
+    } else if (tasksFilter === 'all_complete') {
+      conditions.push(`(SELECT COUNT(*) FROM prospect_tasks WHERE prospect_id = pp.id) > 0`);
+      conditions.push(`(SELECT COUNT(*) FROM prospect_tasks WHERE prospect_id = pp.id AND status != 'done') = 0`);
+    }
+
+    const whereClause = `WHERE ${conditions.join(' AND ')}`;
+
+    // Count total matching rows
+    const countResult = await query(
+      `SELECT COUNT(*)::int AS total FROM probable_prospects pp ${whereClause}`,
+      params
+    );
+    const total      = countResult.rows[0].total;
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    // Fetch page data
+    const dataParams = [...params, limit, offset];
     const result = await query(`
       SELECT pp.*,
         i.name as industry_name,
@@ -59,11 +112,15 @@ const getProspects = async (req, res) => {
       LEFT JOIN industries i ON i.id = pp.industry_id
       LEFT JOIN users u ON u.id = pp.created_by
       LEFT JOIN business_team bt ON bt.id = pp.sales_director_id
-      WHERE pp.promoted_at IS NULL
-      ${visibilityWhere}
+      ${whereClause}
       ORDER BY pp.created_at DESC
-    `, params);
-    res.json(result.rows);
+      LIMIT $${idx} OFFSET $${idx + 1}
+    `, dataParams);
+
+    res.json({
+      prospects: result.rows,
+      pagination: { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch prospects' });

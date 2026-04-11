@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Pagination from '../components/common/Pagination';
 import { Plus, Search, X, Check, RefreshCw, KeyRound, Copy, Download, Pencil, Eye, ToggleLeft, ToggleRight } from 'lucide-react';
 import { formatRoleName, formatDate, formatDateTime, timeAgo } from '../utils/helpers';
 import Header from '../components/layout/Header';
@@ -53,6 +54,8 @@ export default function AdminUsers() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
   const [showModal, setShowModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [activeTab, setActiveTab] = useState('info');
@@ -64,6 +67,9 @@ export default function AdminUsers() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Reset to page 1 when search/filter changes
+  useEffect(() => { setPage(1); }, [search, roleFilter, statusFilter]);
 
   const loadData = async () => {
     try {
@@ -201,6 +207,9 @@ export default function AdminUsers() {
     return matchQ && matchRole && matchStatus;
   });
 
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+  const pagedUsers = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const groupedFeatures = FEATURES.reduce((acc, f) => {
     if (!acc[f.module]) acc[f.module] = [];
     acc[f.module].push(f);
@@ -242,7 +251,7 @@ export default function AdminUsers() {
           </div>
 
           <div className="users-stats">
-            <span className="stat-pill">{users.length} total</span>
+            <span className="stat-pill">{filtered.length} {filtered.length !== users.length ? `of ${users.length} ` : ''}total</span>
             <span className="stat-pill active">{users.filter(u => u.is_active).length} active</span>
           </div>
 
@@ -283,7 +292,7 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(user => (
+              {pagedUsers.map(user => (
                 <tr key={user.id}>
                   <td>
                     <div className="user-cell">
@@ -334,11 +343,20 @@ export default function AdminUsers() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {pagedUsers.length === 0 && (
                 <tr><td colSpan={5} className="table-empty">No users found</td></tr>
               )}
             </tbody>
           </table>
+          {totalPages > 1 && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={filtered.length}
+              limit={PAGE_SIZE}
+              onPageChange={setPage}
+            />
+          )}
         </div>
       </div>
 

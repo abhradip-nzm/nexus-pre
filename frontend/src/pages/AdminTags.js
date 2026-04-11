@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Pagination from '../components/common/Pagination';
 import { Tag, Pencil, Trash2, X, Download } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
@@ -13,6 +14,8 @@ export default function AdminTags() {
   const [editing, setEditing] = useState(null); // null = add mode, tag object = edit mode
   const [form, setForm] = useState({ name: '', color: '#3e72ae' });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const PRESET_COLORS = ['#3e72ae','#16a085','#e74c3c','#f39c12','#9b59b6','#1abc9c','#e67e22','#2ecc71','#3498db','#e91e63'];
 
@@ -95,7 +98,7 @@ export default function AdminTags() {
               </div>
             ) : (
               <div className="tag-items">
-                {tags.map(tag => (
+                {tags.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(tag => (
                   <div key={tag.id} className={`tag-item ${editing?.id === tag.id ? 'tag-item-active' : ''}`}>
                     <span className="tag-color-dot" style={{ background: tag.color }} />
                     <span className="tag-name">{tag.name}</span>
@@ -109,6 +112,15 @@ export default function AdminTags() {
                     </div>
                   </div>
                 ))}
+                {Math.ceil(tags.length / PAGE_SIZE) > 1 && (
+                  <Pagination
+                    page={page}
+                    totalPages={Math.ceil(tags.length / PAGE_SIZE)}
+                    total={tags.length}
+                    limit={PAGE_SIZE}
+                    onPageChange={setPage}
+                  />
+                )}
               </div>
             )}
           </div>
