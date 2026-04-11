@@ -772,3 +772,105 @@
 }
 
 .empty-state-sm p { font-size: 13px; margin: 0; }
+
+/* ── Transition History ────────────────────────────────────────────────────── */
+.th-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: background 0.15s, color 0.15s;
+}
+.th-toggle-btn:hover {
+  background: var(--bg-hover, #f7fafc);
+  color: var(--text-primary);
+}
+
+.th-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.th-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.th-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.th-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-full, 999px);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.th-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.th-who { font-weight: 600; color: var(--text-secondary); }
+.th-dot { color: var(--text-muted); }
+.th-when { color: var(--text-muted); }
+
+.th-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+}
+
+@media (max-width: 600px) {
+  .th-fields-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.th-field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.th-field-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.th-field-value {
+  font-size: 12px;
+  color: var(--text-primary);
+  word-break: break-word;
+}

@@ -3,7 +3,7 @@ import {
   X, Plus, Send, Check, Pencil, Trash2,
   Calendar, User, DollarSign, Activity, MessageSquare,
   CheckSquare, ExternalLink, Clock, Building, Briefcase, Users,
-  ArrowRight, Layers, Flag, CheckCircle2, Circle, ChevronDown
+  ArrowRight, Layers, Flag, CheckCircle2, Circle, ChevronDown, History
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDate, formatDateTime, timeAgo, getInitials, getAvatarColor } from '../../utils/helpers';
@@ -59,6 +59,10 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
   const [comment, setComment] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
 
+  // Transition history state
+  const [formResponses, setFormResponses] = useState([]);
+  const [transitionHistoryOpen, setTransitionHistoryOpen] = useState(false);
+
   // Assignable users based on story assignments
   const [storyAssignableUsers, setStoryAssignableUsers] = useState([]);
 
@@ -68,6 +72,13 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
     if (!storyId) return;
     api.get(`/stories/${storyId}/assignable-users`)
       .then(r => setStoryAssignableUsers(r.data.users || []))
+      .catch(() => {});
+  }, [storyId]);
+
+  useEffect(() => {
+    if (!storyId) return;
+    api.get(`/stories/${storyId}/form-responses`)
+      .then(r => setFormResponses(r.data.responses || []))
       .catch(() => {});
   }, [storyId]);
 
@@ -489,6 +500,59 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                             <span key={tag} className="tag-chip">{tag}</span>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Transition History */}
+                    {formResponses.length > 0 && (
+                      <div className="detail-section">
+                        <button
+                          className="th-toggle-btn"
+                          onClick={() => setTransitionHistoryOpen(v => !v)}
+                        >
+                          <History size={12} />
+                          Transition History ({formResponses.length})
+                          <ChevronDown
+                            size={13}
+                            style={{
+                              marginLeft: 'auto',
+                              transform: transitionHistoryOpen ? 'rotate(180deg)' : 'none',
+                              transition: 'transform 0.2s',
+                            }}
+                          />
+                        </button>
+                        {transitionHistoryOpen && (
+                          <div className="th-list">
+                            {formResponses.map(resp => (
+                              <div key={resp.id} className="th-card">
+                                <div className="th-card-header">
+                                  <div className="th-stage-badge">
+                                    <span>{resp.from_column_name}</span>
+                                    <ArrowRight size={11} />
+                                    <span>{resp.to_column_name}</span>
+                                  </div>
+                                  <div className="th-meta">
+                                    <span className="th-who">{resp.submitted_by_name}</span>
+                                    <span className="th-dot">·</span>
+                                    <span className="th-when">{timeAgo(resp.submitted_at)}</span>
+                                  </div>
+                                </div>
+                                {resp.field_responses?.length > 0 && (
+                                  <div className="th-fields-grid">
+                                    {resp.field_responses.map((fr, i) => (
+                                      <div key={i} className="th-field-item">
+                                        <span className="th-field-label">{fr.field_label}</span>
+                                        <span className="th-field-value">
+                                          {fr.value && String(fr.value).trim() !== '' ? fr.value : '—'}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

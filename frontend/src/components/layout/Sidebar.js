@@ -6,7 +6,7 @@ import {
   ChevronDown, LogOut, KeyRound,
   UsersRound, LayoutGrid, UserCog,
   Calendar as CalendarIcon, Tag as TagIcon, Building2,
-  GitBranch, CalendarCheck, Target
+  GitBranch, CalendarCheck, Target, FormInput
 } from 'lucide-react';
 import { formatRoleName } from '../../utils/helpers';
 import api from '../../utils/api';
@@ -54,6 +54,7 @@ const adminNavItems = [
   { to: '/admin/kanban', icon: LayoutGrid, label: 'Kanban Setup' },
   { to: '/admin/tags', icon: TagIcon, label: 'Manage Tags' },
   { to: '/admin/industries', icon: Building2, label: 'Manage Industries' },
+  { to: '/admin/transition-forms', icon: FormInput, label: 'Transition Forms' },
   { to: '/prospects', icon: Target, label: 'Probable Prospects' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];

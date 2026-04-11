@@ -314,21 +314,39 @@ export default function Dashboard() {
             ) : <div className="dash-empty">No tasks yet</div>}
           </div>
 
-          {/* Priority Distribution */}
+          {/* Priority Distribution - clean custom bars */}
           <div className="dash-card">
             <SectionTitle icon={AlertCircle}>Priority Distribution</SectionTitle>
-            {priorityData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={priorityData} layout="vertical" margin={{ top: 4, right: 8, left: 10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f4ff" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={60} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="Stories" fill="#3e72ae" radius={[0, 4, 4, 0]} stackId="a" />
-                  <Bar dataKey="Prospects" fill="#8b5cf6" radius={[0, 4, 4, 0]} stackId="a" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <div className="dash-empty">No data</div>}
+            {(() => {
+              const rows = ['critical', 'high', 'medium', 'low'].map(p => ({
+                p,
+                stories: Number((storyPriority.find(x => x.priority === p) || {}).count || 0),
+                prospects: Number((prospectPriority.find(x => x.priority === p) || {}).count || 0),
+              }));
+              const maxVal = Math.max(...rows.map(r => r.stories + r.prospects), 1);
+              const hasData = rows.some(r => r.stories + r.prospects > 0);
+              if (!hasData) return <div className="dash-empty">No data</div>;
+              return (
+                <div className="dash-priority-list">
+                  {rows.map(({ p, stories, prospects }) => (
+                    <div key={p} className="dash-priority-row">
+                      <span className={`dash-priority-label dash-priority-${p}`}>{p}</span>
+                      <div className="dash-priority-bar-track">
+                        <div className="dash-priority-bar-fill"
+                          style={{ width: `${((stories + prospects) / maxVal) * 100}%`, background: PRIORITY_COLORS[p] }} />
+                      </div>
+                      <div className="dash-priority-counts">
+                        <span style={{ fontWeight: 600, color: '#3e72ae' }}>{stories}</span>
+                        <span className="dash-priority-dot"> stories</span>
+                        <span className="dash-priority-dot">·</span>
+                        <span style={{ fontWeight: 600, color: '#8b5cf6' }}>{prospects}</span>
+                        <span className="dash-priority-dot"> prospects</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </div>
 

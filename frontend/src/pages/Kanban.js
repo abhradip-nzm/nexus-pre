@@ -11,6 +11,7 @@ import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare, SlidersHori
 import Header from '../components/layout/Header';
 import StoryModal from '../components/kanban/StoryModal';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
+import TransitionFormModal from '../components/kanban/TransitionFormModal';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency, getInitials, getAvatarColor, getSourceIcon } from '../utils/helpers';
 import api from '../utils/api';
@@ -251,6 +252,8 @@ export default function KanbanBoard() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterOptions, setFilterOptions] = useState({ teams: [], industries: [], tags: [] });
   const [viewMode, setViewMode] = useState('board'); // 'board' | 'list'
+  const [pendingMove, setPendingMove] = useState(null);
+  const [showTransitionForm, setShowTransitionForm] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -300,6 +303,50 @@ export default function KanbanBoard() {
     setActiveStory(story || null);
   };
 
+  // Apply an already-validated column move (optimistic UI + API call)
+  const applyColumnMove = async (activeId, sourceColId, destColId, overId, preBuiltStories) => {
+    const storiesSnapshot = preBuiltStories || stories;
+    const movingStory = (storiesSnapshot[sourceColId] || []).find(s => s.id === activeId);
+    if (!movingStory) return;
+
+    const newSubStageId = destColId === sourceColId ? (movingStory.sub_stage_id || null) : null;
+
+    const newStories = { ...storiesSnapshot };
+    const sourceList = (newStories[sourceColId] || []).filter(s => s.id !== activeId);
+    newStories[sourceColId] = sourceList;
+
+    const destList = [...(newStories[destColId] || [])];
+    const overIdx = typeof overId === 'string' && overId.startsWith('col_')
+      ? destList.length
+      : destList.findIndex(s => s.id === overId);
+    destList.splice(overIdx >= 0 ? overIdx : destList.length, 0, {
+      ...movingStory,
+      column_id: destColId,
+      sub_stage_id: newSubStageId,
+    });
+    newStories[destColId] = destList;
+    setStories(newStories);
+
+    const targetList = newStories[destColId];
+    const idx = targetList.findIndex(s => s.id === activeId);
+    const before = idx > 0 ? (targetList[idx - 1].position || idx * 1000) : 0;
+    const after = idx < targetList.length - 1
+      ? (targetList[idx + 1].position || (idx + 2) * 1000)
+      : (targetList.length + 1) * 1000;
+    const position = (before + after) / 2;
+
+    try {
+      await api.patch(`/stories/${activeId}/move`, {
+        column_id: destColId,
+        sub_stage_id: newSubStageId,
+        position,
+      });
+    } catch {
+      toast.error('Failed to move story');
+      loadData();
+    }
+  };
+
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     setActiveStory(null);
@@ -320,12 +367,9 @@ export default function KanbanBoard() {
 
     // Determine destination column
     let destColId = sourceColId;
-
     if (typeof overId === 'string' && overId.startsWith('col_')) {
-      // Dropped directly on a column drop area
       destColId = parseInt(overId.replace('col_', ''));
     } else {
-      // Dropped on another story — find which column it belongs to
       for (const [colId, colStories] of Object.entries(stories)) {
         if (colStories.find(s => s.id === overId)) {
           destColId = parseInt(colId);
@@ -334,48 +378,57 @@ export default function KanbanBoard() {
       }
     }
 
-    // When moving to a different column, clear sub_stage_id
-    // When reordering within the same column, preserve it
-    const movingStory = (stories[sourceColId] || []).find(s => s.id === activeId);
-    if (!movingStory) return;
-    const newSubStageId = destColId === sourceColId ? (movingStory.sub_stage_id || null) : null;
+    // Same-column reorder — no transition form needed
+    if (destColId === sourceColId) {
+      await applyColumnMove(activeId, sourceColId, destColId, overId);
+      return;
+    }
 
-    // Optimistic UI update
-    const newStories = { ...stories };
-    const sourceList = (newStories[sourceColId] || []).filter(s => s.id !== activeId);
-    newStories[sourceColId] = sourceList;
-
-    const destList = [...(newStories[destColId] || [])];
-    const overIdx = typeof overId === 'string' && overId.startsWith('col_')
-      ? destList.length
-      : destList.findIndex(s => s.id === overId);
-    destList.splice(overIdx >= 0 ? overIdx : destList.length, 0, {
-      ...movingStory,
-      column_id: destColId,
-      sub_stage_id: newSubStageId,
-    });
-    newStories[destColId] = destList;
-    setStories(newStories);
-
-    // Compute position
-    const targetList = newStories[destColId];
-    const idx = targetList.findIndex(s => s.id === activeId);
-    const before = idx > 0 ? (targetList[idx - 1].position || idx * 1000) : 0;
-    const after = idx < targetList.length - 1
-      ? (targetList[idx + 1].position || (idx + 2) * 1000)
-      : (targetList.length + 1) * 1000;
-    const position = (before + after) / 2;
+    // Cross-column move — check for transition form
+    const sourceCol = columns.find(c => c.id === sourceColId);
+    const destCol = columns.find(c => c.id === destColId);
 
     try {
-      await api.patch(`/stories/${activeId}/move`, {
-        column_id: destColId,
-        sub_stage_id: newSubStageId,
-        position,
-      });
+      const formRes = await api.get(`/transition-forms/for-transition?from_column_id=${sourceColId}&to_column_id=${destColId}`);
+      const form = formRes.data?.form;
+
+      if (form && form.is_active !== false) {
+        // Store pending move, show the form modal — do NOT apply the move yet
+        setPendingMove({ activeId, overId, sourceColId, destColId, sourceCol, destCol, form, storiesSnapshot: { ...stories } });
+        setShowTransitionForm(true);
+        return;
+      }
     } catch {
-      toast.error('Failed to move story');
-      loadData();
+      // If the endpoint fails, proceed with the move anyway
     }
+
+    // No form — apply the move directly
+    await applyColumnMove(activeId, sourceColId, destColId, overId);
+  };
+
+  const handleTransitionFormSubmit = async () => {
+    if (!pendingMove) return;
+    const { activeId, overId, sourceColId, destColId, storiesSnapshot } = pendingMove;
+    setShowTransitionForm(false);
+    setPendingMove(null);
+    await applyColumnMove(activeId, sourceColId, destColId, overId, storiesSnapshot);
+    toast.success('Story moved');
+  };
+
+  const handleTransitionFormSkip = async () => {
+    if (!pendingMove) return;
+    const { activeId, overId, sourceColId, destColId, storiesSnapshot } = pendingMove;
+    setShowTransitionForm(false);
+    setPendingMove(null);
+    await applyColumnMove(activeId, sourceColId, destColId, overId, storiesSnapshot);
+  };
+
+  const handleTransitionFormCancel = () => {
+    if (!pendingMove) return;
+    // Revert to the original stories state (move is cancelled)
+    setStories(pendingMove.storiesSnapshot);
+    setShowTransitionForm(false);
+    setPendingMove(null);
   };
 
   const filteredStories = (colId) => {
@@ -739,6 +792,20 @@ export default function KanbanBoard() {
           users={users}
           onClose={() => setViewStory(null)}
           onUpdated={() => { loadData(); setViewStory(null); }}
+        />
+      )}
+
+      {showTransitionForm && pendingMove && (
+        <TransitionFormModal
+          form={pendingMove.form}
+          fromColumnName={pendingMove.sourceCol?.name || ''}
+          toColumnName={pendingMove.destCol?.name || ''}
+          storyId={pendingMove.activeId}
+          fromColumnId={pendingMove.sourceColId}
+          toColumnId={pendingMove.destColId}
+          onSubmit={handleTransitionFormSubmit}
+          onSkip={handleTransitionFormSkip}
+          onCancel={handleTransitionFormCancel}
         />
       )}
     </>

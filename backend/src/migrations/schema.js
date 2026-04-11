@@ -252,6 +252,52 @@ const migrations = [
   SELECT id, 'Contract Signed', 2 FROM kanban_columns WHERE slug = 'contract_stage'
   ON CONFLICT DO NOTHING`,
 
+  // Transition Forms
+  `CREATE TABLE IF NOT EXISTS transition_forms (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    from_column_id INTEGER REFERENCES kanban_columns(id) ON DELETE CASCADE,
+    to_column_id INTEGER REFERENCES kanban_columns(id) ON DELETE CASCADE,
+    is_mandatory BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(from_column_id, to_column_id)
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS transition_form_fields (
+    id SERIAL PRIMARY KEY,
+    form_id INTEGER REFERENCES transition_forms(id) ON DELETE CASCADE,
+    field_type VARCHAR(50) NOT NULL,
+    label VARCHAR(255) NOT NULL,
+    placeholder TEXT DEFAULT '',
+    is_required BOOLEAN DEFAULT false,
+    options JSONB DEFAULT '[]',
+    position INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS transition_form_responses (
+    id SERIAL PRIMARY KEY,
+    form_id INTEGER REFERENCES transition_forms(id) ON DELETE SET NULL,
+    story_id UUID REFERENCES user_stories(id) ON DELETE CASCADE,
+    submitted_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    from_column_id INTEGER,
+    to_column_id INTEGER,
+    from_column_name VARCHAR(255),
+    to_column_name VARCHAR(255),
+    submitted_at TIMESTAMP DEFAULT NOW()
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS transition_form_field_responses (
+    id SERIAL PRIMARY KEY,
+    response_id INTEGER REFERENCES transition_form_responses(id) ON DELETE CASCADE,
+    field_id INTEGER REFERENCES transition_form_fields(id) ON DELETE SET NULL,
+    field_label VARCHAR(255),
+    field_type VARCHAR(50),
+    value TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+  )`,
+
   // Default app settings
   `INSERT INTO app_settings (key, value, description) VALUES
     ('app_name', 'Nexus Pre', 'Application name'),

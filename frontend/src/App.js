@@ -19,6 +19,7 @@ import AdminRoles from './pages/AdminRoles';
 import AdminKanban from './pages/AdminKanban';
 import AdminTags from './pages/AdminTags';
 import AdminIndustries from './pages/AdminIndustries';
+import TransitionForms from './pages/TransitionForms';
 import BusinessTeam from './pages/BusinessTeam';
 import MyTasks from './pages/MyTasks';
 import AllTasks from './pages/AllTasks';
@@ -152,6 +153,11 @@ function App() {
           <Route path="/admin/business-team" element={
             <AdminRoute>
               <AppLayout><BusinessTeam /></AppLayout>
+            </AdminRoute>
+          } />
+          <Route path="/admin/transition-forms" element={
+            <AdminRoute>
+              <AppLayout><TransitionForms /></AppLayout>
             </AdminRoute>
           } />
 
