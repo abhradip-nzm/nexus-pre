@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area
+  PieChart, Pie, Cell, Legend, AreaChart, Area
 } from 'recharts';
 import {
   Target, CheckSquare, BookOpen, ListChecks, Clock, AlertTriangle,
   TrendingUp, Users, Briefcase, ArrowRight, BarChart2, Activity,
-  CheckCircle2, Circle, AlertCircle, Calendar, DollarSign, Download
+  CheckCircle2, Circle, AlertCircle, Calendar, DollarSign, Download,
+  ChevronDown, X
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,6 +26,115 @@ const fmtCurrency = (n) => {
   return `$${v.toLocaleString()}`;
 };
 
+// ── Date preset helpers ──────────────────────────────────────────────────────
+const toIso = (d) => d.toISOString().slice(0, 10);
+
+const PRESETS = [
+  { id: 'today',         label: 'Today' },
+  { id: 'yesterday',     label: 'Yesterday' },
+  { id: 'this_week',     label: 'This Week' },
+  { id: 'last_week',     label: 'Last Week' },
+  { id: 'this_month',    label: 'This Month' },
+  { id: 'last_month',    label: 'Last Month' },
+  { id: 'this_quarter',  label: 'This Quarter' },
+  { id: 'last_quarter',  label: 'Last Quarter' },
+  { id: 'this_year',     label: 'This Year' },
+  { id: 'last_year',     label: 'Last Year' },
+  { id: 'last_30',       label: 'Last 30 Days' },
+  { id: 'last_90',       label: 'Last 90 Days' },
+  { id: 'last_12m',      label: 'Last 12 Months' },
+  { id: 'all',           label: 'All Time' },
+  { id: 'custom',        label: 'Custom Range' },
+];
+
+function getPresetDates(id) {
+  const now = new Date();
+  const today = toIso(now);
+
+  switch (id) {
+    case 'today':
+      return { from: today, to: today };
+
+    case 'yesterday': {
+      const d = new Date(now); d.setDate(d.getDate() - 1);
+      const s = toIso(d);
+      return { from: s, to: s };
+    }
+
+    case 'this_week': {
+      const d = new Date(now);
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day; // Monday
+      d.setDate(d.getDate() + diff);
+      return { from: toIso(d), to: today };
+    }
+
+    case 'last_week': {
+      const d = new Date(now);
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      const thisMonday = new Date(now); thisMonday.setDate(now.getDate() + diff);
+      const lastMonday = new Date(thisMonday); lastMonday.setDate(thisMonday.getDate() - 7);
+      const lastSunday = new Date(thisMonday); lastSunday.setDate(thisMonday.getDate() - 1);
+      return { from: toIso(lastMonday), to: toIso(lastSunday) };
+    }
+
+    case 'this_month':
+      return { from: toIso(new Date(now.getFullYear(), now.getMonth(), 1)), to: today };
+
+    case 'last_month': {
+      const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const e = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { from: toIso(s), to: toIso(e) };
+    }
+
+    case 'this_quarter': {
+      const q = Math.floor(now.getMonth() / 3);
+      return { from: toIso(new Date(now.getFullYear(), q * 3, 1)), to: today };
+    }
+
+    case 'last_quarter': {
+      const q = Math.floor(now.getMonth() / 3);
+      const s = new Date(now.getFullYear(), (q - 1) * 3, 1);
+      const e = new Date(now.getFullYear(), q * 3, 0);
+      return { from: toIso(s), to: toIso(e) };
+    }
+
+    case 'this_year':
+      return { from: toIso(new Date(now.getFullYear(), 0, 1)), to: today };
+
+    case 'last_year': {
+      const y = now.getFullYear() - 1;
+      return { from: `${y}-01-01`, to: `${y}-12-31` };
+    }
+
+    case 'last_30':
+      return { from: toIso(new Date(Date.now() - 30 * 86400000)), to: today };
+
+    case 'last_90':
+      return { from: toIso(new Date(Date.now() - 90 * 86400000)), to: today };
+
+    case 'last_12m': {
+      const d = new Date(now); d.setFullYear(d.getFullYear() - 1);
+      return { from: toIso(d), to: today };
+    }
+
+    case 'all':
+    default:
+      return { from: null, to: null };
+  }
+}
+
+function formatDateLabel(from, to) {
+  if (!from && !to) return 'All Time';
+  const fmtD = (s) => new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (from === to) return fmtD(from);
+  if (from && !to) return `From ${fmtD(from)}`;
+  if (!from && to) return `Up to ${fmtD(to)}`;
+  return `${fmtD(from)} – ${fmtD(to)}`;
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, sub, color = '#3e72ae', trend }) {
   return (
     <div className="dash-stat-card">
@@ -69,6 +179,90 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+// ── Date Filter Bar ───────────────────────────────────────────────────────────
+function DateFilterBar({ preset, customFrom, customTo, onPresetChange, onCustomFrom, onCustomTo, onApplyCustom, activeDateLabel }) {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (dropRef.current && !dropRef.current.contains(e.target)) setShowDropdown(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const activePreset = PRESETS.find(p => p.id === preset);
+
+  return (
+    <div className="dash-filter-bar">
+      <div className="dash-filter-left">
+        <Calendar size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+        <span className="dash-filter-label">Period:</span>
+
+        {/* Quick chips — horizontal scroll */}
+        <div className="dash-preset-chips">
+          {PRESETS.filter(p => p.id !== 'custom').map(p => (
+            <button
+              key={p.id}
+              className={`dash-preset-chip ${preset === p.id ? 'active' : ''}`}
+              onClick={() => onPresetChange(p.id)}
+            >
+              {p.label}
+            </button>
+          ))}
+          <button
+            className={`dash-preset-chip ${preset === 'custom' ? 'active' : ''}`}
+            onClick={() => onPresetChange('custom')}
+          >
+            Custom Range
+          </button>
+        </div>
+      </div>
+
+      {/* Active date badge */}
+      <div className="dash-filter-right">
+        <span className="dash-active-period">
+          <Calendar size={12} />
+          {activeDateLabel}
+        </span>
+      </div>
+
+      {/* Custom date pickers — shown when custom is selected */}
+      {preset === 'custom' && (
+        <div className="dash-custom-range">
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>From</span>
+          <input
+            type="date"
+            className="form-control form-control-sm dash-date-input"
+            value={customFrom}
+            onChange={e => onCustomFrom(e.target.value)}
+          />
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>To</span>
+          <input
+            type="date"
+            className="form-control form-control-sm dash-date-input"
+            value={customTo}
+            onChange={e => onCustomTo(e.target.value)}
+          />
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={onApplyCustom}
+            disabled={!customFrom && !customTo}
+          >
+            Apply
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => { onCustomFrom(''); onCustomTo(''); onPresetChange('all'); }}
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
@@ -76,12 +270,40 @@ export default function Dashboard() {
   const [exporting, setExporting] = useState(false);
   const dashRef = useRef(null);
 
-  useEffect(() => {
-    api.get('/dashboard')
+  // Date filter state
+  const [preset, setPreset]           = useState('this_month');
+  const [activeDates, setActiveDates] = useState(() => getPresetDates('this_month'));
+  const [customFrom, setCustomFrom]   = useState('');
+  const [customTo, setCustomTo]       = useState('');
+
+  const activeDateLabel = preset === 'custom'
+    ? formatDateLabel(activeDates.from, activeDates.to)
+    : (PRESETS.find(p => p.id === preset)?.label || 'All Time');
+
+  // Load dashboard data whenever activeDates change
+  const loadData = useCallback(() => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (activeDates.from) params.set('from_date', activeDates.from);
+    if (activeDates.to)   params.set('to_date',   activeDates.to);
+    api.get(`/dashboard${params.toString() ? `?${params}` : ''}`)
       .then(r => setData(r.data))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeDates]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handlePresetChange = (id) => {
+    setPreset(id);
+    if (id !== 'custom') {
+      setActiveDates(getPresetDates(id));
+    }
+  };
+
+  const handleApplyCustom = () => {
+    setActiveDates({ from: customFrom || null, to: customTo || null });
+  };
 
   const handleExportPDF = async () => {
     setExporting(true);
@@ -94,12 +316,9 @@ export default function Dashboard() {
       if (!element) return;
 
       const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
+        scale: 2, useCORS: true, logging: false,
         backgroundColor: '#f8faff',
-        width: element.scrollWidth,
-        height: element.scrollHeight,
+        width: element.scrollWidth, height: element.scrollHeight,
       });
 
       const imgData = canvas.toDataURL('image/png');
@@ -107,32 +326,23 @@ export default function Dashboard() {
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
       const margin = 10;
-      const headerH = 16;
       const usableW = pageW - margin * 2;
       const imgH = (canvas.height * usableW) / canvas.width;
-      const usablePageH = pageH - margin * 2;
 
-      // Header text on first page
-      pdf.setFontSize(15);
-      pdf.setTextColor(62, 114, 174);
+      pdf.setFontSize(15); pdf.setTextColor(62, 114, 174);
       pdf.text('Nexus Pre \u2014 Dashboard Report', margin, margin + 5);
-      pdf.setFontSize(9);
-      pdf.setTextColor(113, 128, 150);
+      pdf.setFontSize(9); pdf.setTextColor(113, 128, 150);
       const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      pdf.text(`Generated: ${dateStr}  |  ${user?.first_name} ${user?.last_name}`, margin, margin + 11);
+      pdf.text(`Generated: ${dateStr}  |  Period: ${activeDateLabel}  |  ${user?.first_name} ${user?.last_name}`, margin, margin + 11);
 
-      // Place full-height image starting after header on page 1
-      const imgStartY = margin + headerH;
+      const imgStartY = margin + 16;
       pdf.addImage(imgData, 'PNG', margin, imgStartY, usableW, imgH, '', 'FAST');
 
-      // Add extra pages if image overflows
       let heightLeft = imgH - (pageH - imgStartY - margin);
       let pageNum = 1;
       while (heightLeft > 0) {
         pdf.addPage();
-        // On each new page, move image up so the next slice is visible
-        const yPos = imgStartY - pageNum * (pageH - margin * 2);
-        pdf.addImage(imgData, 'PNG', margin, yPos, usableW, imgH, '', 'FAST');
+        pdf.addImage(imgData, 'PNG', margin, imgStartY - pageNum * (pageH - margin * 2), usableW, imgH, '', 'FAST');
         heightLeft -= (pageH - margin * 2);
         pageNum++;
       }
@@ -161,40 +371,23 @@ export default function Dashboard() {
     recentActivity = [], taskCompletion = [], isAdmin,
   } = data;
 
-  const totalTasks = (Number(storyTaskStats.total || 0) + Number(prospectTaskStats.total || 0));
-  const completedTasks = (Number(storyTaskStats.completed || 0) + Number(prospectTaskStats.completed || 0));
-  const overdueTasks = (Number(storyTaskStats.overdue || 0) + Number(prospectTaskStats.overdue || 0));
-  const inProgressTasks = (Number(storyTaskStats.in_progress || 0) + Number(prospectTaskStats.in_progress || 0));
-  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const totalTasks      = Number(storyTaskStats.total || 0) + Number(prospectTaskStats.total || 0);
+  const completedTasks  = Number(storyTaskStats.completed || 0) + Number(prospectTaskStats.completed || 0);
+  const overdueTasks    = Number(storyTaskStats.overdue || 0) + Number(prospectTaskStats.overdue || 0);
+  const inProgressTasks = Number(storyTaskStats.in_progress || 0) + Number(prospectTaskStats.in_progress || 0);
+  const completionRate  = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-  // Priority chart data
-  const priorityData = ['critical', 'high', 'medium', 'low'].map(p => ({
-    name: p.charAt(0).toUpperCase() + p.slice(1),
-    Stories: Number((storyPriority.find(x => x.priority === p) || {}).count || 0),
-    Prospects: Number((prospectPriority.find(x => x.priority === p) || {}).count || 0),
-    color: PRIORITY_COLORS[p],
-  })).filter(d => d.Stories > 0 || d.Prospects > 0);
+  const trendData = trend.map(t => ({ month: t.month, Stories: Number(t.stories), Value: Number(t.value) }));
 
-  // Task status pie
-  const taskStatusData = [
-    { name: 'Completed', value: completedTasks, color: '#16a34a' },
-    { name: 'In Progress', value: inProgressTasks, color: '#3e72ae' },
-    { name: 'Overdue', value: overdueTasks, color: '#dc3545' },
-    { name: 'Upcoming', value: Number(storyTaskStats.upcoming || 0) + Number(prospectTaskStats.upcoming || 0), color: '#f59e0b' },
-  ].filter(d => d.value > 0);
-
-  // Trend chart
-  const trendData = trend.map(t => ({
-    month: t.month,
-    Stories: Number(t.stories),
-    Value: Number(t.value),
-  }));
+  // Trend section label
+  const trendLabel = preset === 'all' ? 'Story Creation Trend (Last 6 Months)' : `Story Creation Trend — ${activeDateLabel}`;
+  const taskCompLabel = `Task Completion — ${activeDateLabel}`;
 
   const activityIcon = (type) => {
-    if (type === 'moved') return <ArrowRight size={13} color="#3e72ae" />;
-    if (type === 'created') return <CheckCircle2 size={13} color="#16a34a" />;
+    if (type === 'moved')     return <ArrowRight size={13} color="#3e72ae" />;
+    if (type === 'created')   return <CheckCircle2 size={13} color="#16a34a" />;
     if (type === 'completed') return <CheckCircle2 size={13} color="#16a34a" />;
-    if (type === 'comment') return <Activity size={13} color="#8b5cf6" />;
+    if (type === 'comment')   return <Activity size={13} color="#8b5cf6" />;
     return <Circle size={13} color="#718096" />;
   };
 
@@ -207,6 +400,20 @@ export default function Dashboard() {
         subtitle={isAdmin ? 'System overview across all teams, stories, and prospects' : 'Your assigned stories and prospects overview'}
       />
       <div className="page-content dash-page">
+
+        {/* ── Date Filter Bar ─────────────────────────────────────────────── */}
+        <DateFilterBar
+          preset={preset}
+          customFrom={customFrom}
+          customTo={customTo}
+          onPresetChange={handlePresetChange}
+          onCustomFrom={setCustomFrom}
+          onCustomTo={setCustomTo}
+          onApplyCustom={handleApplyCustom}
+          activeDateLabel={activeDateLabel}
+        />
+
+        {/* ── Export row ─────────────────────────────────────────────────── */}
         <div className="dash-export-row">
           <button
             className="btn btn-secondary btn-sm"
@@ -218,34 +425,35 @@ export default function Dashboard() {
             {exporting ? 'Generating PDF...' : 'Export PDF'}
           </button>
         </div>
+
         <div ref={dashRef} className="dash-inner">
 
-        {/* ── KPI Row ────────────────────────────────────────────────── */}
+        {/* ── KPI Row ─────────────────────────────────────────────────────── */}
         <div className="dash-kpi-grid">
-          <StatCard icon={BookOpen} label="User Stories" value={fmt(storyStats.total_stories)} color="#3e72ae"
+          <StatCard icon={BookOpen}     label="User Stories"     value={fmt(storyStats.total_stories)}    color="#3e72ae"
             sub={fmtCurrency(storyStats.pipeline_value) + ' pipeline'} />
-          <StatCard icon={Target} label="Prospects" value={fmt(prospectStats.total_prospects)} color="#8b5cf6" />
-          <StatCard icon={ListChecks} label="Total Tasks" value={fmt(totalTasks)} color="#e67e22"
+          <StatCard icon={Target}       label="Prospects"        value={fmt(prospectStats.total_prospects)} color="#8b5cf6" />
+          <StatCard icon={ListChecks}   label="Total Tasks"      value={fmt(totalTasks)}                  color="#e67e22"
             sub={`${completionRate}% completion rate`} />
-          <StatCard icon={CheckCircle2} label="Completed Tasks" value={fmt(completedTasks)} color="#16a34a"
+          <StatCard icon={CheckCircle2} label="Completed Tasks"  value={fmt(completedTasks)}              color="#16a34a"
             sub={`${fmt(storyTaskStats.completed || 0)} story · ${fmt(prospectTaskStats.completed || 0)} prospect`} />
-          <StatCard icon={AlertTriangle} label="Overdue Tasks" value={fmt(overdueTasks)} color="#dc3545"
+          <StatCard icon={AlertTriangle} label="Overdue Tasks"   value={fmt(overdueTasks)}                color="#dc3545"
             sub={`${fmt(storyTaskStats.overdue || 0)} story · ${fmt(prospectTaskStats.overdue || 0)} prospect`} />
-          <StatCard icon={Clock} label="In Progress Tasks" value={fmt(inProgressTasks)} color="#f59e0b"
+          <StatCard icon={Clock}        label="In Progress Tasks" value={fmt(inProgressTasks)}             color="#f59e0b"
             sub={`${fmt(storyTaskStats.in_progress || 0)} story · ${fmt(prospectTaskStats.in_progress || 0)} prospect`} />
         </div>
 
-        {/* ── Secondary Stats ────────────────────────────────────────── */}
+        {/* ── Secondary Stats ─────────────────────────────────────────────── */}
         <div className="dash-secondary-grid">
           <div className="dash-card">
             <SectionTitle icon={BarChart2}>Story Tasks Breakdown</SectionTitle>
             <div className="dash-mini-stats">
               {[
-                { label: 'Total', val: fmt(storyTaskStats.total), color: '#3e72ae' },
+                { label: 'Total',       val: fmt(storyTaskStats.total),       color: '#3e72ae' },
                 { label: 'In Progress', val: fmt(storyTaskStats.in_progress), color: '#f59e0b' },
-                { label: 'Overdue', val: fmt(storyTaskStats.overdue), color: '#dc3545' },
-                { label: 'Completed', val: fmt(storyTaskStats.completed), color: '#16a34a' },
-                { label: 'Upcoming', val: fmt(storyTaskStats.upcoming), color: '#8b5cf6' },
+                { label: 'Overdue',     val: fmt(storyTaskStats.overdue),     color: '#dc3545' },
+                { label: 'Completed',   val: fmt(storyTaskStats.completed),   color: '#16a34a' },
+                { label: 'Upcoming',    val: fmt(storyTaskStats.upcoming),    color: '#8b5cf6' },
               ].map(s => (
                 <div key={s.label} className="dash-mini-stat">
                   <div className="dash-mini-stat-val" style={{ color: s.color }}>{s.val}</div>
@@ -258,11 +466,11 @@ export default function Dashboard() {
             <SectionTitle icon={Target}>Prospect Tasks Breakdown</SectionTitle>
             <div className="dash-mini-stats">
               {[
-                { label: 'Total', val: fmt(prospectTaskStats.total), color: '#8b5cf6' },
+                { label: 'Total',       val: fmt(prospectTaskStats.total),       color: '#8b5cf6' },
                 { label: 'In Progress', val: fmt(prospectTaskStats.in_progress), color: '#f59e0b' },
-                { label: 'Overdue', val: fmt(prospectTaskStats.overdue), color: '#dc3545' },
-                { label: 'Completed', val: fmt(prospectTaskStats.completed), color: '#16a34a' },
-                { label: 'Upcoming', val: fmt(prospectTaskStats.upcoming), color: '#14b8a6' },
+                { label: 'Overdue',     val: fmt(prospectTaskStats.overdue),     color: '#dc3545' },
+                { label: 'Completed',   val: fmt(prospectTaskStats.completed),   color: '#16a34a' },
+                { label: 'Upcoming',    val: fmt(prospectTaskStats.upcoming),    color: '#14b8a6' },
               ].map(s => (
                 <div key={s.label} className="dash-mini-stat">
                   <div className="dash-mini-stat-val" style={{ color: s.color }}>{s.val}</div>
@@ -273,7 +481,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Charts Row 1 ───────────────────────────────────────────── */}
+        {/* ── Charts Row 1 ─────────────────────────────────────────────────── */}
         <div className="dash-charts-row">
           {/* Pipeline by Stage */}
           <div className="dash-card dash-card-wide">
@@ -292,29 +500,35 @@ export default function Dashboard() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            ) : <div className="dash-empty">No pipeline data</div>}
+            ) : <div className="dash-empty">No pipeline data for selected period</div>}
           </div>
 
           {/* Task Status Pie */}
           <div className="dash-card">
             <SectionTitle icon={CheckSquare}>Task Status</SectionTitle>
-            {taskStatusData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie data={taskStatusData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
-                    dataKey="value" nameKey="name" paddingAngle={2}>
-                    {taskStatusData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : <div className="dash-empty">No tasks yet</div>}
+            {(() => {
+              const taskStatusData = [
+                { name: 'Completed',  value: completedTasks,  color: '#16a34a' },
+                { name: 'In Progress', value: inProgressTasks, color: '#3e72ae' },
+                { name: 'Overdue',    value: overdueTasks,    color: '#dc3545' },
+                { name: 'Upcoming',   value: Number(storyTaskStats.upcoming || 0) + Number(prospectTaskStats.upcoming || 0), color: '#f59e0b' },
+              ].filter(d => d.value > 0);
+              return taskStatusData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={taskStatusData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                      dataKey="value" nameKey="name" paddingAngle={2}>
+                      {taskStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend iconType="circle" iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : <div className="dash-empty">No tasks for selected period</div>;
+            })()}
           </div>
 
-          {/* Priority Distribution - clean custom bars */}
+          {/* Priority Distribution */}
           <div className="dash-card">
             <SectionTitle icon={AlertCircle}>Priority Distribution</SectionTitle>
             {(() => {
@@ -325,7 +539,7 @@ export default function Dashboard() {
               }));
               const maxVal = Math.max(...rows.map(r => r.stories + r.prospects), 1);
               const hasData = rows.some(r => r.stories + r.prospects > 0);
-              if (!hasData) return <div className="dash-empty">No data</div>;
+              if (!hasData) return <div className="dash-empty">No data for selected period</div>;
               return (
                 <div className="dash-priority-list">
                   {rows.map(({ p, stories, prospects }) => (
@@ -350,10 +564,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Story Trend ────────────────────────────────────────────── */}
+        {/* ── Story Trend ──────────────────────────────────────────────────── */}
         {trendData.length > 0 && (
           <div className="dash-card dash-card-full">
-            <SectionTitle icon={TrendingUp}>Story Creation Trend (Last 6 Months)</SectionTitle>
+            <SectionTitle icon={TrendingUp}>{trendLabel}</SectionTitle>
             <ResponsiveContainer width="100%" height={180}>
               <AreaChart data={trendData} margin={{ top: 4, right: 16, left: -20, bottom: 0 }}>
                 <defs>
@@ -373,7 +587,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ── Bottom Row ─────────────────────────────────────────────── */}
+        {/* ── Bottom Row ──────────────────────────────────────────────────── */}
         <div className="dash-bottom-row">
           {/* Per-user breakdown */}
           {userBreakdown.length > 0 && (
@@ -383,12 +597,8 @@ export default function Dashboard() {
                 <table className="dash-table">
                   <thead>
                     <tr>
-                      <th>Member</th>
-                      <th>Role</th>
-                      <th>Story Tasks</th>
-                      <th>Prospect Tasks</th>
-                      <th>Overdue</th>
-                      <th>Total</th>
+                      <th>Member</th><th>Role</th><th>Story Tasks</th>
+                      <th>Prospect Tasks</th><th>Overdue</th><th>Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -405,11 +615,7 @@ export default function Dashboard() {
                               {u.name}
                             </div>
                           </td>
-                          <td>
-                            <span className="dash-role-badge">
-                              {u.role_name === 'pre_sales_manager' ? 'Manager' : 'Executive'}
-                            </span>
-                          </td>
+                          <td><span className="dash-role-badge">{u.role_name === 'pre_sales_manager' ? 'Manager' : 'Executive'}</span></td>
                           <td><span className="dash-num">{fmt(u.story_tasks)}</span></td>
                           <td><span className="dash-num dash-num--purple">{fmt(u.prospect_tasks)}</span></td>
                           <td>
@@ -480,10 +686,10 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* ── Task Completion Chart ─────────────────────────────────── */}
+        {/* ── Task Completion Chart ─────────────────────────────────────────── */}
         {taskCompletion.length > 0 && (
           <div className="dash-card dash-card-full">
-            <SectionTitle icon={CheckSquare}>Task Completion (Last 30 Days)</SectionTitle>
+            <SectionTitle icon={CheckSquare}>{taskCompLabel}</SectionTitle>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={taskCompletion} margin={{ top: 4, right: 16, left: -20, bottom: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f4ff" />
@@ -497,7 +703,7 @@ export default function Dashboard() {
           </div>
         )}
 
-      </div>
+        </div>
       </div>
     </>
   );

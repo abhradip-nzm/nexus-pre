@@ -6,127 +6,181 @@ const getDashboardStats = async (req, res) => {
     const role = req.user.role_name;
     const isAdmin = ['system_admin', 'super_admin'].includes(role);
 
-    // ── Visibility filters (parameterized to avoid SQL injection) ──────────
-    // For non-admins: only stories/prospects assigned to their team or directly
-    let storyVisibility = '';
-    let prospectVisibility = '';
-    let baseParams = [];
+    // ── Date range params ──────────────────────────────────────────────────
+    const from_date = req.query.from_date && req.query.from_date.trim() ? req.query.from_date.trim() : null;
+    const to_date   = req.query.to_date   && req.query.to_date.trim()   ? req.query.to_date.trim()   : null;
 
-    if (!isAdmin) {
-      storyVisibility = `AND (
-        EXISTS (
-          SELECT 1 FROM story_team_assignments sta
-          JOIN team_members tm ON tm.team_id = sta.team_id
-          WHERE sta.story_id = us.id AND tm.user_id = $1
-        )
-        OR EXISTS (
-          SELECT 1 FROM story_member_assignments sma
-          WHERE sma.story_id = us.id AND sma.user_id = $1
-        )
-      )`;
-      prospectVisibility = `AND (
-        EXISTS (
-          SELECT 1 FROM prospect_team_assignments pta
-          JOIN team_members tm ON tm.team_id = pta.team_id
-          WHERE pta.prospect_id = pp.id AND tm.user_id = $1
-        )
-        OR EXISTS (
-          SELECT 1 FROM prospect_member_assignments pma
-          WHERE pma.prospect_id = pp.id AND pma.user_id = $1
-        )
-      )`;
-      baseParams = [userId];
-    }
+    // ── Visibility filter SQL fragments (non-admin sees only assigned items) ──
+    const storyVisibility = isAdmin ? '' : `AND (
+      EXISTS (
+        SELECT 1 FROM story_team_assignments sta
+        JOIN team_members tm ON tm.team_id = sta.team_id
+        WHERE sta.story_id = us.id AND tm.user_id = $1
+      )
+      OR EXISTS (
+        SELECT 1 FROM story_member_assignments sma
+        WHERE sma.story_id = us.id AND sma.user_id = $1
+      )
+    )`;
 
-    // ── 1. Story counts & value ────────────────────────────────────────────
-    const storyStats = await query(`
+    const prospectVisibility = isAdmin ? '' : `AND (
+      EXISTS (
+        SELECT 1 FROM prospect_team_assignments pta
+        JOIN team_members tm ON tm.team_id = pta.team_id
+        WHERE pta.prospect_id = pp.id AND tm.user_id = $1
+      )
+      OR EXISTS (
+        SELECT 1 FROM prospect_member_assignments pma
+        WHERE pma.prospect_id = pp.id AND pma.user_id = $1
+      )
+    )`;
+
+    // ── Helper to build parameterised date conditions ──────────────────────
+    // Returns { cond: string, params: array }  given a table alias ('us'|'pp'|'scl')
+    // and the base params already in the query.
+    const buildDateCond = (alias, basePLen) => {
+      let cond = '';
+      const extra = [];
+      if (from_date) {
+        extra.push(from_date);
+        cond += ` AND ${alias}.created_at::date >= $${basePLen + extra.length}`;
+      }
+      if (to_date) {
+        extra.push(to_date);
+        cond += ` AND ${alias}.created_at::date <= $${basePLen + extra.length}`;
+      }
+      return { cond, extra };
+    };
+
+    const baseLen = isAdmin ? 0 : 1; // $1 = userId for non-admins
+
+    // story date cond
+    const sd = buildDateCond('us', baseLen);
+    // prospect date cond
+    const pd = buildDateCond('pp', baseLen);
+    // activity / change-log date cond (alias: scl)
+    const acd = buildDateCond('scl', baseLen);
+
+    const storyParams      = isAdmin ? [...sd.extra] : [userId, ...sd.extra];
+    const prospectParams   = isAdmin ? [...pd.extra] : [userId, ...pd.extra];
+    const activityParams   = isAdmin ? [...acd.extra] : [userId, ...acd.extra];
+
+    // Shared params for queries that accept both story + prospect visibility
+    // (these queries use story alias and visibility, so we just use storyParams)
+
+    // ── 1. Story counts & pipeline value ──────────────────────────────────
+    const storyStatsResult = await query(`
       SELECT
-        COUNT(DISTINCT us.id) AS total_stories,
-        COALESCE(SUM(us.estimated_value), 0) AS pipeline_value
+        COUNT(DISTINCT us.id)                      AS total_stories,
+        COALESCE(SUM(us.estimated_value), 0)        AS pipeline_value
       FROM user_stories us
-      WHERE 1=1 ${storyVisibility}
-    `, baseParams);
+      WHERE 1=1 ${storyVisibility} ${sd.cond}
+    `, storyParams);
 
     // ── 2. Story task stats ────────────────────────────────────────────────
-    const storyTaskStats = await query(`
+    const storyTaskResult = await query(`
       SELECT
-        COUNT(t.id) AS total,
-        COUNT(t.id) FILTER (WHERE t.status = 'done') AS completed,
+        COUNT(t.id)                                                    AS total,
+        COUNT(t.id) FILTER (WHERE t.status = 'done')                   AS completed,
         COUNT(t.id) FILTER (WHERE t.status != 'done' AND t.due_date < CURRENT_DATE) AS overdue,
         COUNT(t.id) FILTER (
           WHERE t.status != 'done'
-          AND t.start_date IS NOT NULL
-          AND t.start_date <= CURRENT_DATE
+          AND t.start_date IS NOT NULL AND t.start_date <= CURRENT_DATE
           AND (t.due_date IS NULL OR t.due_date >= CURRENT_DATE)
         ) AS in_progress,
-        COUNT(t.id) FILTER (WHERE t.status != 'done' AND (t.start_date IS NULL OR t.start_date > CURRENT_DATE) AND (t.due_date IS NULL OR t.due_date >= CURRENT_DATE)) AS upcoming
+        COUNT(t.id) FILTER (
+          WHERE t.status != 'done'
+          AND (t.start_date IS NULL OR t.start_date > CURRENT_DATE)
+          AND (t.due_date IS NULL OR t.due_date >= CURRENT_DATE)
+        ) AS upcoming
       FROM tasks t
       JOIN user_stories us ON us.id = t.user_story_id
-      WHERE 1=1 ${storyVisibility}
-    `, baseParams);
+      WHERE 1=1 ${storyVisibility} ${sd.cond}
+    `, storyParams);
 
     // ── 3. Prospect counts ─────────────────────────────────────────────────
-    const prospectStats = await query(`
+    const prospectStatsResult = await query(`
       SELECT COUNT(pp.id) AS total_prospects
       FROM probable_prospects pp
-      WHERE pp.promoted_at IS NULL ${prospectVisibility}
-    `, baseParams);
+      WHERE pp.promoted_at IS NULL ${prospectVisibility} ${pd.cond}
+    `, prospectParams);
 
     // ── 4. Prospect task stats ─────────────────────────────────────────────
-    const prospectTaskStats = await query(`
+    const prospectTaskResult = await query(`
       SELECT
-        COUNT(pt.id) AS total,
-        COUNT(pt.id) FILTER (WHERE pt.status = 'done') AS completed,
+        COUNT(pt.id)                                                       AS total,
+        COUNT(pt.id) FILTER (WHERE pt.status = 'done')                     AS completed,
         COUNT(pt.id) FILTER (WHERE pt.status != 'done' AND pt.due_date < CURRENT_DATE) AS overdue,
         COUNT(pt.id) FILTER (
           WHERE pt.status != 'done'
-          AND pt.start_date IS NOT NULL
-          AND pt.start_date <= CURRENT_DATE
+          AND pt.start_date IS NOT NULL AND pt.start_date <= CURRENT_DATE
           AND (pt.due_date IS NULL OR pt.due_date >= CURRENT_DATE)
         ) AS in_progress,
-        COUNT(pt.id) FILTER (WHERE pt.status != 'done' AND (pt.start_date IS NULL OR pt.start_date > CURRENT_DATE) AND (pt.due_date IS NULL OR pt.due_date >= CURRENT_DATE)) AS upcoming
+        COUNT(pt.id) FILTER (
+          WHERE pt.status != 'done'
+          AND (pt.start_date IS NULL OR pt.start_date > CURRENT_DATE)
+          AND (pt.due_date IS NULL OR pt.due_date >= CURRENT_DATE)
+        ) AS upcoming
       FROM prospect_tasks pt
       JOIN probable_prospects pp ON pp.id = pt.prospect_id
-      WHERE pp.promoted_at IS NULL ${prospectVisibility}
-    `, baseParams);
+      WHERE pp.promoted_at IS NULL ${prospectVisibility} ${pd.cond}
+    `, prospectParams);
 
     // ── 5. Pipeline distribution (stories by column) ───────────────────────
+    const pipelineBaseParams = isAdmin ? [] : [userId];
+    const pipeDateCond = (() => {
+      let c = ''; const extra = [];
+      if (from_date) { extra.push(from_date); c += ` AND us.created_at::date >= $${pipelineBaseParams.length + extra.length}`; }
+      if (to_date)   { extra.push(to_date);   c += ` AND us.created_at::date <= $${pipelineBaseParams.length + extra.length}`; }
+      return { cond: c, extra };
+    })();
+    const pipelineParams = [...pipelineBaseParams, ...pipeDateCond.extra];
+
     const pipelineResult = await query(`
       SELECT kc.name, kc.color, kc.position,
         COUNT(DISTINCT us.id) AS count,
         COALESCE(SUM(us.estimated_value), 0) AS value
       FROM kanban_columns kc
       LEFT JOIN user_stories us ON us.column_id = kc.id
-      ${!isAdmin ? `AND us.id IN (
-        SELECT us2.id FROM user_stories us2 WHERE EXISTS (
-          SELECT 1 FROM story_team_assignments sta JOIN team_members tm ON tm.team_id = sta.team_id
-          WHERE sta.story_id = us2.id AND tm.user_id = $1
-        ) OR EXISTS (
-          SELECT 1 FROM story_member_assignments sma WHERE sma.story_id = us2.id AND sma.user_id = $1
-        )
-      )` : ''}
+        ${pipeDateCond.cond ? `AND 1=1 ${pipeDateCond.cond}` : ''}
+        ${!isAdmin ? `AND us.id IN (
+          SELECT us2.id FROM user_stories us2 WHERE EXISTS (
+            SELECT 1 FROM story_team_assignments sta JOIN team_members tm ON tm.team_id = sta.team_id
+            WHERE sta.story_id = us2.id AND tm.user_id = $1
+          ) OR EXISTS (
+            SELECT 1 FROM story_member_assignments sma WHERE sma.story_id = us2.id AND sma.user_id = $1
+          )
+        )` : ''}
       GROUP BY kc.id, kc.name, kc.color, kc.position
       ORDER BY kc.position
-    `, isAdmin ? [] : [userId]);
+    `, pipelineParams);
 
     // ── 6. Story priority distribution ────────────────────────────────────
-    const storyPriority = await query(`
+    const storyPriorityResult = await query(`
       SELECT us.priority, COUNT(*) AS count
       FROM user_stories us
-      WHERE 1=1 ${storyVisibility}
+      WHERE 1=1 ${storyVisibility} ${sd.cond}
       GROUP BY us.priority
-    `, baseParams);
+    `, storyParams);
 
     // ── 7. Prospect priority distribution ─────────────────────────────────
-    const prospectPriority = await query(`
+    const prospectPriorityResult = await query(`
       SELECT pp.priority, COUNT(*) AS count
       FROM probable_prospects pp
-      WHERE pp.promoted_at IS NULL ${prospectVisibility}
+      WHERE pp.promoted_at IS NULL ${prospectVisibility} ${pd.cond}
       GROUP BY pp.priority
-    `, baseParams);
+    `, prospectParams);
 
-    // ── 8. Per-user task breakdown (all roles but filtered data) ──────────
-    let userBreakdown = [];
+    // ── 8. Per-user task breakdown ─────────────────────────────────────────
+    const ubBaseParams = isAdmin ? [] : [userId];
+    const ubDateCond = (() => {
+      let c = ''; const extra = [];
+      if (from_date) { extra.push(from_date); c += ` AND t.created_at::date >= $${ubBaseParams.length + extra.length}`; }
+      if (to_date)   { extra.push(to_date);   c += ` AND t.created_at::date <= $${ubBaseParams.length + extra.length}`; }
+      return { cond: c, extra };
+    })();
+    const ubParams = [...ubBaseParams, ...ubDateCond.extra];
+
     const userBreakdownResult = await query(`
       SELECT
         u.id,
@@ -139,32 +193,26 @@ const getDashboardStats = async (req, res) => {
       FROM users u
       JOIN roles r ON r.id = u.role_id
       LEFT JOIN task_assignees ta ON ta.user_id = u.id
-      LEFT JOIN tasks t ON t.id = ta.task_id
+      LEFT JOIN tasks t ON t.id = ta.task_id ${ubDateCond.cond ? `AND 1=1 ${ubDateCond.cond}` : ''}
       LEFT JOIN prospect_task_assignees pta ON pta.user_id = u.id
       LEFT JOIN prospect_tasks pt ON pt.id = pta.task_id
       WHERE r.name IN ('pre_sales_manager', 'pre_sales_executive')
         AND u.is_active = true
         ${!isAdmin ? `AND (
           EXISTS (
-            SELECT 1 FROM team_members tm1
-            WHERE tm1.user_id = u.id
+            SELECT 1 FROM team_members tm1 WHERE tm1.user_id = u.id
             AND EXISTS (
               SELECT 1 FROM story_team_assignments sta JOIN team_members tm2 ON tm2.team_id = sta.team_id
               WHERE tm2.user_id = $1 AND tm1.team_id = sta.team_id
             )
           )
-          OR EXISTS (
-            SELECT 1 FROM story_member_assignments sma WHERE sma.user_id = $1
-            AND u.id = $1
-          )
+          OR EXISTS (SELECT 1 FROM story_member_assignments sma WHERE sma.user_id = $1 AND u.id = $1)
         )` : ''}
       GROUP BY u.id, u.first_name, u.last_name, r.name
       ORDER BY (COUNT(DISTINCT ta.task_id) + COUNT(DISTINCT pta.task_id)) DESC
-    `, isAdmin ? [] : [userId]);
-    userBreakdown = userBreakdownResult.rows;
+    `, ubParams);
 
     // ── 9. Per-team breakdown ──────────────────────────────────────────────
-    let teamBreakdown = [];
     const teamBreakdownResult = await query(`
       SELECT
         tm_t.id, tm_t.name, tm_t.accent_color,
@@ -181,19 +229,43 @@ const getDashboardStats = async (req, res) => {
       GROUP BY tm_t.id, tm_t.name, tm_t.accent_color
       ORDER BY (COUNT(DISTINCT sta.story_id) + COUNT(DISTINCT pta.prospect_id)) DESC
     `, isAdmin ? [] : [userId]);
-    teamBreakdown = teamBreakdownResult.rows;
 
-    // ── 10. Monthly story creation trend (last 6 months) ──────────────────
+    // ── 10. Story creation trend ───────────────────────────────────────────
+    // Determine grouping granularity based on period length
+    let trendGroupSQL, trendFormatSQL, trendIntervalSQL;
+    if (from_date && to_date) {
+      const days = Math.ceil((new Date(to_date) - new Date(from_date)) / 86400000);
+      if (days <= 31) {
+        trendGroupSQL  = `DATE_TRUNC('day', us.created_at)`;
+        trendFormatSQL = `TO_CHAR(DATE_TRUNC('day', us.created_at), 'Mon DD')`;
+      } else if (days <= 90) {
+        trendGroupSQL  = `DATE_TRUNC('week', us.created_at)`;
+        trendFormatSQL = `TO_CHAR(DATE_TRUNC('week', us.created_at), 'Mon DD')`;
+      } else {
+        trendGroupSQL  = `DATE_TRUNC('month', us.created_at)`;
+        trendFormatSQL = `TO_CHAR(DATE_TRUNC('month', us.created_at), 'Mon ''YY')`;
+      }
+      trendIntervalSQL = `us.created_at::date >= '${from_date}' AND us.created_at::date <= '${to_date}'`;
+    } else if (from_date) {
+      trendGroupSQL  = `DATE_TRUNC('month', us.created_at)`;
+      trendFormatSQL = `TO_CHAR(DATE_TRUNC('month', us.created_at), 'Mon ''YY')`;
+      trendIntervalSQL = `us.created_at::date >= '${from_date}'`;
+    } else {
+      trendGroupSQL  = `DATE_TRUNC('month', us.created_at)`;
+      trendFormatSQL = `TO_CHAR(DATE_TRUNC('month', us.created_at), 'Mon ''YY')`;
+      trendIntervalSQL = `us.created_at >= NOW() - INTERVAL '6 months'`;
+    }
+
     const trendResult = await query(`
-      SELECT TO_CHAR(DATE_TRUNC('month', us.created_at), 'Mon YY') AS month,
+      SELECT ${trendFormatSQL} AS month,
         COUNT(*) AS stories,
         COALESCE(SUM(us.estimated_value), 0) AS value
       FROM user_stories us
-      WHERE us.created_at >= NOW() - INTERVAL '6 months'
+      WHERE ${trendIntervalSQL}
       ${storyVisibility}
-      GROUP BY DATE_TRUNC('month', us.created_at)
-      ORDER BY DATE_TRUNC('month', us.created_at)
-    `, baseParams);
+      GROUP BY ${trendGroupSQL}
+      ORDER BY ${trendGroupSQL}
+    `, isAdmin ? [] : [userId]);
 
     // ── 11. Recent activity ────────────────────────────────────────────────
     const activityResult = await query(`
@@ -203,15 +275,28 @@ const getDashboardStats = async (req, res) => {
       FROM story_change_logs scl
       JOIN users u ON scl.changed_by = u.id
       JOIN user_stories us ON scl.user_story_id = us.id
-      WHERE 1=1 ${storyVisibility.replace('us.id', 'us.id')}
+      WHERE 1=1 ${storyVisibility} ${acd.cond}
       ORDER BY scl.created_at DESC LIMIT 8
-    `, baseParams);
+    `, activityParams);
 
-    // ── 12. Task completion rate by user (last 30 days) ───────────────────
+    // ── 12. Task completion by user ────────────────────────────────────────
+    const tcBaseParams = [];
+    const tcDateCond = (() => {
+      let c = ''; const extra = [];
+      if (from_date) { extra.push(from_date); c += ` AND t.completed_at::date >= $${extra.length}`; }
+      if (to_date)   { extra.push(to_date);   c += ` AND t.completed_at::date <= $${extra.length}`; }
+      return { cond: c, extra };
+    })();
+    const tcParams = tcDateCond.extra;
+
+    const completedFilter = tcDateCond.cond
+      ? `t.status = 'done' ${tcDateCond.cond}`
+      : `t.status = 'done' AND t.completed_at >= NOW() - INTERVAL '30 days'`;
+
     const taskCompletionResult = await query(`
       SELECT
         u.first_name || ' ' || u.last_name AS name,
-        COUNT(t.id) FILTER (WHERE t.status = 'done' AND t.completed_at >= NOW() - INTERVAL '30 days') AS completed_30d,
+        COUNT(t.id) FILTER (WHERE ${completedFilter}) AS completed_30d,
         COUNT(t.id) AS total_assigned
       FROM users u
       JOIN roles r ON r.id = u.role_id
@@ -221,23 +306,25 @@ const getDashboardStats = async (req, res) => {
       GROUP BY u.id, u.first_name, u.last_name
       HAVING COUNT(t.id) > 0
       ORDER BY completed_30d DESC LIMIT 8
-    `);
+    `, tcParams);
 
     res.json({
-      storyStats: storyStats.rows[0],
-      storyTaskStats: storyTaskStats.rows[0],
-      prospectStats: prospectStats.rows[0],
-      prospectTaskStats: prospectTaskStats.rows[0],
-      pipeline: pipelineResult.rows,
-      storyPriority: storyPriority.rows,
-      prospectPriority: prospectPriority.rows,
-      userBreakdown,
-      teamBreakdown,
-      trend: trendResult.rows,
-      recentActivity: activityResult.rows,
-      taskCompletion: taskCompletionResult.rows,
+      storyStats:      storyStatsResult.rows[0],
+      storyTaskStats:  storyTaskResult.rows[0],
+      prospectStats:   prospectStatsResult.rows[0],
+      prospectTaskStats: prospectTaskResult.rows[0],
+      pipeline:        pipelineResult.rows,
+      storyPriority:   storyPriorityResult.rows,
+      prospectPriority: prospectPriorityResult.rows,
+      userBreakdown:   userBreakdownResult.rows,
+      teamBreakdown:   teamBreakdownResult.rows,
+      trend:           trendResult.rows,
+      recentActivity:  activityResult.rows,
+      taskCompletion:  taskCompletionResult.rows,
       role,
       isAdmin,
+      appliedFrom: from_date,
+      appliedTo:   to_date,
     });
   } catch (error) {
     console.error('Dashboard error:', error);
