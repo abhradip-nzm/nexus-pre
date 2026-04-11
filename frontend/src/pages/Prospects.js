@@ -64,6 +64,11 @@ function ProspectTasksSection({ prospectId }) {
   const [newDueDate, setNewDueDate] = useState('');
   const [completingTask, setCompletingTask] = useState(null);
   const [responseDetails, setResponseDetails] = useState('');
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     api.get(`/prospects/${prospectId}/tasks`).then(r => setTasks(r.data.tasks || []));
@@ -76,9 +81,37 @@ function ProspectTasksSection({ prospectId }) {
     setNewTitle(''); setNewStartDate(''); setNewDueDate(''); setShowForm(false);
   };
 
+  const startEdit = (task) => {
+    setEditingTaskId(task.id);
+    setEditTitle(task.title);
+    setEditStartDate(task.start_date ? task.start_date.slice(0, 10) : '');
+    setEditDueDate(task.due_date ? task.due_date.slice(0, 10) : '');
+    setCompletingTask(null);
+  };
+
+  const saveEdit = async () => {
+    if (!editTitle.trim()) return;
+    setEditSaving(true);
+    try {
+      const res = await api.put(`/prospect-tasks/${editingTaskId}`, {
+        title: editTitle.trim(),
+        start_date: editStartDate || null,
+        due_date: editDueDate || null,
+      });
+      setTasks(prev => prev.map(t => t.id === editingTaskId ? res.data.task : t));
+      setEditingTaskId(null);
+    } catch {
+      toast.error('Failed to update task');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const cancelEdit = () => { setEditingTaskId(null); };
+
   const toggleTask = (task) => {
-    if (task.status !== 'done') { setCompletingTask(task); setResponseDetails(''); return; }
-    api.put(`/prospect-tasks/${task.id}`, { status: 'todo' }).then(r => {
+    if (task.status !== 'done') { setCompletingTask(task); setResponseDetails(''); setEditingTaskId(null); return; }
+    api.put(`/prospect-tasks/${task.id}`, { status: 'todo' }).then(() => {
       setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'todo', completed_at: null, response_details: null } : t));
     });
   };
@@ -143,36 +176,68 @@ function ProspectTasksSection({ prospectId }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {tasks.map(task => {
             const isDone = task.status === 'done';
+            const isEditing = editingTaskId === task.id;
             return (
-              <div key={task.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: isDone ? '#f8fffe' : 'white', border: '1px solid var(--border-light)', borderRadius: 8 }}>
-                <button
-                  onClick={() => toggleTask(task)}
-                  style={{ width: 18, height: 18, borderRadius: '50%', border: isDone ? 'none' : '2px solid var(--border)', background: isDone ? '#16a34a' : 'transparent', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginTop: 2 }}
-                  title={isDone ? 'Mark incomplete' : 'Mark complete'}
-                >
-                  {isDone && <Check size={10} />}
-                </button>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: isDone ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}>{task.title}</div>
-                  {task.assignees && task.assignees.length > 0 && (
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {task.assignees.map(a => a.name).join(', ')}
+              <div key={task.id} style={{ border: '1px solid var(--border-light)', borderRadius: 8, overflow: 'hidden' }}>
+                {isEditing ? (
+                  <div style={{ background: '#f8fafc', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <input className="form-control" value={editTitle} onChange={e => setEditTitle(e.target.value)} autoFocus placeholder="Task title" />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>Start Date</label>
+                        <input type="date" className="form-control form-control-sm" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>Due Date</label>
+                        <input type="date" className="form-control form-control-sm" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} />
+                      </div>
                     </div>
-                  )}
-                  {task.response_details && (
-                    <div style={{ marginTop: 4, padding: '4px 8px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 5, fontSize: 11, color: '#166534' }}>
-                      <strong>Response:</strong> {task.response_details}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={editSaving || !editTitle.trim()}>
+                        {editSaving ? 'Saving…' : 'Save'}
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={cancelEdit}>Cancel</button>
                     </div>
-                  )}
-                  {(task.start_date || task.due_date) && (
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {task.start_date ? new Date(task.start_date).toLocaleDateString() : '—'} → {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: isDone ? '#f8fffe' : 'white' }}>
+                    <button
+                      onClick={() => toggleTask(task)}
+                      style={{ width: 18, height: 18, borderRadius: '50%', border: isDone ? 'none' : '2px solid var(--border)', background: isDone ? '#16a34a' : 'transparent', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginTop: 2 }}
+                      title={isDone ? 'Mark incomplete' : 'Mark complete'}
+                    >
+                      {isDone && <Check size={10} />}
+                    </button>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: isDone ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}>{task.title}</div>
+                      {task.assignees && task.assignees.length > 0 && (
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {task.assignees.map(a => a.name).join(', ')}
+                        </div>
+                      )}
+                      {task.response_details && (
+                        <div style={{ marginTop: 4, padding: '4px 8px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 5, fontSize: 11, color: '#166534' }}>
+                          <strong>Response:</strong> {task.response_details}
+                        </div>
+                      )}
+                      {(task.start_date || task.due_date) && (
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {task.start_date ? new Date(task.start_date).toLocaleDateString() : '—'} → {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <button onClick={() => deleteTask(task.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, display: 'flex', alignItems: 'center' }} title="Delete">
-                  <Trash2 size={12} />
-                </button>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      {!isDone && (
+                        <button onClick={() => startEdit(task)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, display: 'flex', alignItems: 'center' }} title="Edit task">
+                          <Pencil size={12} />
+                        </button>
+                      )}
+                      <button onClick={() => deleteTask(task.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, display: 'flex', alignItems: 'center' }} title="Delete">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -203,12 +268,15 @@ export default function Prospects() {
   const [tagInput, setTagInput] = useState('');
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const tagInputRef = useRef(null);
+  const tagsWrapperRef = useRef(null);
+  const [tagDropdownPos, setTagDropdownPos] = useState(null);
 
   // Filters
   const [showFilters, setShowFilters] = useState(false);
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [filterAsd, setFilterAsd] = useState('');
+  const [filterTasks, setFilterTasks] = useState('');
 
   const lblStyle = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 4 };
   const valStyle = { fontSize: 13, color: 'var(--text-primary)', margin: 0 };
@@ -364,10 +432,14 @@ export default function Prospects() {
       if (created > to) return false;
     }
     if (filterAsd && String(p.sales_director_id) !== filterAsd) return false;
+    if (filterTasks === 'has_tasks' && !(p.total_tasks_count > 0)) return false;
+    if (filterTasks === 'no_tasks' && p.total_tasks_count > 0) return false;
+    if (filterTasks === 'has_incomplete' && !((p.total_tasks_count - p.completed_tasks_count) > 0)) return false;
+    if (filterTasks === 'all_complete' && !(p.total_tasks_count > 0 && p.completed_tasks_count === p.total_tasks_count)) return false;
     return true;
   });
 
-  const activeFilterCount = [filterDateFrom, filterDateTo, filterAsd].filter(Boolean).length;
+  const activeFilterCount = [filterDateFrom, filterDateTo, filterAsd, filterTasks].filter(Boolean).length;
 
   return (
     <>
@@ -460,8 +532,26 @@ export default function Prospects() {
                 </div>
               </div>
             )}
+            <div className="filter-group">
+              <label className="filter-label">Tasks</label>
+              <div className="filter-chips">
+                {[
+                  { value: '', label: 'All' },
+                  { value: 'has_tasks', label: 'Has Tasks' },
+                  { value: 'no_tasks', label: 'No Tasks' },
+                  { value: 'has_incomplete', label: 'Has Incomplete' },
+                  { value: 'all_complete', label: 'All Complete' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    className={`filter-chip ${filterTasks === opt.value ? 'active' : ''}`}
+                    onClick={() => setFilterTasks(opt.value)}
+                  >{opt.label}</button>
+                ))}
+              </div>
+            </div>
             {activeFilterCount > 0 && (
-              <button className="btn btn-ghost btn-sm filter-clear-btn" onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); setFilterAsd(''); }}>
+              <button className="btn btn-ghost btn-sm filter-clear-btn" onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); setFilterAsd(''); setFilterTasks(''); }}>
                 <X size={12} /> Clear filters
               </button>
             )}
@@ -696,14 +786,17 @@ export default function Prospects() {
                     )}
 
                     {/* Tags */}
-                    <div className="form-group" style={{ position: 'relative' }}>
+                    <div className="form-group">
                       <label className="form-label"><Tag size={12} /> Tags</label>
-                      <div className="tags-input-wrapper">
+                      <div
+                        className="tags-input-wrapper"
+                        ref={tagsWrapperRef}
+                      >
                         {form.tags.map(tag => {
                           const opt = tagOptions.find(t => t.name === tag);
                           return (
                             <span key={tag} className="tag-chip" style={opt ? { background: opt.color + '22', color: opt.color } : {}}>
-                              {toProperCase(tag)}
+                              {tag.toUpperCase()}
                               <button type="button" className="tag-remove"
                                 onClick={() => setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }))}>×</button>
                             </span>
@@ -716,7 +809,13 @@ export default function Prospects() {
                           placeholder={form.tags.length === 0 ? "Type or select a tag..." : "Add more..."}
                           value={tagInput}
                           onChange={e => { setTagInput(e.target.value); setShowTagDropdown(true); }}
-                          onFocus={() => setShowTagDropdown(true)}
+                          onFocus={() => {
+                            if (tagsWrapperRef.current) {
+                              const r = tagsWrapperRef.current.getBoundingClientRect();
+                              setTagDropdownPos({ top: r.bottom + 2, left: r.left, width: r.width });
+                            }
+                            setShowTagDropdown(true);
+                          }}
                           onBlur={() => setTimeout(() => setShowTagDropdown(false), 150)}
                           onKeyDown={e => {
                             if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
@@ -728,8 +827,8 @@ export default function Prospects() {
                           }}
                         />
                       </div>
-                      {showTagDropdown && (
-                        <div className="tag-autocomplete-dropdown">
+                      {showTagDropdown && tagDropdownPos && (
+                        <div className="tag-autocomplete-dropdown" style={{ position: 'fixed', top: tagDropdownPos.top, left: tagDropdownPos.left, width: tagDropdownPos.width, zIndex: 9999 }}>
                           {tagOptions.filter(t => !form.tags.includes(t.name) && (tagInput === '' || t.name.toLowerCase().includes(tagInput.toLowerCase()))).slice(0, 8).map(t => (
                             <button key={t.id} type="button" className="tag-autocomplete-option"
                               onMouseDown={e => {
@@ -739,7 +838,7 @@ export default function Prospects() {
                                 setTagInput(''); setShowTagDropdown(false);
                               }}>
                               <span className="tag-option-dot" style={{ background: t.color || '#3e72ae' }} />
-                              {t.name}
+                              {t.name.toUpperCase()}
                             </button>
                           ))}
                           {tagInput.trim() && !tagOptions.some(t => t.name.toLowerCase() === tagInput.toLowerCase()) && (
@@ -750,7 +849,7 @@ export default function Prospects() {
                                 if (!form.tags.includes(tag)) setForm(prev => ({ ...prev, tags: [...prev.tags, tag] }));
                                 setTagInput(''); setShowTagDropdown(false);
                               }}>
-                              <Plus size={11} /> Create "{tagInput}"
+                              <Plus size={11} /> Create "{tagInput.toUpperCase()}"
                             </button>
                           )}
                         </div>
@@ -1014,7 +1113,7 @@ export default function Prospects() {
                       {viewingProspect.tags.map(tag => {
                         const opt = tagOptions.find(t => t.name === tag);
                         return (
-                          <span key={tag} style={{ fontSize: 11, background: opt ? opt.color + '22' : 'var(--bg-secondary)', color: opt ? opt.color : 'var(--text-secondary)', padding: '2px 8px', borderRadius: 4, border: `1px solid ${opt ? opt.color + '40' : 'var(--border)'}` }}>{toProperCase(tag)}</span>
+                          <span key={tag} style={{ fontSize: 11, background: opt ? opt.color + '22' : 'var(--bg-secondary)', color: opt ? opt.color : 'var(--text-secondary)', padding: '2px 8px', borderRadius: 4, border: `1px solid ${opt ? opt.color + '40' : 'var(--border)'}` }}>{tag.toUpperCase()}</span>
                         );
                       })}
                     </div>

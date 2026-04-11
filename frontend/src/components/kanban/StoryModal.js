@@ -126,6 +126,8 @@ export default function StoryModal({
 
   const [saving, setSaving] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const [tagDropdownPos, setTagDropdownPos] = useState(null);
+  const tagsWrapperRef = useRef(null);
   const [showTransitionForm, setShowTransitionForm] = useState(false);
   const [transitionFormData, setTransitionFormData] = useState(null);
   const [pendingTransitionPayload, setPendingTransitionPayload] = useState(null);
@@ -394,38 +396,45 @@ export default function StoryModal({
                 </div>
 
                 {/* Tags */}
-                <div className="form-group" style={{ position: 'relative' }}>
+                <div className="form-group">
                   <label className="form-label"><Tag size={12} /> Tags</label>
-                  <div className="tags-input-wrapper">
+                  <div className="tags-input-wrapper" ref={tagsWrapperRef}>
                     {form.tags.map(tag => {
                       const opt = tagOptions.find(t => t.name === tag);
                       return (
                         <span key={tag} className="tag-chip" style={opt ? { background: opt.color + '22', color: opt.color } : {}}>
-                          {tag}
+                          {tag.toUpperCase()}
                           <button type="button" onClick={() => removeTag(tag)} className="tag-remove">×</button>
                         </span>
                       );
                     })}
                     <input ref={tagInputRef} type="text" className="tag-input"
                       placeholder={form.tags.length === 0 ? "Type or select a tag..." : "Add more..."}
-                      value={tagInput} onChange={e => { setTagInput(e.target.value); setShowTagDropdown(true); }}
-                      onFocus={() => setShowTagDropdown(true)}
+                      value={tagInput}
+                      onChange={e => { setTagInput(e.target.value); setShowTagDropdown(true); }}
+                      onFocus={() => {
+                        if (tagsWrapperRef.current) {
+                          const r = tagsWrapperRef.current.getBoundingClientRect();
+                          setTagDropdownPos({ top: r.bottom + 2, left: r.left, width: r.width });
+                        }
+                        setShowTagDropdown(true);
+                      }}
                       onBlur={() => setTimeout(() => setShowTagDropdown(false), 150)}
                       onKeyDown={handleTagKeyDown} />
                   </div>
-                  {showTagDropdown && (filteredTagOptions.length > 0 || tagInput.trim()) && (
-                    <div className="tag-autocomplete-dropdown">
+                  {showTagDropdown && (filteredTagOptions.length > 0 || tagInput.trim()) && tagDropdownPos && (
+                    <div className="tag-autocomplete-dropdown" style={{ position: 'fixed', top: tagDropdownPos.top, left: tagDropdownPos.left, width: tagDropdownPos.width, zIndex: 9999 }}>
                       {filteredTagOptions.slice(0, 8).map(t => (
                         <button key={t.id} type="button" className="tag-autocomplete-option"
                           onMouseDown={e => { e.preventDefault(); addTagByName(t.name); }}>
                           <span className="tag-option-dot" style={{ background: t.color || '#3e72ae' }} />
-                          {t.name}
+                          {t.name.toUpperCase()}
                         </button>
                       ))}
                       {tagInput.trim() && !filteredTagOptions.some(t => t.name.toLowerCase() === tagInput.toLowerCase()) && (
                         <button type="button" className="tag-autocomplete-option tag-create-new"
                           onMouseDown={e => { e.preventDefault(); addTagByName(tagInput); }}>
-                          <Plus size={11} /> Create "{tagInput}"
+                          <Plus size={11} /> Create "{tagInput.toUpperCase()}"
                         </button>
                       )}
                     </div>

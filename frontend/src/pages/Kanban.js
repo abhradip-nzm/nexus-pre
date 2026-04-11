@@ -107,7 +107,7 @@ function StoryCard({ story, subStageName, onView }) {
           <div className="story-card-tags">
             {story.tags.slice(0, 3).map((tag, i) => (
               <span key={i} className="story-card-tag" style={{ background: '#eef4fb', color: '#3e72ae', border: '1px solid #d4e4f4' }}>
-                {tag}
+                {tag.toUpperCase()}
               </span>
             ))}
             {story.tags.length > 3 && <span className="story-card-tag" style={{ background: '#f0f4ff', color: '#718096' }}>+{story.tags.length - 3}</span>}
@@ -814,7 +814,7 @@ export default function KanbanBoard() {
                     <td>{(story.team_assignments || []).map(t => t.name).filter(Boolean).join(', ') || '—'}</td>
                     <td>{(story.member_assignments || []).map(m => m.name).filter(Boolean).join(', ') || '—'}</td>
                     <td>{(story.industry_assignments || []).map(i => i.name).filter(Boolean).join(', ') || '—'}</td>
-                    <td>{Array.isArray(story.tags) ? story.tags.join(', ') || '—' : (story.tags || '—')}</td>
+                    <td>{Array.isArray(story.tags) ? story.tags.map(t => t.toUpperCase()).join(', ') || '—' : (story.tags || '—')}</td>
                     <td>{story.business_team_member_name || '—'}</td>
                     <td>{getSourceIcon(story.source)}</td>
                     <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{story.description || '—'}</td>

@@ -30,6 +30,8 @@ const getProspects = async (req, res) => {
         i.name as industry_name,
         u.first_name || ' ' || u.last_name as created_by_name,
         bt.name as sales_director_name,
+        (SELECT COUNT(*)::int FROM prospect_tasks pt WHERE pt.prospect_id = pp.id) as total_tasks_count,
+        (SELECT COUNT(*)::int FROM prospect_tasks pt WHERE pt.prospect_id = pp.id AND pt.status = 'done') as completed_tasks_count,
         COALESCE((
           SELECT json_agg(json_build_object('industry_id', pia.industry_id, 'industry_name', ind.name))
           FROM prospect_industry_assignments pia

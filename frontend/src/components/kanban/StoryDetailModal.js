@@ -497,7 +497,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                         <h4 className="detail-section-title">Tags</h4>
                         <div className="detail-tags">
                           {story.tags.map(tag => (
-                            <span key={tag} className="tag-chip">{toProperCase(tag)}</span>
+                            <span key={tag} className="tag-chip">{tag.toUpperCase()}</span>
                           ))}
                         </div>
                       </div>

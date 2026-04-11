@@ -5,7 +5,7 @@
   min-width: 0;
 }
 
-.story-form-main { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.story-form-main { display: flex; flex-direction: column; min-width: 0; overflow: visible; }
 .story-form-sidebar { display: flex; flex-direction: column; min-width: 0; }
 
 .form-row {
