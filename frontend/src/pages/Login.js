@@ -22,7 +22,7 @@ export default function Login() {
     try {
       const user = await login(email, password);
       toast.success(`Welcome back, ${user.first_name}!`);
-      navigate(user.role_name === 'system_admin' ? '/admin/users' : '/dashboard');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
     } finally {

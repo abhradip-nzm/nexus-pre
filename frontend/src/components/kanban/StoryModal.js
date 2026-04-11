@@ -131,6 +131,7 @@ export default function StoryModal({
   const [teams, setTeams] = useState([]);
   const [tagOptions, setTagOptions] = useState([]);
   const [industryOptions, setIndustryOptions] = useState([]);
+  const [allStoryUsers, setAllStoryUsers] = useState([]);
 
   useEffect(() => {
     setLoadingOptions(true);
@@ -139,11 +140,13 @@ export default function StoryModal({
       api.get('/teams').catch(() => ({ data: { teams: [] } })),
       api.get('/tags').catch(() => ({ data: { tags: [] } })),
       api.get('/industries').catch(() => ({ data: { industries: [] } })),
-    ]).then(([btRes, teamsRes, tagsRes, indRes]) => {
+      api.get('/users/assignable').catch(() => ({ data: { users: [] } })),
+    ]).then(([btRes, teamsRes, tagsRes, indRes, usersRes]) => {
       setBusinessTeam(Array.isArray(btRes.data) ? btRes.data : []);
       setTeams(teamsRes.data.teams || []);
       setTagOptions(tagsRes.data.tags || []);
       setIndustryOptions(indRes.data.industries || []);
+      setAllStoryUsers(usersRes.data.users || []);
     }).finally(() => setLoadingOptions(false));
   }, []);
 
@@ -254,7 +257,7 @@ export default function StoryModal({
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal modal-lg">
+      <div className="modal modal-xl">
         <div className="modal-header">
           <h2 className="modal-title">{isEdit ? 'Edit Story' : 'Create User Story'}</h2>
           <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
@@ -307,17 +310,15 @@ export default function StoryModal({
                 </div>
 
                 {/* Industries multiselect pills */}
-                {industryOptions.length > 0 && (
-                  <MultiSelectPills
-                    label="Industries" icon={Layers}
-                    options={industryOptions}
-                    selectedIds={form.industry_ids}
-                    onToggle={toggleIndustry}
-                    getOptionId={o => o.id}
-                    getOptionLabel={o => o.name}
-                    placeholder="Select industries..."
-                  />
-                )}
+                <MultiSelectPills
+                  label="Industries" icon={Layers}
+                  options={industryOptions}
+                  selectedIds={form.industry_ids}
+                  onToggle={toggleIndustry}
+                  getOptionId={o => o.id}
+                  getOptionLabel={o => o.name}
+                  placeholder={loadingOptions ? 'Loading...' : industryOptions.length === 0 ? 'No industries configured' : 'Select industries...'}
+                />
 
                 {/* Tags */}
                 <div className="form-group" style={{ position: 'relative' }}>
@@ -416,47 +417,56 @@ export default function StoryModal({
                   )}
                 </div>
 
-                {/* Assignment: Teams OR Members (mutually exclusive) */}
+                {/* Assignment: Teams OR Members (mutually exclusive) - pill button style */}
                 <div className="form-group">
-                  <label className="form-label" style={{ marginBottom: 8 }}>Assignment</label>
+                  <label className="form-label">Assignment</label>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                     <button type="button"
                       className={`btn btn-sm ${form.assignment_type !== 'member' ? 'btn-primary' : 'btn-secondary'}`}
-                      style={{ flex: 1, fontSize: 12 }}
+                      style={{ flex: 1, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
                       onClick={() => setAssignmentType('team')}>
                       <Users size={11} /> Assigned Teams
                     </button>
                     <button type="button"
                       className={`btn btn-sm ${form.assignment_type === 'member' ? 'btn-primary' : 'btn-secondary'}`}
-                      style={{ flex: 1, fontSize: 12 }}
+                      style={{ flex: 1, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
                       onClick={() => setAssignmentType('member')}>
                       <User size={11} /> Assigned Members
                     </button>
                   </div>
-
-                  {(form.assignment_type !== 'member') && teams.length > 0 && (
-                    <MultiSelectPills
-                      label="Assigned Teams" icon={Users}
-                      options={teams}
-                      selectedIds={form.team_ids}
-                      onToggle={toggleTeam}
-                      getOptionId={o => o.id}
-                      getOptionLabel={o => o.name}
-                      getOptionColor={o => o.accent_color}
-                      placeholder="Select teams..."
-                    />
+                  {form.assignment_type !== 'member' && teams.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {teams.map(team => (
+                        <button key={team.id} type="button"
+                          onClick={() => toggleTeam(team.id)}
+                          style={{
+                            padding: '4px 12px', borderRadius: 20, border: '1.5px solid', fontSize: 12,
+                            cursor: 'pointer', fontWeight: 500,
+                            background: form.team_ids.includes(team.id) ? (team.accent_color || '#3e72ae') : 'white',
+                            borderColor: form.team_ids.includes(team.id) ? (team.accent_color || '#3e72ae') : 'var(--border)',
+                            color: form.team_ids.includes(team.id) ? 'white' : 'var(--text-primary)',
+                          }}>
+                          {team.name}
+                        </button>
+                      ))}
+                    </div>
                   )}
-
-                  {form.assignment_type === 'member' && assignableUsers.length > 0 && (
-                    <MultiSelectPills
-                      label="Assigned Members" icon={User}
-                      options={assignableUsers}
-                      selectedIds={form.member_ids}
-                      onToggle={toggleMember}
-                      getOptionId={o => o.id}
-                      getOptionLabel={o => `${o.first_name} ${o.last_name}`}
-                      placeholder="Select members..."
-                    />
+                  {form.assignment_type === 'member' && allStoryUsers.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {allStoryUsers.map(u => (
+                        <button key={u.id} type="button"
+                          onClick={() => toggleMember(u.id)}
+                          style={{
+                            padding: '4px 12px', borderRadius: 20, border: '1.5px solid', fontSize: 12,
+                            cursor: 'pointer', fontWeight: 500,
+                            background: form.member_ids.includes(u.id) ? '#3e72ae' : 'white',
+                            borderColor: form.member_ids.includes(u.id) ? '#3e72ae' : 'var(--border)',
+                            color: form.member_ids.includes(u.id) ? 'white' : 'var(--text-primary)',
+                          }}>
+                          {u.first_name} {u.last_name}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>

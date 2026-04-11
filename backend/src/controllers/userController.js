@@ -248,7 +248,25 @@ const getRoles = async (req, res) => {
   }
 };
 
+// Returns all pre_sales users - accessible by all authenticated users (for assignment dropdowns)
+const getAssignableUsers = async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT u.id, u.first_name, u.last_name, u.email, r.name as role_name
+       FROM users u
+       JOIN roles r ON u.role_id = r.id
+       WHERE r.name IN ('pre_sales_manager', 'pre_sales_executive')
+         AND u.is_active = true
+       ORDER BY u.first_name, u.last_name`
+    );
+    res.json({ users: result.rows });
+  } catch (error) {
+    console.error('Get assignable users error:', error);
+    res.status(500).json({ error: 'Failed to get assignable users' });
+  }
+};
+
 module.exports = {
   getAllUsers, getUserById, createUser, updateUser,
-  resetPassword, updatePermissions, getUserKPIs, getRoles
+  resetPassword, updatePermissions, getUserKPIs, getRoles, getAssignableUsers
 };

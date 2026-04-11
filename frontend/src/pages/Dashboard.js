@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line, AreaChart, Area
@@ -6,7 +6,7 @@ import {
 import {
   Target, CheckSquare, BookOpen, ListChecks, Clock, AlertTriangle,
   TrendingUp, Users, Briefcase, ArrowRight, BarChart2, Activity,
-  CheckCircle2, Circle, AlertCircle, Calendar, DollarSign
+  CheckCircle2, Circle, AlertCircle, Calendar, DollarSign, Download
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { useAuth } from '../contexts/AuthContext';
@@ -73,6 +73,8 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const dashRef = useRef(null);
 
   useEffect(() => {
     api.get('/dashboard')
@@ -80,6 +82,68 @@ export default function Dashboard() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  const handleExportPDF = async () => {
+    setExporting(true);
+    try {
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = html2canvasModule.default || html2canvasModule;
+      const jsPDFModule = await import('jspdf');
+      const jsPDF = jsPDFModule.jsPDF || jsPDFModule.default;
+      const element = dashRef.current;
+      if (!element) return;
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#f8faff',
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const headerH = 16;
+      const usableW = pageW - margin * 2;
+      const imgH = (canvas.height * usableW) / canvas.width;
+      const usablePageH = pageH - margin * 2;
+
+      // Header text on first page
+      pdf.setFontSize(15);
+      pdf.setTextColor(62, 114, 174);
+      pdf.text('Nexus Pre \u2014 Dashboard Report', margin, margin + 5);
+      pdf.setFontSize(9);
+      pdf.setTextColor(113, 128, 150);
+      const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      pdf.text(`Generated: ${dateStr}  |  ${user?.first_name} ${user?.last_name}`, margin, margin + 11);
+
+      // Place full-height image starting after header on page 1
+      const imgStartY = margin + headerH;
+      pdf.addImage(imgData, 'PNG', margin, imgStartY, usableW, imgH, '', 'FAST');
+
+      // Add extra pages if image overflows
+      let heightLeft = imgH - (pageH - imgStartY - margin);
+      let pageNum = 1;
+      while (heightLeft > 0) {
+        pdf.addPage();
+        // On each new page, move image up so the next slice is visible
+        const yPos = imgStartY - pageNum * (pageH - margin * 2);
+        pdf.addImage(imgData, 'PNG', margin, yPos, usableW, imgH, '', 'FAST');
+        heightLeft -= (pageH - margin * 2);
+        pageNum++;
+      }
+
+      pdf.save(`nexus-dashboard-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (err) {
+      console.error('PDF export error:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (loading) return (
     <div className="page-loading">
@@ -143,6 +207,18 @@ export default function Dashboard() {
         subtitle={isAdmin ? 'System overview across all teams, stories, and prospects' : 'Your assigned stories and prospects overview'}
       />
       <div className="page-content dash-page">
+        <div className="dash-export-row">
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleExportPDF}
+            disabled={exporting}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}
+          >
+            <Download size={14} />
+            {exporting ? 'Generating PDF...' : 'Export PDF'}
+          </button>
+        </div>
+        <div ref={dashRef}>
 
         {/* ── KPI Row ────────────────────────────────────────────────── */}
         <div className="dash-kpi-grid">
@@ -151,7 +227,8 @@ export default function Dashboard() {
           <StatCard icon={Target} label="Prospects" value={fmt(prospectStats.total_prospects)} color="#8b5cf6" />
           <StatCard icon={ListChecks} label="Total Tasks" value={fmt(totalTasks)} color="#e67e22"
             sub={`${completionRate}% completion rate`} />
-          <StatCard icon={CheckCircle2} label="Completed Tasks" value={fmt(completedTasks)} color="#16a34a" />
+          <StatCard icon={CheckCircle2} label="Completed Tasks" value={fmt(completedTasks)} color="#16a34a"
+            sub={`${fmt(storyTaskStats.completed || 0)} story · ${fmt(prospectTaskStats.completed || 0)} prospect`} />
           <StatCard icon={AlertTriangle} label="Overdue Tasks" value={fmt(overdueTasks)} color="#dc3545"
             sub={`${fmt(storyTaskStats.overdue || 0)} story · ${fmt(prospectTaskStats.overdue || 0)} prospect`} />
           <StatCard icon={Clock} label="In Progress Tasks" value={fmt(inProgressTasks)} color="#f59e0b"
@@ -402,6 +479,7 @@ export default function Dashboard() {
           </div>
         )}
 
+      </div>
       </div>
     </>
   );

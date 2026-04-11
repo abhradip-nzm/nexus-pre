@@ -1,11 +1,12 @@
 .story-form-grid {
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 1fr 300px;
   gap: 24px;
+  min-width: 0;
 }
 
-.story-form-main { display: flex; flex-direction: column; }
-.story-form-sidebar { display: flex; flex-direction: column; }
+.story-form-main { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.story-form-sidebar { display: flex; flex-direction: column; min-width: 0; }
 
 .form-row {
   display: grid;

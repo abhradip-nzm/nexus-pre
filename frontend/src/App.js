@@ -217,7 +217,7 @@ function App() {
           } />
 
           <Route path="/prospects" element={
-            <ProtectedRoute roles={['system_admin', 'super_admin']}>
+            <ProtectedRoute roles={['system_admin', 'super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
               <AppLayout><Prospects /></AppLayout>
             </ProtectedRoute>
           } />

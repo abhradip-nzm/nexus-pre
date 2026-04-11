@@ -11,10 +11,11 @@ router.put('/auth/change-password', authenticate, changePassword);
 // Users
 const {
   getAllUsers, getUserById, createUser, updateUser,
-  resetPassword, updatePermissions, getUserKPIs, getRoles
+  resetPassword, updatePermissions, getUserKPIs, getRoles, getAssignableUsers
 } = require('../controllers/userController');
 router.get('/users', authenticate, requireManager, getAllUsers);
 router.get('/users/roles', authenticate, getRoles);
+router.get('/users/assignable', authenticate, getAssignableUsers);
 router.get('/users/:id', authenticate, getUserById);
 router.post('/users', authenticate, requireSystemAdmin, createUser);
 router.put('/users/:id', authenticate, updateUser);

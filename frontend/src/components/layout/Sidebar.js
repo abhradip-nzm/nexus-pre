@@ -25,6 +25,7 @@ function getNavItems(role) {
     return [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
+      { to: '/prospects', icon: Target, label: 'Probable Prospects' },
       { to: '/my-tasks', icon: CalendarCheck, label: 'My Tasks' },
       { to: '/executives', icon: Users, label: 'Team' },
       { to: '/calendar', icon: CalendarIcon, label: 'Calendar' },
@@ -34,6 +35,7 @@ function getNavItems(role) {
     return [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
+      { to: '/prospects', icon: Target, label: 'Probable Prospects' },
       { to: '/my-tasks', icon: CalendarCheck, label: 'My Tasks' },
       { to: '/calendar', icon: CalendarIcon, label: 'Calendar' },
     ];
