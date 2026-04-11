@@ -7,7 +7,7 @@ import {
   Target, CheckSquare, BookOpen, ListChecks, Clock, AlertTriangle,
   TrendingUp, Users, Briefcase, ArrowRight, BarChart2, Activity,
   CheckCircle2, Circle, AlertCircle, Calendar, DollarSign, Download,
-  ChevronDown, X
+  ChevronDown, X, Check
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,6 +45,30 @@ const PRESETS = [
   { id: 'last_12m',      label: 'Last 12 Months' },
   { id: 'all',           label: 'All Time' },
   { id: 'custom',        label: 'Custom Range' },
+];
+
+// Grouped for the dropdown panel (2-column grid per group)
+const PRESET_GROUPS = [
+  [
+    { id: 'today',      label: 'Today' },
+    { id: 'yesterday',  label: 'Yesterday' },
+    { id: 'this_week',  label: 'This Week' },
+    { id: 'last_week',  label: 'Last Week' },
+  ],
+  [
+    { id: 'this_month',   label: 'This Month' },
+    { id: 'last_month',   label: 'Last Month' },
+    { id: 'this_quarter', label: 'This Quarter' },
+    { id: 'last_quarter', label: 'Last Quarter' },
+    { id: 'this_year',    label: 'This Year' },
+    { id: 'last_year',    label: 'Last Year' },
+  ],
+  [
+    { id: 'last_30',  label: 'Last 30 Days' },
+    { id: 'last_90',  label: 'Last 90 Days' },
+    { id: 'last_12m', label: 'Last 12 Months' },
+    { id: 'all',      label: 'All Time' },
+  ],
 ];
 
 function getPresetDates(id) {
@@ -181,81 +205,114 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 // ── Date Filter Bar ───────────────────────────────────────────────────────────
 function DateFilterBar({ preset, customFrom, customTo, onPresetChange, onCustomFrom, onCustomTo, onApplyCustom, activeDateLabel }) {
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
 
   useEffect(() => {
-    const handler = (e) => { if (dropRef.current && !dropRef.current.contains(e.target)) setShowDropdown(false); };
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   const activePreset = PRESETS.find(p => p.id === preset);
 
+  const handleSelect = (id) => {
+    onPresetChange(id);
+    if (id !== 'custom') setOpen(false);
+  };
+
   return (
-    <div className="dash-filter-bar">
-      <div className="dash-filter-left">
-        <Calendar size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-        <span className="dash-filter-label">Period:</span>
+    <div className="dff-bar" ref={ref}>
+      {/* ── Trigger row ── */}
+      <div className="dff-trigger-row">
+        <button className={`dff-trigger ${open ? 'open' : ''}`} onClick={() => setOpen(o => !o)}>
+          <Calendar size={15} className="dff-trigger-icon" />
+          <span className="dff-trigger-label">{activePreset?.label || 'Select Period'}</span>
+          <ChevronDown size={14} className={`dff-chevron ${open ? 'open' : ''}`} />
+        </button>
 
-        {/* Quick chips — horizontal scroll */}
-        <div className="dash-preset-chips">
-          {PRESETS.filter(p => p.id !== 'custom').map(p => (
-            <button
-              key={p.id}
-              className={`dash-preset-chip ${preset === p.id ? 'active' : ''}`}
-              onClick={() => onPresetChange(p.id)}
-            >
-              {p.label}
-            </button>
+        {/* Active range pill */}
+        {activeDateLabel && (
+          <span className="dff-range-pill">
+            <span className="dff-range-dot" />
+            {activeDateLabel}
+          </span>
+        )}
+      </div>
+
+      {/* ── Dropdown panel ── */}
+      {open && (
+        <div className="dff-panel">
+          {PRESET_GROUPS.map((group, gi) => (
+            <React.Fragment key={gi}>
+              {gi > 0 && <div className="dff-sep" />}
+              <div className="dff-group">
+                {group.map(p => (
+                  <button
+                    key={p.id}
+                    className={`dff-option ${preset === p.id ? 'active' : ''}`}
+                    onClick={() => handleSelect(p.id)}
+                  >
+                    <span className="dff-option-check">{preset === p.id && <Check size={11} />}</span>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </React.Fragment>
           ))}
-          <button
-            className={`dash-preset-chip ${preset === 'custom' ? 'active' : ''}`}
-            onClick={() => onPresetChange('custom')}
-          >
-            Custom Range
-          </button>
-        </div>
-      </div>
 
-      {/* Active date badge */}
-      <div className="dash-filter-right">
-        <span className="dash-active-period">
-          <Calendar size={12} />
-          {activeDateLabel}
-        </span>
-      </div>
+          <div className="dff-sep" />
 
-      {/* Custom date pickers — shown when custom is selected */}
-      {preset === 'custom' && (
-        <div className="dash-custom-range">
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>From</span>
-          <input
-            type="date"
-            className="form-control form-control-sm dash-date-input"
-            value={customFrom}
-            onChange={e => onCustomFrom(e.target.value)}
-          />
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>To</span>
-          <input
-            type="date"
-            className="form-control form-control-sm dash-date-input"
-            value={customTo}
-            onChange={e => onCustomTo(e.target.value)}
-          />
+          {/* Custom range row */}
           <button
-            className="btn btn-primary btn-sm"
-            onClick={onApplyCustom}
-            disabled={!customFrom && !customTo}
+            className={`dff-custom-row-btn ${preset === 'custom' ? 'active' : ''}`}
+            onClick={() => handleSelect('custom')}
           >
-            Apply
+            <Calendar size={13} />
+            <span>Custom Range</span>
+            {preset === 'custom' && <Check size={11} style={{ marginLeft: 'auto' }} />}
           </button>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => { onCustomFrom(''); onCustomTo(''); onPresetChange('all'); }}
-          >
-            <X size={12} />
-          </button>
+
+          {preset === 'custom' && (
+            <div className="dff-custom-body">
+              <div className="dff-custom-fields">
+                <div className="dff-cf">
+                  <label>From</label>
+                  <input
+                    type="date"
+                    className="dff-date-input"
+                    value={customFrom}
+                    onChange={e => onCustomFrom(e.target.value)}
+                  />
+                </div>
+                <span className="dff-custom-arrow">→</span>
+                <div className="dff-cf">
+                  <label>To</label>
+                  <input
+                    type="date"
+                    className="dff-date-input"
+                    value={customTo}
+                    onChange={e => onCustomTo(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="dff-custom-actions">
+                <button
+                  className="dff-apply-btn"
+                  onClick={() => { onApplyCustom(); setOpen(false); }}
+                  disabled={!customFrom && !customTo}
+                >
+                  Apply Range
+                </button>
+                <button
+                  className="dff-clear-btn"
+                  onClick={() => { onCustomFrom(''); onCustomTo(''); onPresetChange('all'); setOpen(false); }}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -401,25 +458,23 @@ export default function Dashboard() {
       />
       <div className="page-content dash-page">
 
-        {/* ── Date Filter Bar ─────────────────────────────────────────────── */}
-        <DateFilterBar
-          preset={preset}
-          customFrom={customFrom}
-          customTo={customTo}
-          onPresetChange={handlePresetChange}
-          onCustomFrom={setCustomFrom}
-          onCustomTo={setCustomTo}
-          onApplyCustom={handleApplyCustom}
-          activeDateLabel={activeDateLabel}
-        />
-
-        {/* ── Export row ─────────────────────────────────────────────────── */}
-        <div className="dash-export-row">
+        {/* ── Toolbar: date filter + export ──────────────────────────────── */}
+        <div className="dash-toolbar">
+          <DateFilterBar
+            preset={preset}
+            customFrom={customFrom}
+            customTo={customTo}
+            onPresetChange={handlePresetChange}
+            onCustomFrom={setCustomFrom}
+            onCustomTo={setCustomTo}
+            onApplyCustom={handleApplyCustom}
+            activeDateLabel={activeDateLabel}
+          />
           <button
             className="btn btn-secondary btn-sm"
             onClick={handleExportPDF}
             disabled={exporting}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexShrink: 0 }}
           >
             <Download size={14} />
             {exporting ? 'Generating PDF...' : 'Export PDF'}

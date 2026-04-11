@@ -135,7 +135,16 @@ const updateUser = async (req, res) => {
       values
     );
 
-    res.json({ message: 'User updated successfully' });
+    // Return the updated user so callers can refresh their state
+    const updated = await query(
+      `SELECT u.id, u.first_name, u.last_name, u.email, u.phone, u.is_active,
+              r.name as role_name, u.last_login
+       FROM users u JOIN roles r ON r.id = u.role_id
+       WHERE u.id = $1`,
+      [id]
+    );
+
+    res.json({ message: 'User updated successfully', user: updated.rows[0] });
   } catch (error) {
     console.error('Update user error:', error);
     res.status(500).json({ error: 'Failed to update user' });

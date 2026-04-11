@@ -62,10 +62,15 @@ export function AuthProvider({ children }) {
     return false;
   };
 
+  // Update profile fields directly in state (optimistic) then re-fetch
+  const updateProfileLocally = (patch) => {
+    setUser(prev => prev ? { ...prev, ...patch } : prev);
+  };
+
   return (
     <AuthContext.Provider value={{
       user, permissions, loading,
-      login, logout, loadUser,
+      login, logout, loadUser, updateProfileLocally,
       isSystemAdmin, isSuperAdmin, isManager, isExecutive, canDo
     }}>
       {children}

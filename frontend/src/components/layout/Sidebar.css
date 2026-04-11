@@ -222,6 +222,20 @@
   background: var(--error-light);
 }
 
+/* Profile edit button — use primary colour on hover, not error */
+.sidebar-prof-btn:hover {
+  color: var(--primary) !important;
+  background: var(--primary-50, #eef4fb) !important;
+}
+
+/* Make avatar + user-info area feel clickable */
+.sidebar-user .avatar:focus-visible,
+.sidebar-user-info:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 .nav-section-label {
   font-size: 10px;
   font-weight: 700;

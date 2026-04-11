@@ -3,13 +3,14 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Kanban, Users, Settings,
-  ChevronDown, LogOut, KeyRound,
+  ChevronDown, LogOut, KeyRound, UserPen,
   UsersRound, LayoutGrid, UserCog,
   Calendar as CalendarIcon, Tag as TagIcon, Building2,
   GitBranch, CalendarCheck, Target, FormInput
 } from 'lucide-react';
 import { formatRoleName } from '../../utils/helpers';
 import api from '../../utils/api';
+import toast from 'react-hot-toast';
 import './Sidebar.css';
 
 function getNavItems(role) {
@@ -61,14 +62,60 @@ const adminNavItems = [
 ];
 
 export default function Sidebar() {
-  const { user, logout } = useAuth();
+  const { user, logout, loadUser, updateProfileLocally } = useAuth();
   const [expanded, setExpanded] = useState({});
   const location = useLocation();
+
+  // Change password
   const [showChangePw, setShowChangePw] = useState(false);
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [pwError, setPwError] = useState('');
   const [pwSuccess, setPwSuccess] = useState('');
   const [pwSaving, setPwSaving] = useState(false);
+
+  // Edit profile
+  const [showProfile, setShowProfile] = useState(false);
+  const [profForm, setProfForm] = useState({ first_name: '', last_name: '', phone: '' });
+  const [profSaving, setProfSaving] = useState(false);
+
+  const openProfile = () => {
+    setProfForm({
+      first_name: user?.first_name || '',
+      last_name: user?.last_name || '',
+      phone: user?.phone || '',
+    });
+    setShowProfile(true);
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    if (!profForm.first_name.trim() || !profForm.last_name.trim()) {
+      toast.error('First and last name are required.');
+      return;
+    }
+    setProfSaving(true);
+    try {
+      await api.put(`/users/${user.id}`, {
+        first_name: profForm.first_name.trim(),
+        last_name: profForm.last_name.trim(),
+        phone: profForm.phone.trim() || null,
+      });
+      // Optimistically update context so header/greeting update instantly
+      updateProfileLocally({
+        first_name: profForm.first_name.trim(),
+        last_name: profForm.last_name.trim(),
+        phone: profForm.phone.trim() || null,
+      });
+      // Then re-fetch to ensure full sync
+      await loadUser();
+      toast.success('Profile updated successfully!');
+      setShowProfile(false);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update profile.');
+    } finally {
+      setProfSaving(false);
+    }
+  };
 
   const openChangePw = () => {
     setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -184,15 +231,22 @@ export default function Sidebar() {
             style={{
               background: 'linear-gradient(135deg, #3e72ae 0%, #16a085 100%)',
               color: 'white',
-              fontSize: '13px'
+              fontSize: '13px',
+              cursor: 'pointer',
+              flexShrink: 0,
             }}
+            onClick={openProfile}
+            title="Edit Profile"
           >
             {user?.first_name?.[0]}{user?.last_name?.[0]}
           </div>
-          <div className="sidebar-user-info">
+          <div className="sidebar-user-info" style={{ cursor: 'pointer' }} onClick={openProfile} title="Edit Profile">
             <div className="sidebar-user-name">{user?.first_name} {user?.last_name}</div>
             <div className="sidebar-user-role">{formatRoleName(user?.role_name)}</div>
           </div>
+          <button className="btn btn-ghost btn-icon sidebar-prof-btn" onClick={openProfile} title="Edit Profile">
+            <UserPen size={15} />
+          </button>
           <button className="btn btn-ghost btn-icon" onClick={openChangePw} title="Change Password">
             <KeyRound size={16} />
           </button>
@@ -201,6 +255,79 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
+
+      {/* ── Edit Profile Modal ── */}
+      {showProfile && (
+        <div className="cpw-overlay" onClick={() => setShowProfile(false)}>
+          <div className="cpw-modal" style={{ width: 400 }} onClick={e => e.stopPropagation()}>
+            <div className="cpw-header">
+              <div
+                className="avatar"
+                style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #3e72ae 0%, #16a085 100%)', color: 'white', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}
+              >
+                {(profForm.first_name?.[0] || user?.first_name?.[0] || '?').toUpperCase()}
+                {(profForm.last_name?.[0] || user?.last_name?.[0] || '').toUpperCase()}
+              </div>
+              <span>My Profile</span>
+              <button className="cpw-close" onClick={() => setShowProfile(false)}>×</button>
+            </div>
+            <form onSubmit={handleSaveProfile} className="cpw-body">
+              {/* Role badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--primary-50)', borderRadius: 8, marginBottom: 2 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {formatRoleName(user?.role_name)}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{user?.email}</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="cpw-field">
+                  <label>First Name <span style={{ color: '#dc3545' }}>*</span></label>
+                  <input
+                    className="form-control"
+                    value={profForm.first_name}
+                    onChange={e => setProfForm(p => ({ ...p, first_name: e.target.value }))}
+                    required
+                    autoFocus
+                    placeholder="First name"
+                  />
+                </div>
+                <div className="cpw-field">
+                  <label>Last Name <span style={{ color: '#dc3545' }}>*</span></label>
+                  <input
+                    className="form-control"
+                    value={profForm.last_name}
+                    onChange={e => setProfForm(p => ({ ...p, last_name: e.target.value }))}
+                    required
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
+
+              <div className="cpw-field">
+                <label>Phone Number</label>
+                <input
+                  className="form-control"
+                  type="tel"
+                  value={profForm.phone}
+                  onChange={e => setProfForm(p => ({ ...p, phone: e.target.value }))}
+                  placeholder="+1 234 567 8900"
+                />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Include country code, e.g. +91 98765 43210
+                </span>
+              </div>
+
+              <div className="cpw-footer">
+                <button type="button" className="btn btn-ghost" onClick={() => setShowProfile(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={profSaving}>
+                  {profSaving ? 'Saving…' : 'Save Profile'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showChangePw && (
         <div className="cpw-overlay" onClick={() => setShowChangePw(false)}>
