@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Target, DollarSign, Calendar } from 'lucide-react';
+import { Target, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import Header from '../components/layout/Header';
-import { formatCurrency, getInitials, getAvatarColor } from '../utils/helpers';
+import { getInitials, getAvatarColor } from '../utils/helpers';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import './Executives.css';
@@ -20,7 +20,7 @@ export default function Executives() {
       const execs = (res.data.users || []).filter(u => u.role_name === 'pre_sales_executive');
       setUsers(execs);
 
-      // Load KPIs for each
+      // Load KPIs for each executive
       const kpiData = {};
       await Promise.all(execs.map(async u => {
         try {
@@ -64,7 +64,6 @@ export default function Executives() {
           <div className="exec-grid">
             {users.map(u => {
               const k = kpis[u.id] || {};
-              const winRate = k.total_stories > 0 ? Math.round((k.won / k.total_stories) * 100) : 0;
 
               return (
                 <div key={u.id} className="exec-card card">
@@ -91,64 +90,68 @@ export default function Executives() {
                       </div>
                       <div>
                         <div className="ek-value">{k.total_stories || 0}</div>
-                        <div className="ek-label">Total Deals</div>
+                        <div className="ek-label">Assigned Stories</div>
                       </div>
                     </div>
                     <div className="exec-kpi">
                       <div className="ek-icon" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
-                        <TrendingUp size={16} />
+                        <CheckCircle2 size={16} />
                       </div>
                       <div>
-                        <div className="ek-value">{winRate}%</div>
-                        <div className="ek-label">Win Rate</div>
+                        <div className="ek-value">{k.completed_tasks || 0}</div>
+                        <div className="ek-label">Completed Tasks</div>
                       </div>
                     </div>
                     <div className="exec-kpi">
                       <div className="ek-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
-                        <DollarSign size={16} />
+                        <Clock size={16} />
                       </div>
                       <div>
-                        <div className="ek-value">{formatCurrency(k.total_revenue)}</div>
-                        <div className="ek-label">Revenue Won</div>
+                        <div className="ek-value">{k.in_progress_tasks || 0}</div>
+                        <div className="ek-label">In Progress</div>
                       </div>
                     </div>
                     <div className="exec-kpi">
-                      <div className="ek-icon" style={{ background: '#f0eef8', color: '#6b5ea8' }}>
-                        <Calendar size={16} />
+                      <div className="ek-icon" style={{ background: '#fef2f2', color: 'var(--error)' }}>
+                        <AlertCircle size={16} />
                       </div>
                       <div>
-                        <div className="ek-value">{k.total_meetings || 0}</div>
-                        <div className="ek-label">Meetings</div>
+                        <div className="ek-value">{k.overdue_tasks || 0}</div>
+                        <div className="ek-label">Overdue Tasks</div>
                       </div>
                     </div>
                   </div>
 
                   <div className="exec-stats-row">
                     <div className="exec-stat">
-                      <span className="es-label">Won</span>
-                      <span className="es-value" style={{ color: 'var(--success)' }}>{k.won || 0}</span>
+                      <span className="es-label">Stories ({period}d)</span>
+                      <span className="es-value" style={{ color: 'var(--primary)' }}>{k.total_stories || 0}</span>
                     </div>
                     <div className="exec-stat">
-                      <span className="es-label">Lost</span>
-                      <span className="es-value" style={{ color: 'var(--error)' }}>{k.lost || 0}</span>
+                      <span className="es-label">Done</span>
+                      <span className="es-value" style={{ color: 'var(--success)' }}>{k.completed_tasks || 0}</span>
                     </div>
                     <div className="exec-stat">
-                      <span className="es-label">Dark</span>
-                      <span className="es-value" style={{ color: 'var(--text-muted)' }}>{k.dark_leads || 0}</span>
+                      <span className="es-label">Overdue</span>
+                      <span className="es-value" style={{ color: 'var(--error)' }}>{k.overdue_tasks || 0}</span>
                     </div>
                   </div>
 
-                  {k.total_stories > 0 && (
-                    <div className="exec-progress-section">
-                      <div className="exec-progress-bar">
-                        <div
-                          className="exec-progress-fill"
-                          style={{ width: `${winRate}%` }}
-                        />
+                  {(k.completed_tasks > 0 || k.in_progress_tasks > 0 || k.overdue_tasks > 0) && (() => {
+                    const total = (k.completed_tasks || 0) + (k.in_progress_tasks || 0) + (k.overdue_tasks || 0);
+                    const completedPct = total > 0 ? Math.round((k.completed_tasks / total) * 100) : 0;
+                    return (
+                      <div className="exec-progress-section">
+                        <div className="exec-progress-bar">
+                          <div
+                            className="exec-progress-fill"
+                            style={{ width: `${completedPct}%` }}
+                          />
+                        </div>
+                        <span className="exec-progress-label">{completedPct}% tasks completed</span>
                       </div>
-                      <span className="exec-progress-label">{winRate}% win rate</span>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               );
             })}

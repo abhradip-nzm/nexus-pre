@@ -239,7 +239,8 @@ function StageColumn({ column, stories, subStageMap, onAdd, onView }) {
 
 // ── Main Kanban Board ─────────────────────────────────────────────────────────
 export default function KanbanBoard() {
-  const { canDo, isManager } = useAuth();
+  const { user, canDo, isManager } = useAuth();
+  const canCreateContent = ['system_admin', 'super_admin'].includes(user?.role_name);
   const [columns, setColumns] = useState([]);
   const [stories, setStories] = useState({});    // { colId: [story, ...] }
   const [subStageMap, setSubStageMap] = useState({});
@@ -597,12 +598,14 @@ export default function KanbanBoard() {
                 <span className="filter-count-badge">{activeFilterCount}</span>
               )}
             </button>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => { setDefaultColumnId(columns[0]?.id); setShowCreateModal(true); }}
-            >
-              <Plus size={14} /> New Story
-            </button>
+            {canCreateContent && (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => { setDefaultColumnId(columns[0]?.id); setShowCreateModal(true); }}
+              >
+                <Plus size={14} /> New Story
+              </button>
+            )}
           </div>
         </div>
 

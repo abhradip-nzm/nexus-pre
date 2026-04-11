@@ -211,28 +211,49 @@ const getUserKPIs = async (req, res) => {
   try {
     const { id } = req.params;
     const { period = '30' } = req.query;
-
     const days = parseInt(period);
-    const result = await query(
-      `SELECT 
-        COUNT(DISTINCT us.id) as total_stories,
-        COUNT(DISTINCT CASE WHEN kc.slug = 'client_onboarded' THEN us.id END) as won,
-        COUNT(DISTINCT CASE WHEN kc.slug = 'closed_lost' THEN us.id END) as lost,
-        COUNT(DISTINCT CASE WHEN kc.slug = 'dark_leads' THEN us.id END) as dark_leads,
-        COALESCE(SUM(CASE WHEN kc.slug = 'client_onboarded' THEN us.estimated_value END), 0) as total_revenue,
-        COUNT(DISTINCT m.id) as total_meetings
-       FROM users u
-       LEFT JOIN user_stories us ON us.assigned_to = u.id 
-         AND us.created_at >= NOW() - INTERVAL '${days} days'
-       LEFT JOIN kanban_columns kc ON us.column_id = kc.id
-       LEFT JOIN meetings m ON m.organizer_id = u.id 
-         AND m.created_at >= NOW() - INTERVAL '${days} days'
-       WHERE u.id = $1
-       GROUP BY u.id`,
+
+    // Count stories assigned to this user via team or direct member assignment
+    const storyResult = await query(
+      `SELECT COUNT(DISTINCT us.id) as total_stories
+       FROM user_stories us
+       WHERE us.created_at >= NOW() - INTERVAL '${days} days'
+         AND (
+           EXISTS (
+             SELECT 1 FROM story_team_assignments sta
+             JOIN team_members tm ON tm.team_id = sta.team_id
+             WHERE sta.story_id = us.id AND tm.user_id = $1
+           ) OR EXISTS (
+             SELECT 1 FROM story_member_assignments sma
+             WHERE sma.story_id = us.id AND sma.user_id = $1
+           )
+         )`,
       [id]
     );
 
-    res.json({ kpis: result.rows[0] || {} });
+    // Count tasks assigned to this user (via task_assignees table or assigned_to)
+    const taskResult = await query(
+      `SELECT
+        COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN t.id END) as completed_tasks,
+        COUNT(DISTINCT CASE WHEN t.status = 'in_progress' THEN t.id END) as in_progress_tasks,
+        COUNT(DISTINCT CASE WHEN t.status != 'completed' AND t.due_date < NOW()::DATE THEN t.id END) as overdue_tasks
+       FROM tasks t
+       WHERE t.id IN (
+         SELECT ta.task_id FROM task_assignees ta WHERE ta.user_id = $1
+         UNION
+         SELECT t2.id FROM tasks t2 WHERE t2.assigned_to = $1
+       )`,
+      [id]
+    );
+
+    res.json({
+      kpis: {
+        total_stories: parseInt(storyResult.rows[0]?.total_stories || 0),
+        completed_tasks: parseInt(taskResult.rows[0]?.completed_tasks || 0),
+        in_progress_tasks: parseInt(taskResult.rows[0]?.in_progress_tasks || 0),
+        overdue_tasks: parseInt(taskResult.rows[0]?.overdue_tasks || 0),
+      }
+    });
   } catch (error) {
     console.error('Get KPIs error:', error);
     res.status(500).json({ error: 'Failed to get KPIs' });

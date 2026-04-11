@@ -42,7 +42,7 @@ const {
   getStoryAssignableUsers
 } = require('../controllers/storyController');
 router.get('/stories', authenticate, getAllStories);
-router.post('/stories', authenticate, createStory);
+router.post('/stories', authenticate, requireAdmin, createStory);
 router.get('/stories/:id', authenticate, getStoryById);
 router.put('/stories/:id', authenticate, updateStory);
 router.patch('/stories/:id/move', authenticate, moveStory);
@@ -165,7 +165,7 @@ router.delete('/business-team/:id', authenticate, requireSystemAdmin, deleteBizM
 // Probable Prospects
 const { getProspects, createProspect, updateProspect, deleteProspect, promoteProspect, getProspectTasks, createProspectTask, updateProspectTask, deleteProspectTask, getProspectAssignableUsers } = require('../controllers/prospectController');
 router.get('/prospects', authenticate, getProspects);
-router.post('/prospects', authenticate, createProspect);
+router.post('/prospects', authenticate, requireAdmin, createProspect);
 router.put('/prospects/:id', authenticate, updateProspect);
 router.delete('/prospects/:id', authenticate, deleteProspect);
 router.post('/prospects/:id/promote', authenticate, promoteProspect);

@@ -51,6 +51,7 @@ const adminNavItems = [
   { to: '/admin/users', icon: UserCog, label: 'User Management' },
   { to: '/admin/teams', icon: UsersRound, label: 'Teams' },
   { to: '/admin/business-team', icon: GitBranch, label: 'Business Team' },
+  { to: '/executives', icon: Users, label: 'Executive Performance' },
   { to: '/admin/kanban', icon: LayoutGrid, label: 'Kanban Setup' },
   { to: '/admin/tags', icon: TagIcon, label: 'Manage Tags' },
   { to: '/admin/industries', icon: Building2, label: 'Manage Industries' },

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, User, DollarSign, Tag, Building, Briefcase, Users, Plus, Layers, Globe } from 'lucide-react';
 import api from '../../utils/api';
 import PhoneInput from '../PhoneInput';
+import TransitionFormModal from './TransitionFormModal';
 import toast from 'react-hot-toast';
 import './StoryModal.css';
 
@@ -125,6 +126,9 @@ export default function StoryModal({
 
   const [saving, setSaving] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const [showTransitionForm, setShowTransitionForm] = useState(false);
+  const [transitionFormData, setTransitionFormData] = useState(null);
+  const [pendingTransitionPayload, setPendingTransitionPayload] = useState(null);
   const [tagInput, setTagInput] = useState('');
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [businessTeam, setBusinessTeam] = useState([]);
@@ -228,17 +232,9 @@ export default function StoryModal({
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.title.trim() || !form.column_id) { toast.error('Title and stage are required'); return; }
+  const doSave = async (payload) => {
     setSaving(true);
     try {
-      const payload = {
-        ...form,
-        estimated_value: form.estimated_value ? parseFloat(form.estimated_value) : null,
-        sub_stage_id: form.sub_stage_id || null,
-        business_team_member_id: form.business_team_member_id || null,
-      };
       let res;
       if (isEdit) {
         res = await api.put(`/stories/${story.id}`, payload);
@@ -255,7 +251,66 @@ export default function StoryModal({
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.title.trim() || !form.column_id) { toast.error('Title and stage are required'); return; }
+
+    const payload = {
+      ...form,
+      estimated_value: form.estimated_value ? parseFloat(form.estimated_value) : null,
+      sub_stage_id: form.sub_stage_id || null,
+      business_team_member_id: form.business_team_member_id || null,
+    };
+
+    // When editing and the stage has changed, check for a transition form
+    if (isEdit && String(form.column_id) !== String(story.column_id)) {
+      try {
+        const formRes = await api.get(`/transition-forms/for-transition?from_column_id=${story.column_id}&to_column_id=${form.column_id}`);
+        const transForm = formRes.data?.form;
+        if (transForm && transForm.is_active !== false) {
+          setPendingTransitionPayload(payload);
+          setTransitionFormData(transForm);
+          setShowTransitionForm(true);
+          return; // Wait for transition form to be completed or skipped
+        }
+      } catch {
+        // If check fails, proceed with save anyway
+      }
+    }
+
+    await doSave(payload);
+  };
+
+  const handleTransitionSubmit = async () => {
+    setShowTransitionForm(false);
+    setTransitionFormData(null);
+    if (pendingTransitionPayload) {
+      await doSave(pendingTransitionPayload);
+      setPendingTransitionPayload(null);
+    }
+  };
+
+  const handleTransitionSkip = async () => {
+    setShowTransitionForm(false);
+    setTransitionFormData(null);
+    if (pendingTransitionPayload) {
+      await doSave(pendingTransitionPayload);
+      setPendingTransitionPayload(null);
+    }
+  };
+
+  const handleTransitionCancel = () => {
+    setShowTransitionForm(false);
+    setTransitionFormData(null);
+    setPendingTransitionPayload(null);
+    // Keep the modal open so user can change the stage back or pick a different one
+  };
+
+  const fromCol = columns.find(c => String(c.id) === String(story?.column_id));
+  const toCol = columns.find(c => String(c.id) === String(pendingTransitionPayload?.column_id));
+
   return (
+    <>
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-xl">
         <div className="modal-header">
@@ -501,5 +556,20 @@ export default function StoryModal({
         </form>
       </div>
     </div>
+
+    {showTransitionForm && transitionFormData && (
+      <TransitionFormModal
+        form={transitionFormData}
+        fromColumnName={fromCol?.name || ''}
+        toColumnName={toCol?.name || ''}
+        storyId={story?.id}
+        fromColumnId={story?.column_id}
+        toColumnId={pendingTransitionPayload?.column_id}
+        onSubmit={handleTransitionSubmit}
+        onSkip={handleTransitionSkip}
+        onCancel={handleTransitionCancel}
+      />
+    )}
+    </>
   );
 }

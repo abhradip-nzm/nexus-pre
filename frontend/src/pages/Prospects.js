@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers, Download, Eye, Check, Users, Globe, Filter, Calendar, UserCheck } from 'lucide-react';
 import Header from '../components/layout/Header';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../utils/exportExcel';
@@ -182,6 +183,8 @@ function ProspectTasksSection({ prospectId }) {
 }
 
 export default function Prospects() {
+  const { user } = useAuth();
+  const canCreateContent = ['system_admin', 'super_admin'].includes(user?.role_name);
   const [prospects, setProspects] = useState([]);
   const [industries, setIndustries] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -411,9 +414,11 @@ export default function Prospects() {
           >
             <Download size={15} /> Export Excel
           </button>
-          <button className="btn btn-primary btn-sm" onClick={openCreate}>
-            <Plus size={14} /> Add Prospect
-          </button>
+          {canCreateContent && (
+            <button className="btn btn-primary btn-sm" onClick={openCreate}>
+              <Plus size={14} /> Add Prospect
+            </button>
+          )}
         </div>
 
         {/* Filter Panel */}
@@ -472,10 +477,12 @@ export default function Prospects() {
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
-            <p>No prospects yet. Add your first probable prospect to get started.</p>
-            <button className="btn btn-primary" onClick={openCreate}>
-              <Plus size={14} /> Add Prospect
-            </button>
+            <p>No prospects yet. {canCreateContent ? 'Add your first probable prospect to get started.' : 'No probable prospects have been added yet.'}</p>
+            {canCreateContent && (
+              <button className="btn btn-primary" onClick={openCreate}>
+                <Plus size={14} /> Add Prospect
+              </button>
+            )}
           </div>
         ) : (
           <div className="users-table-wrap">

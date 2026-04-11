@@ -187,7 +187,7 @@ function App() {
           } />
 
           <Route path="/executives" element={
-            <ProtectedRoute roles={['super_admin', 'pre_sales_manager']}>
+            <ProtectedRoute roles={['system_admin', 'super_admin', 'pre_sales_manager']}>
               <AppLayout><Executives /></AppLayout>
             </ProtectedRoute>
           } />
