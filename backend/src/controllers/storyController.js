@@ -305,7 +305,7 @@ const createStory = async (req, res) => {
     const {
       title, description, client_name, client_company, client_email,
       client_phone, column_id, sub_stage_id, assigned_to, priority,
-      estimated_value, tags, due_date, effective_start_date, business_team_member_id, team_ids, member_ids, industry_ids
+      estimated_value, tags, due_date, effective_start_date, business_team_member_id, team_ids, member_ids, industry_ids, country
     } = req.body;
 
     if (!title || !column_id) {
@@ -323,14 +323,14 @@ const createStory = async (req, res) => {
       `INSERT INTO user_stories
        (title, description, client_name, client_company, client_email, client_phone,
         column_id, sub_stage_id, assigned_to, created_by, priority, estimated_value,
-        tags, due_date, effective_start_date, position, business_team_member_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        tags, due_date, effective_start_date, position, business_team_member_id, country)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
        RETURNING *`,
       [title, description || null, client_name || null, client_company || null,
        client_email || null, client_phone || null,
        column_id, sub_stage_id || null, assigned_to || null, req.user.id,
        priority || 'medium', estimated_value || null, tags || null,
-       due_date || null, effective_start_date || null, position, business_team_member_id || null]
+       due_date || null, effective_start_date || null, position, business_team_member_id || null, country || null]
     );
 
     const storyId = result.rows[0].id;
@@ -392,7 +392,7 @@ const updateStory = async (req, res) => {
     const {
       title, description, client_name, client_company, client_email, client_phone,
       column_id, sub_stage_id, assigned_to, priority, estimated_value, tags, due_date,
-      effective_start_date, business_team_member_id, team_ids, member_ids, industry_ids
+      effective_start_date, business_team_member_id, team_ids, member_ids, industry_ids, country
     } = req.body;
 
     const updates = [];
@@ -458,6 +458,7 @@ const updateStory = async (req, res) => {
       await trackChange('business_team_member_id', old.business_team_member_id, business_team_member_id || null);
       updates.push(`business_team_member_id = $${idx++}`); values.push(business_team_member_id || null);
     }
+    if (country !== undefined) { updates.push(`country = $${idx++}`); values.push(country || null); }
 
     updates.push(`updated_at = NOW()`);
     values.push(id);
@@ -774,10 +775,14 @@ const updateTask = async (req, res) => {
     if (status !== undefined) {
       updates.push(`status = $${idx++}`); values.push(status);
       updates.push(`completed_at = ${status === 'done' ? 'NOW()' : 'NULL'}`);
+      if (status !== 'done') {
+        updates.push(`response_details = NULL`);
+      }
     }
     if (start_date !== undefined) { updates.push(`start_date = $${idx++}`); values.push(start_date || null); }
     if (due_date !== undefined) { updates.push(`due_date = $${idx++}`); values.push(due_date || null); }
-    if (response_details !== undefined) { updates.push(`response_details = $${idx++}`); values.push(response_details || null); }
+    if (status === 'done' && response_details !== undefined) { updates.push(`response_details = $${idx++}`); values.push(response_details || null); }
+    else if (status === undefined && response_details !== undefined) { updates.push(`response_details = $${idx++}`); values.push(response_details || null); }
 
     updates.push(`updated_at = NOW()`);
     values.push(id);
@@ -860,47 +865,134 @@ const getMyTasks = async (req, res) => {
     const assigneeFilter = req.query.assignee_id;
     const filterUserId = assigneeFilter || (isAdmin ? null : userId);
 
-    let whereClause = '';
-    let params = [];
-
+    // --- Story tasks ---
+    let storyWhereClause = '';
+    let storyParams = [];
     if (assigneeFilter === 'none') {
-      // Tasks with no assignees
-      whereClause = 'WHERE t.id NOT IN (SELECT task_id FROM task_assignees)';
-      params = [];
+      storyWhereClause = 'WHERE t.id NOT IN (SELECT task_id FROM task_assignees)';
     } else if (!isAdmin) {
-      whereClause = 'WHERE t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $1)';
-      params = [userId];
+      storyWhereClause = 'WHERE t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $1)';
+      storyParams = [userId];
     } else if (filterUserId) {
-      whereClause = 'WHERE t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $1)';
-      params = [filterUserId];
+      storyWhereClause = 'WHERE t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $1)';
+      storyParams = [filterUserId];
     }
-    // else: no filter, get all tasks for admin
 
-    const result = await query(`
+    const storyResult = await query(`
       SELECT
         t.id, t.title, t.description, t.status, t.start_date, t.due_date, t.completed_at,
-        t.created_at, t.updated_at,
-        us.id   AS story_id,
-        us.title AS story_title,
+        t.created_at, t.updated_at, t.response_details,
+        'story' AS task_type,
+        us.id AS story_id, us.title AS story_title,
+        NULL::uuid AS prospect_id, NULL::text AS prospect_title,
         cb.first_name || ' ' || cb.last_name AS created_by_name,
         COALESCE(
           (SELECT json_agg(jsonb_build_object('id', u2.id, 'name', u2.first_name || ' ' || u2.last_name))
-           FROM task_assignees ta2
-           JOIN users u2 ON u2.id = ta2.user_id
-           WHERE ta2.task_id = t.id),
+           FROM task_assignees ta2 JOIN users u2 ON u2.id = ta2.user_id WHERE ta2.task_id = t.id),
           '[]'
         ) AS assignees
       FROM tasks t
       JOIN user_stories us ON us.id = t.user_story_id
       LEFT JOIN users cb ON cb.id = t.created_by
-      ${whereClause}
-      ORDER BY t.due_date ASC NULLS LAST, t.created_at ASC
-    `, params);
+      ${storyWhereClause}
+    `, storyParams);
 
-    res.json({ tasks: result.rows });
+    // --- Prospect tasks ---
+    let prospectWhereClause = '';
+    let prospectParams = [];
+    if (assigneeFilter === 'none') {
+      prospectWhereClause = 'WHERE pt.id NOT IN (SELECT task_id FROM prospect_task_assignees)';
+    } else if (!isAdmin) {
+      prospectWhereClause = 'WHERE pt.id IN (SELECT task_id FROM prospect_task_assignees WHERE user_id = $1)';
+      prospectParams = [userId];
+    } else if (filterUserId) {
+      prospectWhereClause = 'WHERE pt.id IN (SELECT task_id FROM prospect_task_assignees WHERE user_id = $1)';
+      prospectParams = [filterUserId];
+    }
+
+    const prospectResult = await query(`
+      SELECT
+        pt.id, pt.title, pt.description, pt.status, pt.start_date, pt.due_date, pt.completed_at,
+        pt.created_at, pt.updated_at, pt.response_details,
+        'prospect' AS task_type,
+        NULL::uuid AS story_id, NULL::text AS story_title,
+        pp.id AS prospect_id, pp.title AS prospect_title,
+        cb.first_name || ' ' || cb.last_name AS created_by_name,
+        COALESCE(
+          (SELECT json_agg(jsonb_build_object('id', u2.id, 'name', u2.first_name || ' ' || u2.last_name))
+           FROM prospect_task_assignees pta2 JOIN users u2 ON u2.id = pta2.user_id WHERE pta2.task_id = pt.id),
+          '[]'
+        ) AS assignees
+      FROM prospect_tasks pt
+      JOIN probable_prospects pp ON pp.id = pt.prospect_id
+      LEFT JOIN users cb ON cb.id = pt.created_by
+      ${prospectWhereClause}
+    `, prospectParams);
+
+    const allTasks = [...storyResult.rows, ...prospectResult.rows].sort((a, b) => {
+      if (a.due_date && b.due_date) return new Date(a.due_date) - new Date(b.due_date);
+      if (a.due_date) return -1;
+      if (b.due_date) return 1;
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+
+    res.json({ tasks: allTasks });
   } catch (error) {
-    console.error('Get my tasks error:', error);
+    console.error('getMyTasks error:', error);
     res.status(500).json({ error: 'Failed to get tasks' });
+  }
+};
+
+// ── Assignable Users for a Story ──────────────────────────────────────────────
+
+const getStoryAssignableUsers = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if story has team assignments
+    const teamAssignments = await query(
+      'SELECT team_id FROM story_team_assignments WHERE story_id=$1', [id]
+    );
+
+    if (teamAssignments.rows.length > 0) {
+      // Get all members from assigned teams (including managers)
+      const teamIds = teamAssignments.rows.map(r => r.team_id);
+      const members = await query(`
+        SELECT DISTINCT u.id, u.first_name, u.last_name, r.name as role_name
+        FROM team_members tm
+        JOIN users u ON u.id = tm.user_id
+        JOIN roles r ON r.id = u.role_id
+        WHERE tm.team_id = ANY($1::int[]) AND u.is_active = true
+      `, [teamIds]);
+      return res.json({ users: members.rows });
+    }
+
+    // Check individual member assignments
+    const memberAssignments = await query(
+      'SELECT user_id FROM story_member_assignments WHERE story_id=$1', [id]
+    );
+
+    if (memberAssignments.rows.length > 0) {
+      const userIds = memberAssignments.rows.map(r => r.user_id);
+      const members = await query(`
+        SELECT u.id, u.first_name, u.last_name, r.name as role_name
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        WHERE u.id = ANY($1::uuid[]) AND u.is_active = true
+      `, [userIds]);
+      return res.json({ users: members.rows });
+    }
+
+    // Fall back to all pre_sales users
+    const allUsers = await query(`
+      SELECT u.id, u.first_name, u.last_name, r.name as role_name
+      FROM users u JOIN roles r ON r.id = u.role_id
+      WHERE r.name IN ('pre_sales_manager', 'pre_sales_executive') AND u.is_active = true
+    `);
+    res.json({ users: allUsers.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to get assignable users' });
   }
 };
 
@@ -938,5 +1030,6 @@ const addComment = async (req, res) => {
 
 module.exports = {
   getAllStories, getStoryById, createStory, updateStory, moveStory, deleteStory,
-  getTasksByStory, createTask, updateTask, deleteTask, getMyTasks, addComment
+  getTasksByStory, createTask, updateTask, deleteTask, getMyTasks, addComment,
+  getStoryAssignableUsers
 };

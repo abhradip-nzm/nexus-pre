@@ -60,7 +60,7 @@ export default function Notifications() {
   return (
     <>
       <Header title="Notifications" subtitle="All your notifications in one place" />
-      <div className="page-content" style={{ maxWidth: 720, margin: '0 auto' }}>
+      <div className="page-content">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ display: 'flex', gap: 8 }}>
             <button

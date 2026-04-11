@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers, Download, Eye, Check } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers, Download, Eye, Check, Users, Globe } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -15,6 +15,26 @@ const PRIORITY_COLORS = {
   low: '#28a745',
 };
 
+const COUNTRIES = [
+  'Afghanistan','Albania','Algeria','Andorra','Angola','Argentina','Armenia','Australia','Austria','Azerbaijan',
+  'Bahamas','Bahrain','Bangladesh','Belarus','Belgium','Belize','Benin','Bhutan','Bolivia','Bosnia and Herzegovina',
+  'Botswana','Brazil','Brunei','Bulgaria','Burkina Faso','Burundi','Cambodia','Cameroon','Canada','Cape Verde',
+  'Central African Republic','Chad','Chile','China','Colombia','Comoros','Congo','Costa Rica','Croatia','Cuba',
+  'Cyprus','Czech Republic','Denmark','Djibouti','Dominican Republic','Ecuador','Egypt','El Salvador','Estonia',
+  'Ethiopia','Fiji','Finland','France','Gabon','Gambia','Georgia','Germany','Ghana','Greece','Guatemala',
+  'Guinea','Haiti','Honduras','Hungary','Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy',
+  'Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kuwait','Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho',
+  'Libya','Lithuania','Luxembourg','Madagascar','Malawi','Malaysia','Maldives','Mali','Malta','Mauritania',
+  'Mauritius','Mexico','Moldova','Monaco','Mongolia','Montenegro','Morocco','Mozambique','Myanmar','Namibia',
+  'Nepal','Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea','Norway','Oman','Pakistan',
+  'Palestine','Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland','Portugal','Qatar','Romania',
+  'Russia','Rwanda','Saudi Arabia','Senegal','Serbia','Sierra Leone','Singapore','Slovakia','Slovenia',
+  'Somalia','South Africa','South Korea','Spain','Sri Lanka','Sudan','Suriname','Sweden','Switzerland','Syria',
+  'Taiwan','Tajikistan','Tanzania','Thailand','Togo','Trinidad and Tobago','Tunisia','Turkey','Turkmenistan',
+  'Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Venezuela',
+  'Vietnam','Yemen','Zambia','Zimbabwe'
+];
+
 const emptyForm = {
   title: '',
   company_name: '',
@@ -24,8 +44,13 @@ const emptyForm = {
   source: '',
   priority: 'medium',
   estimated_value: '',
-  industry_id: '',
+  industry_ids: [],
+  team_ids: [],
+  member_ids: [],
+  tags: [],
   notes: '',
+  country: '',
+  assignment_type: '',
 };
 
 function ProspectTasksSection({ prospectId }) {
@@ -50,8 +75,8 @@ function ProspectTasksSection({ prospectId }) {
 
   const toggleTask = (task) => {
     if (task.status !== 'done') { setCompletingTask(task); setResponseDetails(''); return; }
-    api.put(`/prospect-tasks/${task.id}`, { status: 'todo' }).then(() => {
-      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'todo', completed_at: null } : t));
+    api.put(`/prospect-tasks/${task.id}`, { status: 'todo' }).then(r => {
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'todo', completed_at: null, response_details: null } : t));
     });
   };
 
@@ -126,6 +151,11 @@ function ProspectTasksSection({ prospectId }) {
                 </button>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: isDone ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}>{task.title}</div>
+                  {task.assignees && task.assignees.length > 0 && (
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {task.assignees.map(a => a.name).join(', ')}
+                    </div>
+                  )}
                   {task.response_details && (
                     <div style={{ marginTop: 4, padding: '4px 8px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 5, fontSize: 11, color: '#166534' }}>
                       <strong>Response:</strong> {task.response_details}
@@ -152,6 +182,9 @@ function ProspectTasksSection({ prospectId }) {
 export default function Prospects() {
   const [prospects, setProspects] = useState([]);
   const [industries, setIndustries] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [tagOptions, setTagOptions] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingProspect, setEditingProspect] = useState(null);
@@ -161,18 +194,27 @@ export default function Prospects() {
   const [promoting, setPromoting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [viewingProspect, setViewingProspect] = useState(null);
+  const [tagInput, setTagInput] = useState('');
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const tagInputRef = useRef(null);
 
   const lblStyle = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 4 };
   const valStyle = { fontSize: 13, color: 'var(--text-primary)', margin: 0 };
 
   const loadData = useCallback(async () => {
     try {
-      const [prospectsRes, industriesRes] = await Promise.all([
+      const [prospectsRes, industriesRes, teamsRes, tagsRes, usersRes] = await Promise.all([
         api.get('/prospects'),
         api.get('/industries').catch(() => ({ data: { industries: [] } })),
+        api.get('/teams').catch(() => ({ data: { teams: [] } })),
+        api.get('/tags').catch(() => ({ data: { tags: [] } })),
+        api.get('/users').catch(() => ({ data: { users: [] } })),
       ]);
       setProspects(prospectsRes.data || []);
       setIndustries(industriesRes.data.industries || []);
+      setTeams(teamsRes.data.teams || []);
+      setTagOptions(tagsRes.data.tags || []);
+      setAllUsers((usersRes.data.users || []).filter(u => ['pre_sales_manager','pre_sales_executive'].includes(u.role_name)));
     } catch {
       toast.error('Failed to load prospects');
     } finally {
@@ -185,6 +227,7 @@ export default function Prospects() {
   const openCreate = () => {
     setEditingProspect(null);
     setForm(emptyForm);
+    setTagInput('');
     setShowModal(true);
   };
 
@@ -199,9 +242,15 @@ export default function Prospects() {
       source: prospect.source || '',
       priority: prospect.priority || 'medium',
       estimated_value: prospect.estimated_value || '',
-      industry_id: prospect.industry_id || '',
+      industry_ids: (prospect.industry_assignments || []).map(i => i.industry_id),
+      team_ids: (prospect.team_assignments || []).map(t => t.team_id),
+      member_ids: (prospect.member_assignments || []).map(m => m.user_id),
+      tags: prospect.tags || [],
       notes: prospect.notes || '',
+      country: prospect.country || '',
+      assignment_type: (prospect.team_assignments || []).length > 0 ? 'team' : (prospect.member_assignments || []).length > 0 ? 'member' : '',
     });
+    setTagInput('');
     setShowModal(true);
   };
 
@@ -209,6 +258,7 @@ export default function Prospects() {
     setShowModal(false);
     setEditingProspect(null);
     setForm(emptyForm);
+    setTagInput('');
   };
 
   const handleChange = (field, value) => {
@@ -226,7 +276,6 @@ export default function Prospects() {
       const payload = {
         ...form,
         estimated_value: form.estimated_value ? parseFloat(form.estimated_value) : null,
-        industry_id: form.industry_id || null,
       };
       if (editingProspect) {
         await api.put(`/prospects/${editingProspect.id}`, payload);
@@ -307,7 +356,7 @@ export default function Prospects() {
                 'Source': p.source || '',
                 'Priority': p.priority || '',
                 'Estimated Value': p.estimated_value || '',
-                'Industry': p.industry_name || '',
+                'Country': p.country || '',
                 'Notes': p.notes || '',
                 'Created': p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
               }));
@@ -346,7 +395,7 @@ export default function Prospects() {
                   <th>Contact</th>
                   <th>Priority</th>
                   <th>Est. Value</th>
-                  <th>Industry</th>
+                  <th>Country</th>
                   <th>Created</th>
                   <th>Actions</th>
                 </tr>
@@ -392,7 +441,7 @@ export default function Prospects() {
                         </span>
                       </td>
                       <td style={{ fontWeight: 500, color: 'var(--success)' }}>{formatValue(prospect.estimated_value)}</td>
-                      <td>{prospect.industry_name || <span className="user-email">—</span>}</td>
+                      <td>{prospect.country || <span className="user-email">—</span>}</td>
                       <td className="last-login">{formatDate(prospect.created_at)}</td>
                       <td>
                         <div className="user-actions">
@@ -501,6 +550,107 @@ export default function Prospects() {
                         rows={3}
                       />
                     </div>
+
+                    {/* Country */}
+                    <div className="form-group">
+                      <label className="form-label"><Globe size={12} /> Country</label>
+                      <select className="form-control" value={form.country} onChange={e => handleChange('country', e.target.value)}>
+                        <option value="">Select country</option>
+                        {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Industries multiselect */}
+                    {industries.length > 0 && (
+                      <div className="form-group">
+                        <label className="form-label"><Layers size={12} /> Industries</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {industries.map(ind => (
+                            <button
+                              key={ind.id}
+                              type="button"
+                              onClick={() => setForm(prev => ({
+                                ...prev,
+                                industry_ids: prev.industry_ids.includes(ind.id)
+                                  ? prev.industry_ids.filter(id => id !== ind.id)
+                                  : [...prev.industry_ids, ind.id]
+                              }))}
+                              style={{
+                                padding: '4px 12px', borderRadius: 20, border: '1.5px solid',
+                                fontSize: 12, cursor: 'pointer', fontWeight: 500,
+                                background: form.industry_ids.includes(ind.id) ? '#3e72ae' : 'white',
+                                borderColor: form.industry_ids.includes(ind.id) ? '#3e72ae' : 'var(--border)',
+                                color: form.industry_ids.includes(ind.id) ? 'white' : 'var(--text-primary)',
+                              }}
+                            >
+                              {ind.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tags */}
+                    <div className="form-group" style={{ position: 'relative' }}>
+                      <label className="form-label"><Tag size={12} /> Tags</label>
+                      <div className="tags-input-wrapper">
+                        {form.tags.map(tag => {
+                          const opt = tagOptions.find(t => t.name === tag);
+                          return (
+                            <span key={tag} className="tag-chip" style={opt ? { background: opt.color + '22', color: opt.color } : {}}>
+                              {tag}
+                              <button type="button" className="tag-remove"
+                                onClick={() => setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }))}>×</button>
+                            </span>
+                          );
+                        })}
+                        <input
+                          ref={tagInputRef}
+                          type="text"
+                          className="tag-input"
+                          placeholder={form.tags.length === 0 ? "Type or select a tag..." : "Add more..."}
+                          value={tagInput}
+                          onChange={e => { setTagInput(e.target.value); setShowTagDropdown(true); }}
+                          onFocus={() => setShowTagDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowTagDropdown(false), 150)}
+                          onKeyDown={e => {
+                            if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                              e.preventDefault();
+                              const tag = tagInput.trim().toLowerCase();
+                              if (!form.tags.includes(tag)) setForm(prev => ({ ...prev, tags: [...prev.tags, tag] }));
+                              setTagInput(''); setShowTagDropdown(false);
+                            }
+                          }}
+                        />
+                      </div>
+                      {showTagDropdown && (
+                        <div className="tag-autocomplete-dropdown">
+                          {tagOptions.filter(t => !form.tags.includes(t.name) && (tagInput === '' || t.name.toLowerCase().includes(tagInput.toLowerCase()))).slice(0, 8).map(t => (
+                            <button key={t.id} type="button" className="tag-autocomplete-option"
+                              onMouseDown={e => {
+                                e.preventDefault();
+                                const tag = t.name.trim().toLowerCase();
+                                if (!form.tags.includes(tag)) setForm(prev => ({ ...prev, tags: [...prev.tags, tag] }));
+                                setTagInput(''); setShowTagDropdown(false);
+                              }}>
+                              <span className="tag-option-dot" style={{ background: t.color || '#3e72ae' }} />
+                              {t.name}
+                            </button>
+                          ))}
+                          {tagInput.trim() && !tagOptions.some(t => t.name.toLowerCase() === tagInput.toLowerCase()) && (
+                            <button type="button" className="tag-autocomplete-option tag-create-new"
+                              onMouseDown={e => {
+                                e.preventDefault();
+                                const tag = tagInput.trim().toLowerCase();
+                                if (!form.tags.includes(tag)) setForm(prev => ({ ...prev, tags: [...prev.tags, tag] }));
+                                setTagInput(''); setShowTagDropdown(false);
+                              }}>
+                              <Plus size={11} /> Create "{tagInput}"
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="story-form-sidebar">
@@ -544,21 +694,64 @@ export default function Prospects() {
                       />
                     </div>
 
-                    {industries.length > 0 && (
-                      <div className="form-group">
-                        <label className="form-label"><Layers size={12} /> Industry</label>
-                        <select
-                          className="form-control"
-                          value={form.industry_id}
-                          onChange={e => handleChange('industry_id', e.target.value)}
-                        >
-                          <option value="">Select industry</option>
-                          {industries.map(ind => (
-                            <option key={ind.id} value={ind.id}>{ind.name}</option>
-                          ))}
-                        </select>
+                    {/* Assignment - Teams OR Members */}
+                    <div className="form-group">
+                      <label className="form-label">Assignment</label>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                        <button type="button"
+                          className={`btn btn-sm ${form.assignment_type !== 'member' ? 'btn-primary' : 'btn-secondary'}`}
+                          style={{ flex: 1, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                          onClick={() => setForm(prev => ({ ...prev, assignment_type: 'team', member_ids: [] }))}>
+                          <Users size={11} /> Assigned Teams
+                        </button>
+                        <button type="button"
+                          className={`btn btn-sm ${form.assignment_type === 'member' ? 'btn-primary' : 'btn-secondary'}`}
+                          style={{ flex: 1, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                          onClick={() => setForm(prev => ({ ...prev, assignment_type: 'member', team_ids: [] }))}>
+                          <User size={11} /> Assigned Members
+                        </button>
                       </div>
-                    )}
+                      {form.assignment_type !== 'member' && teams.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {teams.map(team => (
+                            <button key={team.id} type="button"
+                              onClick={() => setForm(prev => ({
+                                ...prev,
+                                team_ids: prev.team_ids.includes(team.id) ? prev.team_ids.filter(id => id !== team.id) : [...prev.team_ids, team.id]
+                              }))}
+                              style={{
+                                padding: '4px 12px', borderRadius: 20, border: '1.5px solid', fontSize: 12,
+                                cursor: 'pointer', fontWeight: 500,
+                                background: form.team_ids.includes(team.id) ? (team.accent_color || '#3e72ae') : 'white',
+                                borderColor: form.team_ids.includes(team.id) ? (team.accent_color || '#3e72ae') : 'var(--border)',
+                                color: form.team_ids.includes(team.id) ? 'white' : 'var(--text-primary)',
+                              }}>
+                              {team.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {form.assignment_type === 'member' && allUsers.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {allUsers.map(u => (
+                            <button key={u.id} type="button"
+                              onClick={() => setForm(prev => ({
+                                ...prev,
+                                member_ids: prev.member_ids.includes(u.id) ? prev.member_ids.filter(id => id !== u.id) : [...prev.member_ids, u.id]
+                              }))}
+                              style={{
+                                padding: '4px 12px', borderRadius: 20, border: '1.5px solid', fontSize: 12,
+                                cursor: 'pointer', fontWeight: 500,
+                                background: form.member_ids.includes(u.id) ? '#3e72ae' : 'white',
+                                borderColor: form.member_ids.includes(u.id) ? '#3e72ae' : 'var(--border)',
+                                color: form.member_ids.includes(u.id) ? 'white' : 'var(--text-primary)',
+                              }}>
+                              {u.first_name} {u.last_name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -655,7 +848,50 @@ export default function Prospects() {
                 <div><label style={lblStyle}>Contact Phone</label><p style={valStyle}>{viewingProspect.contact_phone || '—'}</p></div>
                 <div><label style={lblStyle}>Source</label><p style={valStyle}>{viewingProspect.source || '—'}</p></div>
                 <div><label style={lblStyle}>Estimated Value</label><p style={valStyle}>{formatValue(viewingProspect.estimated_value)}</p></div>
-                <div><label style={lblStyle}>Industry</label><p style={valStyle}>{viewingProspect.industry_name || '—'}</p></div>
+                <div><label style={lblStyle}>Country</label><p style={valStyle}>{viewingProspect.country || '—'}</p></div>
+                {(viewingProspect.industry_assignments || []).length > 0 && (
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={lblStyle}>Industries</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                      {viewingProspect.industry_assignments.map(ia => (
+                        <span key={ia.industry_id} style={{ fontSize: 11, background: 'var(--bg-secondary)', padding: '2px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>{ia.industry_name}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(viewingProspect.team_assignments || []).length > 0 && (
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={lblStyle}>Assigned Teams</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                      {viewingProspect.team_assignments.map(ta => (
+                        <span key={ta.team_id} style={{ fontSize: 11, background: (ta.accent_color || '#3e72ae') + '22', color: ta.accent_color || '#3e72ae', padding: '2px 8px', borderRadius: 4, border: `1px solid ${ta.accent_color || '#3e72ae'}40` }}>{ta.team_name}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(viewingProspect.member_assignments || []).length > 0 && (
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={lblStyle}>Assigned Members</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                      {viewingProspect.member_assignments.map(ma => (
+                        <span key={ma.user_id} style={{ fontSize: 11, background: 'var(--bg-secondary)', padding: '2px 8px', borderRadius: 4, border: '1px solid var(--border)' }}>{ma.name}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(viewingProspect.tags || []).length > 0 && (
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={lblStyle}>Tags</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                      {viewingProspect.tags.map(tag => {
+                        const opt = tagOptions.find(t => t.name === tag);
+                        return (
+                          <span key={tag} style={{ fontSize: 11, background: opt ? opt.color + '22' : 'var(--bg-secondary)', color: opt ? opt.color : 'var(--text-secondary)', padding: '2px 8px', borderRadius: 4, border: `1px solid ${opt ? opt.color + '40' : 'var(--border)'}` }}>{tag}</span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div style={{ gridColumn: '1/-1' }}><label style={lblStyle}>Notes</label><p style={{ ...valStyle, whiteSpace: 'pre-wrap' }}>{viewingProspect.notes || '—'}</p></div>
                 <div><label style={lblStyle}>Created</label><p style={valStyle}>{formatDate(viewingProspect.created_at)}</p></div>
                 <div><label style={lblStyle}>Created By</label><p style={valStyle}>{viewingProspect.created_by_name || '—'}</p></div>

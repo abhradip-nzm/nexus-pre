@@ -4,8 +4,32 @@ const { createNotificationForAdmins } = require('../utils/notifications');
 const getProspects = async (req, res) => {
   try {
     const result = await query(`
-      SELECT pp.*, i.name as industry_name,
-        u.first_name || ' ' || u.last_name as created_by_name
+      SELECT pp.*,
+        i.name as industry_name,
+        u.first_name || ' ' || u.last_name as created_by_name,
+        COALESCE((
+          SELECT json_agg(json_build_object('industry_id', pia.industry_id, 'industry_name', ind.name))
+          FROM prospect_industry_assignments pia
+          JOIN industries ind ON ind.id = pia.industry_id
+          WHERE pia.prospect_id = pp.id
+        ), '[]') as industry_assignments,
+        COALESCE((
+          SELECT json_agg(json_build_object('team_id', pta.team_id, 'team_name', t.name, 'accent_color', t.accent_color))
+          FROM prospect_team_assignments pta
+          JOIN teams t ON t.id = pta.team_id
+          WHERE pta.prospect_id = pp.id
+        ), '[]') as team_assignments,
+        COALESCE((
+          SELECT json_agg(json_build_object('user_id', pma.user_id, 'name', mu.first_name || ' ' || mu.last_name))
+          FROM prospect_member_assignments pma
+          JOIN users mu ON mu.id = pma.user_id
+          WHERE pma.prospect_id = pp.id
+        ), '[]') as member_assignments,
+        COALESCE((
+          SELECT json_agg(pt.tag_name)
+          FROM prospect_tags pt
+          WHERE pt.prospect_id = pp.id
+        ), '[]') as tags
       FROM probable_prospects pp
       LEFT JOIN industries i ON i.id = pp.industry_id
       LEFT JOIN users u ON u.id = pp.created_by
@@ -21,12 +45,40 @@ const getProspects = async (req, res) => {
 
 const createProspect = async (req, res) => {
   try {
-    const { title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, industry_id } = req.body;
+    const { title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, industry_ids, team_ids, member_ids, tags, country } = req.body;
     const result = await query(`
-      INSERT INTO probable_prospects (title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, industry_id, created_by)
+      INSERT INTO probable_prospects (title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, created_by, country)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *
-    `, [title, company_name, contact_name, contact_email, contact_phone, source, priority || 'medium', notes, estimated_value, industry_id || null, req.user.id]);
-    res.json(result.rows[0]);
+    `, [title, company_name, contact_name, contact_email, contact_phone, source, priority || 'medium', notes, estimated_value || null, req.user.id, country || null]);
+    const prospect = result.rows[0];
+    const id = prospect.id;
+
+    // Industry assignments
+    if (Array.isArray(industry_ids)) {
+      for (const iid of industry_ids) {
+        await query('INSERT INTO prospect_industry_assignments (prospect_id, industry_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, iid]);
+      }
+    }
+    // Team assignments
+    if (Array.isArray(team_ids)) {
+      for (const tid of team_ids) {
+        await query('INSERT INTO prospect_team_assignments (prospect_id, team_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, tid]);
+      }
+    }
+    // Member assignments
+    if (Array.isArray(member_ids)) {
+      for (const uid of member_ids) {
+        await query('INSERT INTO prospect_member_assignments (prospect_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, uid]);
+      }
+    }
+    // Tags
+    if (Array.isArray(tags)) {
+      for (const tag of tags) {
+        if (tag.trim()) await query('INSERT INTO prospect_tags (prospect_id, tag_name) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, tag.trim().toLowerCase()]);
+      }
+    }
+
+    res.json(prospect);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create prospect' });
@@ -36,14 +88,44 @@ const createProspect = async (req, res) => {
 const updateProspect = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, industry_id } = req.body;
+    const { title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, industry_ids, team_ids, member_ids, tags, country } = req.body;
     const result = await query(`
       UPDATE probable_prospects SET
         title=$1, company_name=$2, contact_name=$3, contact_email=$4, contact_phone=$5,
-        source=$6, priority=$7, notes=$8, estimated_value=$9, industry_id=$10, updated_at=NOW()
+        source=$6, priority=$7, notes=$8, estimated_value=$9, updated_at=NOW(), country=$10
       WHERE id=$11 RETURNING *
-    `, [title, company_name, contact_name, contact_email, contact_phone, source, priority || 'medium', notes, estimated_value, industry_id || null, id]);
+    `, [title, company_name, contact_name, contact_email, contact_phone, source, priority || 'medium', notes, estimated_value || null, country || null, id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+
+    // Replace industry assignments
+    if (Array.isArray(industry_ids)) {
+      await query('DELETE FROM prospect_industry_assignments WHERE prospect_id=$1', [id]);
+      for (const iid of industry_ids) {
+        await query('INSERT INTO prospect_industry_assignments (prospect_id, industry_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, iid]);
+      }
+    }
+    // Replace team assignments
+    if (Array.isArray(team_ids)) {
+      await query('DELETE FROM prospect_team_assignments WHERE prospect_id=$1', [id]);
+      for (const tid of team_ids) {
+        await query('INSERT INTO prospect_team_assignments (prospect_id, team_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, tid]);
+      }
+    }
+    // Replace member assignments
+    if (Array.isArray(member_ids)) {
+      await query('DELETE FROM prospect_member_assignments WHERE prospect_id=$1', [id]);
+      for (const uid of member_ids) {
+        await query('INSERT INTO prospect_member_assignments (prospect_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, uid]);
+      }
+    }
+    // Replace tags
+    if (Array.isArray(tags)) {
+      await query('DELETE FROM prospect_tags WHERE prospect_id=$1', [id]);
+      for (const tag of tags) {
+        if (tag.trim()) await query('INSERT INTO prospect_tags (prospect_id, tag_name) VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, tag.trim().toLowerCase()]);
+      }
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -69,56 +151,40 @@ const promoteProspect = async (req, res) => {
     if (!prospect.rows.length) return res.status(404).json({ error: 'Not found' });
     const p = prospect.rows[0];
 
-    // Get the first/L1 kanban column
     const colResult = await query('SELECT id FROM kanban_columns ORDER BY position ASC LIMIT 1');
     if (!colResult.rows.length) return res.status(400).json({ error: 'No kanban columns configured' });
     const columnId = colResult.rows[0].id;
 
-    // Get max position in column
-    const posResult = await query(
-      'SELECT COALESCE(MAX(position), 0) as max_pos FROM user_stories WHERE column_id = $1',
-      [columnId]
-    );
+    const posResult = await query('SELECT COALESCE(MAX(position), 0) as max_pos FROM user_stories WHERE column_id = $1', [columnId]);
     const position = parseFloat(posResult.rows[0].max_pos) + 1000;
 
-    // Create user story from prospect using actual user_stories columns
     const storyResult = await query(`
-      INSERT INTO user_stories (title, client_name, client_company, client_email, client_phone, source, priority, description, estimated_value, column_id, created_by, position)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *
-    `, [
-      p.title,
-      p.contact_name,
-      p.company_name,
-      p.contact_email,
-      p.contact_phone,
-      p.source,
-      p.priority,
-      p.notes,
-      p.estimated_value,
-      columnId,
-      req.user.id,
-      position
-    ]);
+      INSERT INTO user_stories (title, client_name, client_company, client_email, client_phone, source, priority, description, estimated_value, column_id, created_by, position, country)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *
+    `, [p.title, p.contact_name, p.company_name, p.contact_email, p.contact_phone, p.source, p.priority, p.notes, p.estimated_value, columnId, req.user.id, position, p.country]);
 
     const story = storyResult.rows[0];
 
-    // Assign industry if present
-    if (p.industry_id) {
-      await query(
-        'INSERT INTO story_industries (story_id, industry_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-        [story.id, p.industry_id]
-      );
+    // Copy industry assignments from prospect to story
+    const prospectIndustries = await query('SELECT industry_id FROM prospect_industry_assignments WHERE prospect_id=$1', [id]);
+    for (const row of prospectIndustries.rows) {
+      await query('INSERT INTO story_industries (story_id, industry_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [story.id, row.industry_id]);
     }
 
-    // Mark prospect as promoted
+    // Copy team assignments
+    const prospectTeams = await query('SELECT team_id FROM prospect_team_assignments WHERE prospect_id=$1', [id]);
+    for (const row of prospectTeams.rows) {
+      await query('INSERT INTO story_team_assignments (story_id, team_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [story.id, row.team_id]);
+    }
+
+    // Copy member assignments
+    const prospectMembers = await query('SELECT user_id FROM prospect_member_assignments WHERE prospect_id=$1', [id]);
+    for (const row of prospectMembers.rows) {
+      await query('INSERT INTO story_member_assignments (story_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [story.id, row.user_id]);
+    }
+
     await query('UPDATE probable_prospects SET promoted_at=NOW(), promoted_to_story_id=$1 WHERE id=$2', [story.id, id]);
-
-    // Notify admins (fire-and-forget)
-    try {
-      await createNotificationForAdmins('Prospect Promoted', `"${p.title}" was promoted to a story in the pipeline`, 'promoted');
-    } catch (err) {
-      console.error('Failed to send prospect promoted notification:', err.message);
-    }
+    await createNotificationForAdmins('Prospect Promoted', `"${p.title}" was promoted to a story in the pipeline`, 'promoted');
 
     res.json({ success: true, story });
   } catch (err) {
@@ -130,10 +196,18 @@ const promoteProspect = async (req, res) => {
 const getProspectTasks = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await query(
-      'SELECT * FROM prospect_tasks WHERE prospect_id=$1 ORDER BY created_at ASC',
-      [id]
-    );
+    const result = await query(`
+      SELECT pt.*,
+        COALESCE((
+          SELECT json_agg(json_build_object('id', u.id, 'name', u.first_name || ' ' || u.last_name))
+          FROM prospect_task_assignees pta
+          JOIN users u ON u.id = pta.user_id
+          WHERE pta.task_id = pt.id
+        ), '[]') as assignees
+      FROM prospect_tasks pt
+      WHERE pt.prospect_id=$1
+      ORDER BY pt.created_at ASC
+    `, [id]);
     res.json({ tasks: result.rows });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch prospect tasks' });
@@ -143,13 +217,29 @@ const getProspectTasks = async (req, res) => {
 const createProspectTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, start_date, due_date } = req.body;
+    const { title, description, start_date, due_date, assignee_ids } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: 'Title required' });
     const result = await query(
       'INSERT INTO prospect_tasks (prospect_id, title, description, start_date, due_date, created_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
       [id, title.trim(), description || null, start_date || null, due_date || null, req.user.id]
     );
-    res.status(201).json({ task: result.rows[0] });
+    const taskId = result.rows[0].id;
+    if (Array.isArray(assignee_ids)) {
+      for (const uid of assignee_ids) {
+        await query('INSERT INTO prospect_task_assignees (task_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [taskId, uid]);
+      }
+    }
+    const full = await query(`
+      SELECT pt.*,
+        COALESCE((
+          SELECT json_agg(json_build_object('id', u.id, 'name', u.first_name || ' ' || u.last_name))
+          FROM prospect_task_assignees pta
+          JOIN users u ON u.id = pta.user_id
+          WHERE pta.task_id = pt.id
+        ), '[]') as assignees
+      FROM prospect_tasks pt WHERE pt.id=$1
+    `, [taskId]);
+    res.status(201).json({ task: full.rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Failed to create prospect task' });
   }
@@ -158,7 +248,7 @@ const createProspectTask = async (req, res) => {
 const updateProspectTask = async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { title, description, status, start_date, due_date, response_details } = req.body;
+    const { title, description, status, start_date, due_date, response_details, assignee_ids } = req.body;
     const updates = [];
     const values = [];
     let idx = 1;
@@ -167,15 +257,39 @@ const updateProspectTask = async (req, res) => {
     if (status !== undefined) {
       updates.push(`status=$${idx++}`); values.push(status);
       updates.push(`completed_at=${status === 'done' ? 'NOW()' : 'NULL'}`);
+      if (status !== 'done') {
+        updates.push(`response_details=NULL`);
+      }
     }
+    if (status === 'done' && response_details !== undefined) { updates.push(`response_details=$${idx++}`); values.push(response_details); }
+    else if (status === undefined && response_details !== undefined) { updates.push(`response_details=$${idx++}`); values.push(response_details); }
     if (start_date !== undefined) { updates.push(`start_date=$${idx++}`); values.push(start_date || null); }
     if (due_date !== undefined) { updates.push(`due_date=$${idx++}`); values.push(due_date || null); }
-    if (response_details !== undefined) { updates.push(`response_details=$${idx++}`); values.push(response_details); }
     updates.push('updated_at=NOW()');
     values.push(taskId);
     const result = await query(`UPDATE prospect_tasks SET ${updates.join(',')} WHERE id=$${idx} RETURNING *`, values);
     if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
-    res.json({ task: result.rows[0] });
+
+    if (assignee_ids !== undefined) {
+      await query('DELETE FROM prospect_task_assignees WHERE task_id=$1', [taskId]);
+      if (Array.isArray(assignee_ids)) {
+        for (const uid of assignee_ids) {
+          await query('INSERT INTO prospect_task_assignees (task_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [taskId, uid]);
+        }
+      }
+    }
+
+    const full = await query(`
+      SELECT pt.*,
+        COALESCE((
+          SELECT json_agg(json_build_object('id', u.id, 'name', u.first_name || ' ' || u.last_name))
+          FROM prospect_task_assignees pta
+          JOIN users u ON u.id = pta.user_id
+          WHERE pta.task_id = pt.id
+        ), '[]') as assignees
+      FROM prospect_tasks pt WHERE pt.id=$1
+    `, [taskId]);
+    res.json({ task: full.rows[0] });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update prospect task' });
   }
@@ -191,4 +305,40 @@ const deleteProspectTask = async (req, res) => {
   }
 };
 
-module.exports = { getProspects, createProspect, updateProspect, deleteProspect, promoteProspect, getProspectTasks, createProspectTask, updateProspectTask, deleteProspectTask };
+const getProspectAssignableUsers = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const teamAssignments = await query('SELECT team_id FROM prospect_team_assignments WHERE prospect_id=$1', [id]);
+    if (teamAssignments.rows.length > 0) {
+      const teamIds = teamAssignments.rows.map(r => r.team_id);
+      const members = await query(`
+        SELECT DISTINCT u.id, u.first_name, u.last_name, r.name as role_name
+        FROM team_members tm
+        JOIN users u ON u.id = tm.user_id
+        JOIN roles r ON r.id = u.role_id
+        WHERE tm.team_id = ANY($1::int[]) AND u.is_active = true
+      `, [teamIds]);
+      return res.json({ users: members.rows });
+    }
+    const memberAssignments = await query('SELECT user_id FROM prospect_member_assignments WHERE prospect_id=$1', [id]);
+    if (memberAssignments.rows.length > 0) {
+      const userIds = memberAssignments.rows.map(r => r.user_id);
+      const members = await query(`
+        SELECT u.id, u.first_name, u.last_name, r.name as role_name
+        FROM users u JOIN roles r ON r.id = u.role_id
+        WHERE u.id = ANY($1::uuid[]) AND u.is_active = true
+      `, [userIds]);
+      return res.json({ users: members.rows });
+    }
+    const allUsers = await query(`
+      SELECT u.id, u.first_name, u.last_name, r.name as role_name
+      FROM users u JOIN roles r ON r.id = u.role_id
+      WHERE r.name IN ('pre_sales_manager', 'pre_sales_executive') AND u.is_active = true
+    `);
+    res.json({ users: allUsers.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to get assignable users' });
+  }
+};
+
+module.exports = { getProspects, createProspect, updateProspect, deleteProspect, promoteProspect, getProspectTasks, createProspectTask, updateProspectTask, deleteProspectTask, getProspectAssignableUsers };

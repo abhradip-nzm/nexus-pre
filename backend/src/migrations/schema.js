@@ -421,6 +421,48 @@ const migrations = [
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
+  )`,
+
+  // Country field for stories and prospects
+  `ALTER TABLE user_stories ADD COLUMN IF NOT EXISTS country VARCHAR(100)`,
+  `ALTER TABLE probable_prospects ADD COLUMN IF NOT EXISTS country VARCHAR(100)`,
+
+  // Prospect team and member assignments
+  `CREATE TABLE IF NOT EXISTS prospect_team_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    prospect_id UUID REFERENCES probable_prospects(id) ON DELETE CASCADE,
+    team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
+    UNIQUE(prospect_id, team_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS prospect_member_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    prospect_id UUID REFERENCES probable_prospects(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(prospect_id, user_id)
+  )`,
+
+  // Prospect industry assignments (multiselect)
+  `CREATE TABLE IF NOT EXISTS prospect_industry_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    prospect_id UUID REFERENCES probable_prospects(id) ON DELETE CASCADE,
+    industry_id INTEGER REFERENCES industries(id) ON DELETE CASCADE,
+    UNIQUE(prospect_id, industry_id)
+  )`,
+
+  // Prospect tags
+  `CREATE TABLE IF NOT EXISTS prospect_tags (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    prospect_id UUID REFERENCES probable_prospects(id) ON DELETE CASCADE,
+    tag_name VARCHAR(100) NOT NULL,
+    UNIQUE(prospect_id, tag_name)
+  )`,
+
+  // Prospect task assignees
+  `CREATE TABLE IF NOT EXISTS prospect_task_assignees (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID REFERENCES prospect_tasks(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(task_id, user_id)
   )`
 ];
 

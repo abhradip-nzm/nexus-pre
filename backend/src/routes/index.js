@@ -37,7 +37,8 @@ router.delete('/kanban/sub-stages/:id', authenticate, requireManager, deleteSubS
 // Stories
 const {
   getAllStories, getStoryById, createStory, updateStory, moveStory, deleteStory,
-  getTasksByStory, createTask, updateTask, deleteTask, getMyTasks, addComment
+  getTasksByStory, createTask, updateTask, deleteTask, getMyTasks, addComment,
+  getStoryAssignableUsers
 } = require('../controllers/storyController');
 router.get('/stories', authenticate, getAllStories);
 router.post('/stories', authenticate, createStory);
@@ -45,6 +46,7 @@ router.get('/stories/:id', authenticate, getStoryById);
 router.put('/stories/:id', authenticate, updateStory);
 router.patch('/stories/:id/move', authenticate, moveStory);
 router.delete('/stories/:id', authenticate, requireManager, deleteStory);
+router.get('/stories/:id/assignable-users', authenticate, getStoryAssignableUsers);
 
 // Tasks
 router.get('/stories/:storyId/tasks', authenticate, getTasksByStory);
@@ -160,7 +162,7 @@ router.put('/business-team/:id', authenticate, requireSystemAdmin, updateBizMemb
 router.delete('/business-team/:id', authenticate, requireSystemAdmin, deleteBizMember);
 
 // Probable Prospects
-const { getProspects, createProspect, updateProspect, deleteProspect, promoteProspect, getProspectTasks, createProspectTask, updateProspectTask, deleteProspectTask } = require('../controllers/prospectController');
+const { getProspects, createProspect, updateProspect, deleteProspect, promoteProspect, getProspectTasks, createProspectTask, updateProspectTask, deleteProspectTask, getProspectAssignableUsers } = require('../controllers/prospectController');
 router.get('/prospects', authenticate, getProspects);
 router.post('/prospects', authenticate, createProspect);
 router.put('/prospects/:id', authenticate, updateProspect);
@@ -170,6 +172,7 @@ router.get('/prospects/:id/tasks', authenticate, getProspectTasks);
 router.post('/prospects/:id/tasks', authenticate, createProspectTask);
 router.put('/prospect-tasks/:taskId', authenticate, updateProspectTask);
 router.delete('/prospect-tasks/:taskId', authenticate, deleteProspectTask);
+router.get('/prospects/:id/assignable-users', authenticate, getProspectAssignableUsers);
 
 // Global error handler middleware
 router.use((err, req, res, next) => {

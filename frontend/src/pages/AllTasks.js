@@ -115,11 +115,11 @@ function WeekRow({ weekDays, taskBars, today, onToggleComplete, onViewStory }) {
               <button
                 className="cal-task-bar-body"
                 onMouseDown={e => e.stopPropagation()}
-                onClick={e => { e.stopPropagation(); onViewStory(bar.task.story_id); }}
-                title={`View story: ${bar.task.story_title}`}
+                onClick={e => { e.stopPropagation(); if (bar.task.task_type !== 'prospect' && bar.task.story_id) onViewStory(bar.task.story_id); }}
+                title={bar.task.task_type === 'prospect' ? `Prospect: ${bar.task.prospect_title}` : `View story: ${bar.task.story_title}`}
               >
                 <span className="cal-task-bar-title">{bar.task.title}</span>
-                <span className="cal-task-bar-story"> · {bar.task.story_title}</span>
+                <span className="cal-task-bar-story"> · {bar.task.story_title || bar.task.prospect_title}</span>
               </button>
             </div>
           );
@@ -146,13 +146,27 @@ export default function AllTasks() {
   const [responseDetails, setResponseDetails] = useState('');
   const [storyFilter, setStoryFilter] = useState('');
 
+  const [prospectFilter, setProspectFilter] = useState('');
+
   const storyOptions = useMemo(() => {
     const map = {};
-    tasks.forEach(t => { if (t.story_id && t.story_title) map[t.story_id] = t.story_title; });
+    tasks.filter(t => t.task_type === 'story' && t.story_id).forEach(t => { map[t.story_id] = t.story_title; });
     return Object.entries(map).map(([id, title]) => ({ id, title }));
   }, [tasks]);
 
-  const filteredTasks = storyFilter ? tasks.filter(t => t.story_id === storyFilter) : tasks;
+  const prospectOptions = useMemo(() => {
+    const map = {};
+    tasks.filter(t => t.task_type === 'prospect' && t.prospect_id).forEach(t => { map[t.prospect_id] = t.prospect_title; });
+    return Object.entries(map).map(([id, title]) => ({ id, title }));
+  }, [tasks]);
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(t => {
+      if (storyFilter && t.story_id !== storyFilter) return false;
+      if (prospectFilter && t.prospect_id !== prospectFilter) return false;
+      return true;
+    });
+  }, [tasks, storyFilter, prospectFilter]);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -186,10 +200,11 @@ export default function AllTasks() {
       setResponseDetails('');
       return;
     }
+    const endpoint = task.task_type === 'prospect' ? `/prospect-tasks/${task.id}` : `/tasks/${task.id}`;
     try {
-      await api.put(`/tasks/${task.id}`, { status: 'todo' });
+      await api.put(endpoint, { status: 'todo' });
       setTasks(prev => prev.map(t =>
-        t.id === task.id ? { ...t, status: 'todo', completed_at: null } : t
+        t.id === task.id ? { ...t, status: 'todo', completed_at: null, response_details: null } : t
       ));
       toast.success('Task reopened!');
     } catch {
@@ -199,8 +214,9 @@ export default function AllTasks() {
 
   const handleConfirmComplete = async () => {
     if (!responseDetails.trim() || !completingTask) return;
+    const endpoint = completingTask.task_type === 'prospect' ? `/prospect-tasks/${completingTask.id}` : `/tasks/${completingTask.id}`;
     try {
-      await api.put(`/tasks/${completingTask.id}`, { status: 'done', response_details: responseDetails.trim() });
+      await api.put(endpoint, { status: 'done', response_details: responseDetails.trim() });
       setTasks(prev => prev.map(t =>
         t.id === completingTask.id
           ? { ...t, status: 'done', completed_at: new Date().toISOString(), response_details: responseDetails.trim() }
@@ -357,6 +373,10 @@ export default function AllTasks() {
             <option value="">All Stories</option>
             {storyOptions.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
           </select>
+          <select className="filter-select" value={prospectFilter} onChange={e => setProspectFilter(e.target.value)}>
+            <option value="">All Prospects</option>
+            {prospectOptions.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+          </select>
           <button
             className="btn btn-secondary btn-sm"
             onClick={() => {
@@ -478,7 +498,12 @@ export default function AllTasks() {
                       <span className={`mytasks-list-task-title${isDone ? ' mytasks-list-task-title--done' : ''}`}>
                         {task.title}
                       </span>
-                      <span className="mytasks-list-story">{task.story_title}</span>
+                      <span className="mytasks-list-story">
+                        {task.task_type === 'prospect' ? '' : ''}{task.story_title || task.prospect_title || ''}
+                        {task.task_type === 'prospect' && (
+                          <span style={{ fontSize: 9, background: '#f59e0b22', color: '#d97706', borderRadius: 4, padding: '1px 5px', marginLeft: 5, fontWeight: 600 }}>PROSPECT</span>
+                        )}
+                      </span>
                       {task.assignees?.length > 0 && (
                         <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
                           {task.assignees.map(a => a.name).join(', ')}
@@ -496,14 +521,16 @@ export default function AllTasks() {
                       <span className={`mytasks-list-badge mytasks-list-badge--${cat}`}>
                         {cat === 'active' ? 'In Progress' : cat === 'overdue' ? 'Overdue' : cat === 'upcoming' ? 'Upcoming' : 'Completed'}
                       </span>
-                      <button
-                        className="mytasks-view-story-btn"
-                        onClick={() => setViewingStoryId(task.story_id)}
-                        title="View story"
-                      >
-                        <ExternalLink size={13} />
-                        <span>Story</span>
-                      </button>
+                      {task.task_type !== 'prospect' && (
+                        <button
+                          className="mytasks-view-story-btn"
+                          onClick={() => setViewingStoryId(task.story_id)}
+                          title="View story"
+                        >
+                          <ExternalLink size={13} />
+                          <span>Story</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

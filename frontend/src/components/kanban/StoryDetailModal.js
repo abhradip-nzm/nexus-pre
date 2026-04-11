@@ -59,7 +59,17 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
   const [comment, setComment] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
 
+  // Assignable users based on story assignments
+  const [storyAssignableUsers, setStoryAssignableUsers] = useState([]);
+
   useEffect(() => { loadStory(); }, [storyId]);
+
+  useEffect(() => {
+    if (!storyId) return;
+    api.get(`/stories/${storyId}/assignable-users`)
+      .then(r => setStoryAssignableUsers(r.data.users || []))
+      .catch(() => {});
+  }, [storyId]);
 
   const loadStory = async () => {
     try {
@@ -72,9 +82,9 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
     }
   };
 
-  const assignableUsers = users.filter(u =>
-    ['pre_sales_manager', 'pre_sales_executive'].includes(u.role_name)
-  );
+  const assignableUsers = storyAssignableUsers.length > 0
+    ? storyAssignableUsers
+    : users.filter(u => ['pre_sales_manager', 'pre_sales_executive'].includes(u.role_name));
 
   const toggleTaskAssignee = (userId) => {
     setNewTaskAssignees(prev =>
