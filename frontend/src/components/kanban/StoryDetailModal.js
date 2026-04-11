@@ -6,7 +6,7 @@ import {
   ArrowRight, Layers, Flag, CheckCircle2, Circle, ChevronDown, History
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDate, formatDateTime, timeAgo, getInitials, getAvatarColor } from '../../utils/helpers';
+import { formatDate, formatDateTime, timeAgo, getInitials, getAvatarColor, getSourceIcon, toProperCase } from '../../utils/helpers';
 import StoryModal from './StoryModal';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -316,7 +316,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                 className="story-priority-badge"
                 style={{ background: `${priorityColor}22`, color: priorityColor, border: `1px solid ${priorityColor}44` }}
               >
-                <Flag size={9} /> {story.priority?.toUpperCase()}
+                <Flag size={9} /> {story.priority ? story.priority.charAt(0).toUpperCase() + story.priority.slice(1) : '—'}
               </span>
               <span
                 className="story-column-badge"
@@ -497,7 +497,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                         <h4 className="detail-section-title">Tags</h4>
                         <div className="detail-tags">
                           {story.tags.map(tag => (
-                            <span key={tag} className="tag-chip">{tag}</span>
+                            <span key={tag} className="tag-chip">{toProperCase(tag)}</span>
                           ))}
                         </div>
                       </div>
@@ -599,7 +599,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                     )}
                     <div className="sidebar-stat">
                       <span className="ss-label">Source</span>
-                      <span className="ss-value">{story.source || 'Manual'}</span>
+                      <span className="ss-value">{getSourceIcon(story.source)}</span>
                     </div>
                     <div className="sidebar-stat">
                       <span className="ss-label">Created By</span>

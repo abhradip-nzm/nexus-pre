@@ -600,18 +600,25 @@ export default function TransitionForms() {
 
   const loadAll = async () => {
     setLoading(true);
+    // Load columns independently so dropdown always works
     try {
-      const [formsRes, colsRes] = await Promise.all([
-        api.get('/transition-forms'),
-        api.get('/kanban/columns'),
-      ]);
-      setForms(formsRes.data.forms || []);
+      const colsRes = await api.get('/kanban/columns');
       setColumns(colsRes.data.columns || []);
-    } catch {
-      toast.error('Failed to load data');
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error('Failed to load columns:', err);
+      toast.error('Failed to load stages');
     }
+    // Load forms (may fail if tables not yet migrated)
+    try {
+      const formsRes = await api.get('/transition-forms');
+      setForms(formsRes.data.forms || []);
+    } catch (err) {
+      console.error('Failed to load transition forms:', err);
+      if (err.response?.status !== 500) {
+        toast.error('Failed to load transition forms');
+      }
+    }
+    setLoading(false);
   };
 
   const loadForms = async () => {

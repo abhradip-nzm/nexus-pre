@@ -5,7 +5,7 @@
 .dash-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
   font-family: 'Noto Sans JP', 'Inter', sans-serif;
 }
 
@@ -19,14 +19,14 @@
 .dash-kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 18px;
+  gap: 20px;
 }
 
 .dash-stat-card {
   background: white;
   border-radius: 14px;
   border: 1px solid var(--border-light);
-  padding: 20px 20px;
+  padding: 20px 22px;
   display: flex;
   align-items: flex-start;
   gap: 14px;
@@ -88,7 +88,7 @@
 .dash-secondary-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  gap: 20px;
 }
 
 .dash-mini-stats {
@@ -106,7 +106,7 @@
   background: white;
   border: 1px solid var(--border-light);
   border-radius: 14px;
-  padding: 20px 22px;
+  padding: 24px 24px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 .dash-card-wide { flex: 2; min-width: 0; }
@@ -121,7 +121,7 @@
   font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border-light);
 }
@@ -130,7 +130,7 @@
 /* ── Charts Row ──────────────────────────────────────────────── */
 .dash-charts-row {
   display: flex;
-  gap: 18px;
+  gap: 20px;
   align-items: stretch;
 }
 .dash-charts-row > .dash-card { flex: 1; min-width: 0; }
@@ -149,7 +149,7 @@
 /* ── Bottom Row ──────────────────────────────────────────────── */
 .dash-bottom-row {
   display: flex;
-  gap: 18px;
+  gap: 20px;
   align-items: flex-start;
 }
 .dash-bottom-row > .dash-card { flex: 1; min-width: 0; }

@@ -4,6 +4,7 @@ import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../utils/exportExcel';
+import { toProperCase } from '../utils/helpers';
 import './Prospects.css';
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
@@ -437,7 +438,7 @@ export default function Prospects() {
                           className="role-badge"
                           style={{ background: `${pColor}20`, color: pColor, border: `1px solid ${pColor}40` }}
                         >
-                          {prospect.priority}
+                          {prospect.priority ? prospect.priority.charAt(0).toUpperCase() + prospect.priority.slice(1) : '—'}
                         </span>
                       </td>
                       <td style={{ fontWeight: 500, color: 'var(--success)' }}>{formatValue(prospect.estimated_value)}</td>
@@ -598,7 +599,7 @@ export default function Prospects() {
                           const opt = tagOptions.find(t => t.name === tag);
                           return (
                             <span key={tag} className="tag-chip" style={opt ? { background: opt.color + '22', color: opt.color } : {}}>
-                              {tag}
+                              {toProperCase(tag)}
                               <button type="button" className="tag-remove"
                                 onClick={() => setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }))}>×</button>
                             </span>
@@ -840,7 +841,7 @@ export default function Prospects() {
                 <div><label style={lblStyle}>Company</label><p style={valStyle}>{viewingProspect.company_name || '—'}</p></div>
                 <div><label style={lblStyle}>Priority</label>
                   <span className="role-badge" style={{ background: `${PRIORITY_COLORS[viewingProspect.priority]}20`, color: PRIORITY_COLORS[viewingProspect.priority], border: `1px solid ${PRIORITY_COLORS[viewingProspect.priority]}40` }}>
-                    {viewingProspect.priority}
+                    {viewingProspect.priority ? viewingProspect.priority.charAt(0).toUpperCase() + viewingProspect.priority.slice(1) : '—'}
                   </span>
                 </div>
                 <div><label style={lblStyle}>Contact Name</label><p style={valStyle}>{viewingProspect.contact_name || '—'}</p></div>
@@ -886,7 +887,7 @@ export default function Prospects() {
                       {viewingProspect.tags.map(tag => {
                         const opt = tagOptions.find(t => t.name === tag);
                         return (
-                          <span key={tag} style={{ fontSize: 11, background: opt ? opt.color + '22' : 'var(--bg-secondary)', color: opt ? opt.color : 'var(--text-secondary)', padding: '2px 8px', borderRadius: 4, border: `1px solid ${opt ? opt.color + '40' : 'var(--border)'}` }}>{tag}</span>
+                          <span key={tag} style={{ fontSize: 11, background: opt ? opt.color + '22' : 'var(--bg-secondary)', color: opt ? opt.color : 'var(--text-secondary)', padding: '2px 8px', borderRadius: 4, border: `1px solid ${opt ? opt.color + '40' : 'var(--border)'}` }}>{toProperCase(tag)}</span>
                         );
                       })}
                     </div>

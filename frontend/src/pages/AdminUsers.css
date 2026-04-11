@@ -208,6 +208,7 @@
 .tbl-btn:active { transform: scale(0.95); }
 .tbl-btn-edit   { background: #28a745; color: #fff; }
 .tbl-btn-delete { background: #dc3545; color: #fff; }
+.tbl-btn-manage { background: #6b5ea8; color: #fff; }
 .tbl-btn-view   { background: #e9ecef; color: #495057; }
 .tbl-btn-promote { background: #3e72ae; color: #fff; }
 .tbl-btn-toggle-on  { background: #fd7e14; color: #fff; }

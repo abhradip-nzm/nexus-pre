@@ -68,9 +68,17 @@ export const truncate = (str, len = 50) => {
 export const slugify = (str) =>
   str?.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || '';
 
+export const toProperCase = (str) => {
+  if (!str) return '';
+  return str
+    .split(/[_\s]+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+};
+
 export const getSourceIcon = (source) => {
-  const map = { whatsapp: 'WhatsApp', email: 'Email', manual: 'Manual', teams: 'Teams' };
-  return map[source] || (source || 'Direct');
+  const map = { whatsapp: 'WhatsApp', email: 'Email', manual: 'Manual', teams: 'Teams', direct: 'Direct' };
+  return map[source?.toLowerCase()] || (source ? toProperCase(source) : 'Direct');
 };
 
 export const formatRoleName = (roleName) => {

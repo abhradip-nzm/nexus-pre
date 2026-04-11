@@ -309,16 +309,34 @@ export default function StoryModal({
                   </select>
                 </div>
 
-                {/* Industries multiselect pills */}
-                <MultiSelectPills
-                  label="Industries" icon={Layers}
-                  options={industryOptions}
-                  selectedIds={form.industry_ids}
-                  onToggle={toggleIndustry}
-                  getOptionId={o => o.id}
-                  getOptionLabel={o => o.name}
-                  placeholder={loadingOptions ? 'Loading...' : industryOptions.length === 0 ? 'No industries configured' : 'Select industries...'}
-                />
+                {/* Industries - pill button style (same as Prospects) */}
+                <div className="form-group">
+                  <label className="form-label"><Layers size={12} /> Industries</label>
+                  {loadingOptions ? (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 0' }}>Loading...</div>
+                  ) : industryOptions.length === 0 ? (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 0' }}>No industries configured</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                      {industryOptions.map(ind => (
+                        <button
+                          key={ind.id}
+                          type="button"
+                          onClick={() => toggleIndustry(ind.id)}
+                          style={{
+                            padding: '4px 12px', borderRadius: 20, border: '1.5px solid',
+                            fontSize: 12, cursor: 'pointer', fontWeight: 500,
+                            background: form.industry_ids.includes(ind.id) ? '#3e72ae' : 'white',
+                            borderColor: form.industry_ids.includes(ind.id) ? '#3e72ae' : 'var(--border)',
+                            color: form.industry_ids.includes(ind.id) ? 'white' : 'var(--text-primary)',
+                          }}
+                        >
+                          {ind.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* Tags */}
                 <div className="form-group" style={{ position: 'relative' }}>

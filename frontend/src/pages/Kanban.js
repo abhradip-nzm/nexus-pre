@@ -62,7 +62,7 @@ function StoryCard({ story, subStageName, onView }) {
       <div className="story-card-inner">
         <div className="story-card-header">
           <span className="story-priority-label" style={{ color: priorityColor, background: `${priorityColor}18` }}>
-            {story.priority}
+            {story.priority ? story.priority.charAt(0).toUpperCase() + story.priority.slice(1) : ''}
           </span>
           <span className="story-source">{getSourceIcon(story.source)}</span>
           <button
@@ -134,6 +134,13 @@ function StoryCard({ story, subStageName, onView }) {
           <div className="story-card-assignments">
             <Users size={9} style={{ display: 'inline', marginRight: 3 }} />
             {story.team_assignments.map(t => t.name).filter(Boolean).join(', ')}
+          </div>
+        )}
+
+        {story.member_assignments?.length > 0 && (
+          <div className="story-card-assignments">
+            <User size={9} style={{ display: 'inline', marginRight: 3 }} />
+            {story.member_assignments.map(m => m.name).filter(Boolean).join(', ')}
           </div>
         )}
 
@@ -736,7 +743,7 @@ export default function KanbanBoard() {
                     <td>{story.client_name || '—'}</td>
                     <td><span className="klv-stage-badge" style={story.column_color ? { background: `${story.column_color}20`, color: story.column_color, borderColor: `${story.column_color}50` } : {}}>{story.column_name}</span></td>
                     <td>{story.sub_stage_name ? <span className="klv-substage-badge">{story.sub_stage_name}</span> : '—'}</td>
-                    <td><span className={`priority-badge priority-${story.priority}`}>{story.priority}</span></td>
+                    <td><span className={`priority-badge priority-${story.priority}`}>{story.priority ? story.priority.charAt(0).toUpperCase() + story.priority.slice(1) : '—'}</span></td>
                     <td style={{ color: 'var(--success)', fontWeight: 600 }}>{story.estimated_value ? `$${parseFloat(story.estimated_value).toLocaleString()}` : '—'}</td>
                     <td>{story.effective_start_date ? new Date(story.effective_start_date).toLocaleDateString() : '—'}</td>
                     <td>{(story.team_assignments || []).map(t => t.name).filter(Boolean).join(', ') || '—'}</td>
@@ -744,7 +751,7 @@ export default function KanbanBoard() {
                     <td>{(story.industry_assignments || []).map(i => i.name).filter(Boolean).join(', ') || '—'}</td>
                     <td>{Array.isArray(story.tags) ? story.tags.join(', ') || '—' : (story.tags || '—')}</td>
                     <td>{story.business_team_member_name || '—'}</td>
-                    <td>{story.source || '—'}</td>
+                    <td>{getSourceIcon(story.source)}</td>
                     <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{story.description || '—'}</td>
                     <td>{story.client_email || '—'}</td>
                     <td>{story.client_phone || '—'}</td>
