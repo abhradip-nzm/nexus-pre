@@ -512,7 +512,92 @@ const migrations = [
   )`,
 
   // Associate Sales Director link on prospects
-  `ALTER TABLE probable_prospects ADD COLUMN IF NOT EXISTS sales_director_id INTEGER REFERENCES business_team(id) ON DELETE SET NULL`
+  `ALTER TABLE probable_prospects ADD COLUMN IF NOT EXISTS sales_director_id INTEGER REFERENCES business_team(id) ON DELETE SET NULL`,
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Performance indexes
+  // All CREATE INDEX statements use IF NOT EXISTS so they are safe to re-run.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // user_stories ─────────────────────────────────────────────────────────────
+  // Most-hit query: Kanban board loads stories per column sorted by position
+  `CREATE INDEX IF NOT EXISTS idx_us_column_position ON user_stories(column_id, position)`,
+  // Dashboard trend, pipeline distribution, and prospect date filters
+  `CREATE INDEX IF NOT EXISTS idx_us_created_at ON user_stories(created_at DESC)`,
+  // Assigned-to filter used in story list and KPI queries
+  `CREATE INDEX IF NOT EXISTS idx_us_assigned_to ON user_stories(assigned_to)`,
+
+  // story_team_assignments ───────────────────────────────────────────────────
+  // PK covers (story_id, team_id) — story_id lookups are fast.
+  // team_id is the second column so reverse lookups (JOIN from team_members) need this:
+  `CREATE INDEX IF NOT EXISTS idx_sta_team_id ON story_team_assignments(team_id)`,
+
+  // story_member_assignments ─────────────────────────────────────────────────
+  // PK covers (story_id, user_id). User-side lookups (EXISTS … user_id = $x) need this:
+  `CREATE INDEX IF NOT EXISTS idx_sma_user_id ON story_member_assignments(user_id)`,
+
+  // team_members ─────────────────────────────────────────────────────────────
+  // UNIQUE(team_id, user_id) covers team_id first. user_id lookups need their own index:
+  `CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON team_members(user_id)`,
+
+  // tasks ────────────────────────────────────────────────────────────────────
+  // Every task fetch is scoped to a story
+  `CREATE INDEX IF NOT EXISTS idx_tasks_user_story_id ON tasks(user_story_id)`,
+  // Dashboard overdue / in-progress / upcoming filters
+  `CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date) WHERE due_date IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)`,
+  // Task-completion chart filters on completed_at
+  `CREATE INDEX IF NOT EXISTS idx_tasks_completed_at ON tasks(completed_at) WHERE completed_at IS NOT NULL`,
+
+  // task_assignees ───────────────────────────────────────────────────────────
+  // PK covers (task_id, user_id). "All tasks for user X" queries need the reverse:
+  `CREATE INDEX IF NOT EXISTS idx_task_assignees_user_id ON task_assignees(user_id)`,
+
+  // story_change_logs ────────────────────────────────────────────────────────
+  // Dashboard recent-activity query joins on user_story_id then sorts by created_at
+  `CREATE INDEX IF NOT EXISTS idx_scl_user_story_id ON story_change_logs(user_story_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_scl_created_at ON story_change_logs(created_at DESC)`,
+
+  // probable_prospects ───────────────────────────────────────────────────────
+  // Every single prospect query filters WHERE promoted_at IS NULL — partial index
+  `CREATE INDEX IF NOT EXISTS idx_pp_active ON probable_prospects(created_at DESC) WHERE promoted_at IS NULL`,
+  // Date-range filters on the prospect list and dashboard
+  `CREATE INDEX IF NOT EXISTS idx_pp_created_at ON probable_prospects(created_at DESC)`,
+  // ASD (sales director) filter on prospects
+  `CREATE INDEX IF NOT EXISTS idx_pp_sales_director ON probable_prospects(sales_director_id)`,
+
+  // prospect_team_assignments ────────────────────────────────────────────────
+  // UNIQUE(prospect_id, team_id) covers prospect_id. Team-side EXISTS needs this:
+  `CREATE INDEX IF NOT EXISTS idx_pta_team_id ON prospect_team_assignments(team_id)`,
+
+  // prospect_member_assignments ──────────────────────────────────────────────
+  // UNIQUE(prospect_id, user_id) covers prospect_id. User-side EXISTS needs this:
+  `CREATE INDEX IF NOT EXISTS idx_pma_user_id ON prospect_member_assignments(user_id)`,
+
+  // prospect_tasks ───────────────────────────────────────────────────────────
+  // All prospect task fetches are scoped by prospect_id
+  `CREATE INDEX IF NOT EXISTS idx_prospect_tasks_prospect_id ON prospect_tasks(prospect_id)`,
+  // Dashboard overdue/upcoming filters
+  `CREATE INDEX IF NOT EXISTS idx_prospect_tasks_due_date ON prospect_tasks(due_date) WHERE due_date IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_prospect_tasks_status ON prospect_tasks(status)`,
+
+  // prospect_task_assignees ──────────────────────────────────────────────────
+  // UNIQUE(task_id, user_id) covers task_id. User-side dashboard lookups need this:
+  `CREATE INDEX IF NOT EXISTS idx_pta_assignee_user_id ON prospect_task_assignees(user_id)`,
+
+  // notifications ────────────────────────────────────────────────────────────
+  // Every notification fetch is for a specific user; unread badge uses (user_id, is_read)
+  `CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, is_read)`,
+
+  // users ────────────────────────────────────────────────────────────────────
+  // User management and dashboard user-breakdown filter by role + active status
+  `CREATE INDEX IF NOT EXISTS idx_users_role_active ON users(role_id, is_active)`,
+
+  // meetings ─────────────────────────────────────────────────────────────────
+  // Calendar view loads meetings by time range
+  `CREATE INDEX IF NOT EXISTS idx_meetings_start_time ON meetings(start_time)`,
+  // Story detail panel loads linked meetings
+  `CREATE INDEX IF NOT EXISTS idx_meetings_user_story_id ON meetings(user_story_id) WHERE user_story_id IS NOT NULL`
 ];
 
 async function runMigrations() {
