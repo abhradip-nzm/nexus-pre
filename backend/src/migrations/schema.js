@@ -405,7 +405,23 @@ const migrations = [
   `ALTER TABLE user_stories ADD COLUMN IF NOT EXISTS effective_start_date DATE`,
 
   // Task response details (mandatory before marking complete)
-  `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS response_details TEXT`
+  `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS response_details TEXT`,
+
+  // Prospect tasks
+  `CREATE TABLE IF NOT EXISTS prospect_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    prospect_id UUID REFERENCES probable_prospects(id) ON DELETE CASCADE,
+    title VARCHAR(500) NOT NULL,
+    description TEXT,
+    status VARCHAR(50) DEFAULT 'todo',
+    response_details TEXT,
+    start_date DATE,
+    due_date DATE,
+    completed_at TIMESTAMP,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+  )`
 ];
 
 async function runMigrations() {

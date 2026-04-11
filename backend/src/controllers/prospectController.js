@@ -1,4 +1,5 @@
 const { query } = require('../config/database');
+const { createNotificationForAdmins } = require('../utils/notifications');
 
 const getProspects = async (req, res) => {
   try {
@@ -112,6 +113,13 @@ const promoteProspect = async (req, res) => {
     // Mark prospect as promoted
     await query('UPDATE probable_prospects SET promoted_at=NOW(), promoted_to_story_id=$1 WHERE id=$2', [story.id, id]);
 
+    // Notify admins (fire-and-forget)
+    try {
+      await createNotificationForAdmins('Prospect Promoted', `"${p.title}" was promoted to a story in the pipeline`, 'promoted');
+    } catch (err) {
+      console.error('Failed to send prospect promoted notification:', err.message);
+    }
+
     res.json({ success: true, story });
   } catch (err) {
     console.error(err);
@@ -119,4 +127,68 @@ const promoteProspect = async (req, res) => {
   }
 };
 
-module.exports = { getProspects, createProspect, updateProspect, deleteProspect, promoteProspect };
+const getProspectTasks = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query(
+      'SELECT * FROM prospect_tasks WHERE prospect_id=$1 ORDER BY created_at ASC',
+      [id]
+    );
+    res.json({ tasks: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch prospect tasks' });
+  }
+};
+
+const createProspectTask = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, start_date, due_date } = req.body;
+    if (!title?.trim()) return res.status(400).json({ error: 'Title required' });
+    const result = await query(
+      'INSERT INTO prospect_tasks (prospect_id, title, description, start_date, due_date, created_by) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [id, title.trim(), description || null, start_date || null, due_date || null, req.user.id]
+    );
+    res.status(201).json({ task: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create prospect task' });
+  }
+};
+
+const updateProspectTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { title, description, status, start_date, due_date, response_details } = req.body;
+    const updates = [];
+    const values = [];
+    let idx = 1;
+    if (title !== undefined) { updates.push(`title=$${idx++}`); values.push(title); }
+    if (description !== undefined) { updates.push(`description=$${idx++}`); values.push(description); }
+    if (status !== undefined) {
+      updates.push(`status=$${idx++}`); values.push(status);
+      updates.push(`completed_at=${status === 'done' ? 'NOW()' : 'NULL'}`);
+    }
+    if (start_date !== undefined) { updates.push(`start_date=$${idx++}`); values.push(start_date || null); }
+    if (due_date !== undefined) { updates.push(`due_date=$${idx++}`); values.push(due_date || null); }
+    if (response_details !== undefined) { updates.push(`response_details=$${idx++}`); values.push(response_details); }
+    updates.push('updated_at=NOW()');
+    values.push(taskId);
+    const result = await query(`UPDATE prospect_tasks SET ${updates.join(',')} WHERE id=$${idx} RETURNING *`, values);
+    if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json({ task: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update prospect task' });
+  }
+};
+
+const deleteProspectTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    await query('DELETE FROM prospect_tasks WHERE id=$1', [taskId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete prospect task' });
+  }
+};
+
+module.exports = { getProspects, createProspect, updateProspect, deleteProspect, promoteProspect, getProspectTasks, createProspectTask, updateProspectTask, deleteProspectTask };

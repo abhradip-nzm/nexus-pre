@@ -1,4 +1,5 @@
 const { query } = require('../config/database');
+const { createNotification } = require('../utils/notifications');
 
 // Human-readable field labels
 const FIELD_LABELS = {
@@ -551,6 +552,26 @@ const moveStory = async (req, res) => {
       );
     }
 
+    // Notify assigned members when story is moved to a different column
+    if (String(oldColId) !== String(column_id)) {
+      try {
+        const movedStory = await query('SELECT title FROM user_stories WHERE id=$1', [id]);
+        const columnInfo = await query('SELECT name FROM kanban_columns WHERE id=$1', [column_id]);
+        const members = await query(`
+          SELECT DISTINCT u.id FROM users u
+          JOIN story_member_assignments sma ON sma.user_id = u.id
+          WHERE sma.story_id = $1 AND u.id != $2
+        `, [id, req.user.id]);
+        const storyTitleVal = movedStory.rows[0]?.title || '';
+        const colName = columnInfo.rows[0]?.name || '';
+        for (const m of members.rows) {
+          await createNotification(m.id, 'Story Moved', `"${storyTitleVal}" moved to ${colName}`, 'story_moved');
+        }
+      } catch (err) {
+        console.error('Failed to send story moved notifications:', err.message);
+      }
+    }
+
     res.json({ message: 'Story moved successfully' });
   } catch (error) {
     console.error('Move story error:', error);
@@ -689,6 +710,18 @@ const createTask = async (req, res) => {
           [taskId, userId]
         );
       }
+      // Notify assignees
+      try {
+        const storyTitle = await query('SELECT title FROM user_stories WHERE id=$1', [storyId]);
+        const sTitle = storyTitle.rows[0]?.title || 'a story';
+        for (const userId of assignee_ids) {
+          if (userId !== req.user.id) {
+            await createNotification(userId, 'Task Assigned', `You have been assigned to "${title.trim()}" on story "${sTitle}"`, 'task_assigned');
+          }
+        }
+      } catch (err) {
+        console.error('Failed to send task assigned notifications:', err.message);
+      }
     }
 
     // Return task with assignees and empty activity_logs
@@ -791,6 +824,18 @@ const updateTask = async (req, res) => {
       }
     }
 
+    // Notify story creator when task is completed
+    if (status === 'done' && currentTask && currentTask.status !== 'done') {
+      try {
+        const storyInfo = await query('SELECT title, created_by FROM user_stories WHERE id=(SELECT user_story_id FROM tasks WHERE id=$1)', [id]);
+        if (storyInfo.rows.length && storyInfo.rows[0].created_by && storyInfo.rows[0].created_by !== req.user.id) {
+          await createNotification(storyInfo.rows[0].created_by, 'Task Completed', `Task "${currentTask.title}" was marked complete`, 'task_completed');
+        }
+      } catch (err) {
+        console.error('Failed to send task completed notification:', err.message);
+      }
+    }
+
     res.json({ message: 'Task updated' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update task' });
@@ -864,11 +909,28 @@ const getMyTasks = async (req, res) => {
 const addComment = async (req, res) => {
   try {
     const { content } = req.body;
+    const storyId = req.params.storyId;
     const result = await query(
       `INSERT INTO story_comments (user_story_id, user_id, content) VALUES ($1, $2, $3) RETURNING *`,
-      [req.params.storyId, req.user.id, content]
+      [storyId, req.user.id, content]
     );
     res.status(201).json({ comment: result.rows[0] });
+
+    // Notify other story members (fire-and-forget)
+    try {
+      const storyMembers = await query(`
+        SELECT DISTINCT u.id FROM users u
+        JOIN story_member_assignments sma ON sma.user_id = u.id
+        WHERE sma.story_id = $1 AND u.id != $2
+      `, [storyId, req.user.id]);
+      const storyTitle = await query('SELECT title FROM user_stories WHERE id=$1', [storyId]);
+      const sTitle = storyTitle.rows[0]?.title || '';
+      for (const member of storyMembers.rows) {
+        await createNotification(member.id, 'New Comment', `New comment on story "${sTitle}"`, 'comment');
+      }
+    } catch (err) {
+      console.error('Failed to send comment notifications:', err.message);
+    }
   } catch (error) {
     res.status(500).json({ error: 'Failed to add comment' });
   }

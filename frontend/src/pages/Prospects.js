@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers, Download, Eye, Check } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -28,6 +28,127 @@ const emptyForm = {
   notes: '',
 };
 
+function ProspectTasksSection({ prospectId }) {
+  const [tasks, setTasks] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newStartDate, setNewStartDate] = useState('');
+  const [newDueDate, setNewDueDate] = useState('');
+  const [completingTask, setCompletingTask] = useState(null);
+  const [responseDetails, setResponseDetails] = useState('');
+
+  useEffect(() => {
+    api.get(`/prospects/${prospectId}/tasks`).then(r => setTasks(r.data.tasks || []));
+  }, [prospectId]);
+
+  const addTask = async () => {
+    if (!newTitle.trim()) return;
+    const res = await api.post(`/prospects/${prospectId}/tasks`, { title: newTitle, start_date: newStartDate || null, due_date: newDueDate || null });
+    setTasks(prev => [...prev, res.data.task]);
+    setNewTitle(''); setNewStartDate(''); setNewDueDate(''); setShowForm(false);
+  };
+
+  const toggleTask = (task) => {
+    if (task.status !== 'done') { setCompletingTask(task); setResponseDetails(''); return; }
+    api.put(`/prospect-tasks/${task.id}`, { status: 'todo' }).then(() => {
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'todo', completed_at: null } : t));
+    });
+  };
+
+  const confirmComplete = async () => {
+    if (!responseDetails.trim()) return;
+    const res = await api.put(`/prospect-tasks/${completingTask.id}`, { status: 'done', response_details: responseDetails.trim() });
+    setTasks(prev => prev.map(t => t.id === completingTask.id ? res.data.task : t));
+    setCompletingTask(null); setResponseDetails('');
+  };
+
+  const deleteTask = (id) => {
+    api.delete(`/prospect-tasks/${id}`).then(() => setTasks(prev => prev.filter(t => t.id !== id)));
+  };
+
+  return (
+    <div style={{ marginTop: 20, borderTop: '1px solid var(--border-light)', paddingTop: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>Tasks ({tasks.length})</h4>
+        {!showForm && (
+          <button className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 4 }} onClick={() => setShowForm(true)}>
+            <Plus size={13} /> Add Task
+          </button>
+        )}
+      </div>
+
+      {showForm && (
+        <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 12, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <input className="form-control" placeholder="Task title" value={newTitle} onChange={e => setNewTitle(e.target.value)} autoFocus />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>Start Date</label>
+              <input type="date" className="form-control form-control-sm" value={newStartDate} onChange={e => setNewStartDate(e.target.value)} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 3 }}>Due Date</label>
+              <input type="date" className="form-control form-control-sm" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary btn-sm" onClick={addTask} disabled={!newTitle.trim()}>Add</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setShowForm(false); setNewTitle(''); }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {completingTask && (
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>Complete: {completingTask.title}</p>
+          <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Response Details <span style={{ color: '#dc3545' }}>*</span></label>
+          <textarea className="form-control" rows={3} placeholder="Describe outcome…" value={responseDetails} onChange={e => setResponseDetails(e.target.value)} autoFocus style={{ resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button className="btn btn-primary btn-sm" onClick={confirmComplete} disabled={!responseDetails.trim()} style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Check size={13} /> Confirm</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setCompletingTask(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {tasks.length === 0 && !showForm ? (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>No tasks yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {tasks.map(task => {
+            const isDone = task.status === 'done';
+            return (
+              <div key={task.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: isDone ? '#f8fffe' : 'white', border: '1px solid var(--border-light)', borderRadius: 8 }}>
+                <button
+                  onClick={() => toggleTask(task)}
+                  style={{ width: 18, height: 18, borderRadius: '50%', border: isDone ? 'none' : '2px solid var(--border)', background: isDone ? '#16a34a' : 'transparent', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginTop: 2 }}
+                  title={isDone ? 'Mark incomplete' : 'Mark complete'}
+                >
+                  {isDone && <Check size={10} />}
+                </button>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: isDone ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}>{task.title}</div>
+                  {task.response_details && (
+                    <div style={{ marginTop: 4, padding: '4px 8px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 5, fontSize: 11, color: '#166534' }}>
+                      <strong>Response:</strong> {task.response_details}
+                    </div>
+                  )}
+                  {(task.start_date || task.due_date) && (
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {task.start_date ? new Date(task.start_date).toLocaleDateString() : '—'} → {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => deleteTask(task.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, display: 'flex', alignItems: 'center' }} title="Delete">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Prospects() {
   const [prospects, setProspects] = useState([]);
   const [industries, setIndustries] = useState([]);
@@ -39,6 +160,10 @@ export default function Prospects() {
   const [promoteConfirm, setPromoteConfirm] = useState(null);
   const [promoting, setPromoting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [viewingProspect, setViewingProspect] = useState(null);
+
+  const lblStyle = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 4 };
+  const valStyle = { fontSize: 13, color: 'var(--text-primary)', margin: 0 };
 
   const loadData = useCallback(async () => {
     try {
@@ -271,6 +396,9 @@ export default function Prospects() {
                       <td className="last-login">{formatDate(prospect.created_at)}</td>
                       <td>
                         <div className="user-actions">
+                          <button className="tbl-btn tbl-btn-view" onClick={() => setViewingProspect(prospect)} title="View">
+                            <Eye size={13} />
+                          </button>
                           <button className="tbl-btn tbl-btn-edit" onClick={() => openEdit(prospect)} title="Edit">
                             <Pencil size={13} />
                           </button>
@@ -501,6 +629,39 @@ export default function Prospects() {
               <button className="btn btn-danger" onClick={() => handleDelete(deleteConfirm)}>
                 <Trash2 size={14} /> Delete
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Prospect Modal */}
+      {viewingProspect && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setViewingProspect(null)}>
+          <div className="modal modal-lg">
+            <div className="modal-header">
+              <h2 className="modal-title">{viewingProspect.title}</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setViewingProspect(null)}><X size={18} /></button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div><label style={lblStyle}>Company</label><p style={valStyle}>{viewingProspect.company_name || '—'}</p></div>
+                <div><label style={lblStyle}>Priority</label>
+                  <span className="role-badge" style={{ background: `${PRIORITY_COLORS[viewingProspect.priority]}20`, color: PRIORITY_COLORS[viewingProspect.priority], border: `1px solid ${PRIORITY_COLORS[viewingProspect.priority]}40` }}>
+                    {viewingProspect.priority}
+                  </span>
+                </div>
+                <div><label style={lblStyle}>Contact Name</label><p style={valStyle}>{viewingProspect.contact_name || '—'}</p></div>
+                <div><label style={lblStyle}>Contact Email</label><p style={valStyle}>{viewingProspect.contact_email || '—'}</p></div>
+                <div><label style={lblStyle}>Contact Phone</label><p style={valStyle}>{viewingProspect.contact_phone || '—'}</p></div>
+                <div><label style={lblStyle}>Source</label><p style={valStyle}>{viewingProspect.source || '—'}</p></div>
+                <div><label style={lblStyle}>Estimated Value</label><p style={valStyle}>{formatValue(viewingProspect.estimated_value)}</p></div>
+                <div><label style={lblStyle}>Industry</label><p style={valStyle}>{viewingProspect.industry_name || '—'}</p></div>
+                <div style={{ gridColumn: '1/-1' }}><label style={lblStyle}>Notes</label><p style={{ ...valStyle, whiteSpace: 'pre-wrap' }}>{viewingProspect.notes || '—'}</p></div>
+                <div><label style={lblStyle}>Created</label><p style={valStyle}>{formatDate(viewingProspect.created_at)}</p></div>
+                <div><label style={lblStyle}>Created By</label><p style={valStyle}>{viewingProspect.created_by_name || '—'}</p></div>
+              </div>
+
+              <ProspectTasksSection prospectId={viewingProspect.id} />
             </div>
           </div>
         </div>

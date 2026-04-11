@@ -68,13 +68,14 @@ router.delete('/meetings/:id', authenticate, deleteMeeting);
 // Settings & Integrations
 const {
   getSettings, updateSettings, whatsappWebhook,
-  getNotifications, markNotificationRead, markAllNotificationsRead
+  getNotifications, getAllNotifications, markNotificationRead, markAllNotificationsRead
 } = require('../controllers/settingsController');
 router.get('/settings', authenticate, getSettings);
 router.put('/settings', authenticate, updateSettings);
+router.get('/notifications/all', authenticate, getAllNotifications);
 router.get('/notifications', authenticate, getNotifications);
-router.put('/notifications/:id/read', authenticate, markNotificationRead);
 router.put('/notifications/read-all', authenticate, markAllNotificationsRead);
+router.put('/notifications/:id/read', authenticate, markNotificationRead);
 
 // WhatsApp webhook (no auth - verified by token)
 router.get('/webhooks/whatsapp', whatsappWebhook);
@@ -159,12 +160,16 @@ router.put('/business-team/:id', authenticate, requireSystemAdmin, updateBizMemb
 router.delete('/business-team/:id', authenticate, requireSystemAdmin, deleteBizMember);
 
 // Probable Prospects
-const { getProspects, createProspect, updateProspect, deleteProspect, promoteProspect } = require('../controllers/prospectController');
+const { getProspects, createProspect, updateProspect, deleteProspect, promoteProspect, getProspectTasks, createProspectTask, updateProspectTask, deleteProspectTask } = require('../controllers/prospectController');
 router.get('/prospects', authenticate, getProspects);
 router.post('/prospects', authenticate, createProspect);
 router.put('/prospects/:id', authenticate, updateProspect);
 router.delete('/prospects/:id', authenticate, deleteProspect);
 router.post('/prospects/:id/promote', authenticate, promoteProspect);
+router.get('/prospects/:id/tasks', authenticate, getProspectTasks);
+router.post('/prospects/:id/tasks', authenticate, createProspectTask);
+router.put('/prospect-tasks/:taskId', authenticate, updateProspectTask);
+router.delete('/prospect-tasks/:taskId', authenticate, deleteProspectTask);
 
 // Global error handler middleware
 router.use((err, req, res, next) => {

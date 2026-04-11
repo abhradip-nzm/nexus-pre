@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ChevronLeft, ChevronRight, CalendarCheck, CheckSquare,
   Clock, AlertCircle, ExternalLink, Check, Users, Download, X
@@ -144,6 +144,15 @@ export default function AllTasks() {
   const [selectedAssignee, setSelectedAssignee] = useState('');
   const [completingTask, setCompletingTask] = useState(null);
   const [responseDetails, setResponseDetails] = useState('');
+  const [storyFilter, setStoryFilter] = useState('');
+
+  const storyOptions = useMemo(() => {
+    const map = {};
+    tasks.forEach(t => { if (t.story_id && t.story_title) map[t.story_id] = t.story_title; });
+    return Object.entries(map).map(([id, title]) => ({ id, title }));
+  }, [tasks]);
+
+  const filteredTasks = storyFilter ? tasks.filter(t => t.story_id === storyFilter) : tasks;
 
   const loadUsers = useCallback(async () => {
     try {
@@ -231,7 +240,7 @@ export default function AllTasks() {
     if (!weekStart || !weekEnd) return [];
 
     const bars = [];
-    tasks.forEach(task => {
+    filteredTasks.forEach(task => {
       const taskStart = parseLocalDate(task.start_date || task.created_at);
       const taskEnd = parseLocalDate(task.due_date);
       if (!taskStart || !taskEnd) return;
@@ -253,10 +262,10 @@ export default function AllTasks() {
     return bars;
   };
 
-  const totalTasks = tasks.length;
-  const completedCount = tasks.filter(t => t.status === 'done').length;
-  const overdueCount = tasks.filter(t => getTaskCategory(t, today) === 'overdue').length;
-  const activeCount = tasks.filter(t => getTaskCategory(t, today) === 'active').length;
+  const totalTasks = filteredTasks.length;
+  const completedCount = filteredTasks.filter(t => t.status === 'done').length;
+  const overdueCount = filteredTasks.filter(t => getTaskCategory(t, today) === 'overdue').length;
+  const activeCount = filteredTasks.filter(t => getTaskCategory(t, today) === 'active').length;
 
   if (loading) return (
     <div className="page-loading">
@@ -342,8 +351,12 @@ export default function AllTasks() {
             </select>
           </div>
           <div className="users-stats">
-            <span className="stat-pill">{tasks.length} tasks</span>
+            <span className="stat-pill">{filteredTasks.length} tasks</span>
           </div>
+          <select className="filter-select" value={storyFilter} onChange={e => setStoryFilter(e.target.value)}>
+            <option value="">All Stories</option>
+            {storyOptions.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+          </select>
           <button
             className="btn btn-secondary btn-sm"
             onClick={() => {
@@ -443,11 +456,11 @@ export default function AllTasks() {
         </div>
 
         {/* Task list below calendar */}
-        {tasks.length > 0 && (
+        {filteredTasks.length > 0 && (
           <div className="mytasks-list-section">
             <h3 className="mytasks-list-title">All Tasks</h3>
             <div className="mytasks-list">
-              {tasks.map(task => {
+              {filteredTasks.map(task => {
                 const cat = getTaskCategory(task, today);
                 const isDone = task.status === 'done';
                 const startDate = parseLocalDate(task.start_date || task.created_at);

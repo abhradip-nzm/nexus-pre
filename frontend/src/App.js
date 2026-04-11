@@ -23,6 +23,7 @@ import BusinessTeam from './pages/BusinessTeam';
 import MyTasks from './pages/MyTasks';
 import AllTasks from './pages/AllTasks';
 import Prospects from './pages/Prospects';
+import Notifications from './pages/Notifications';
 import './styles/global.css';
 
 function ProtectedRoute({ children, roles }) {
@@ -169,7 +170,7 @@ function App() {
           } />
 
           <Route path="/calendar" element={
-            <ProtectedRoute roles={['super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
+            <ProtectedRoute roles={['system_admin', 'super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
               <AppLayout><Calendar /></AppLayout>
             </ProtectedRoute>
           } />
@@ -219,6 +220,12 @@ function App() {
           <Route path="/prospects" element={
             <ProtectedRoute roles={['system_admin', 'super_admin']}>
               <AppLayout><Prospects /></AppLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/notifications" element={
+            <ProtectedRoute roles={['system_admin', 'super_admin', 'pre_sales_manager', 'pre_sales_executive']}>
+              <AppLayout><Notifications /></AppLayout>
             </ProtectedRoute>
           } />
 

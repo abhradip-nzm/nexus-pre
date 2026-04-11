@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Search, X, Check, CheckCheck, MessageSquare, Calendar, Info, AlertTriangle, XCircle } from 'lucide-react';
+import { Bell, Check, CheckCheck, MessageSquare, Calendar, Info, AlertTriangle, XCircle, ArrowRight, ArrowUpCircle, CheckSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { timeAgo } from '../../utils/helpers';
 import api from '../../utils/api';
@@ -7,6 +8,7 @@ import './Header.css';
 
 export default function Header({ title, subtitle }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -54,8 +56,12 @@ export default function Header({ title, subtitle }) {
 
   const getNotifIcon = (type) => {
     const iconMap = {
-      whatsapp: <MessageSquare size={14} color="#25D366" />,
+      task_assigned: <CheckSquare size={14} color="#3e72ae" />,
+      task_completed: <Check size={14} color="#16a34a" />,
+      story_moved: <ArrowRight size={14} color="var(--primary)" />,
+      comment: <MessageSquare size={14} color="#8b5cf6" />,
       meeting: <Calendar size={14} color="var(--primary)" />,
+      promoted: <ArrowUpCircle size={14} color="#f59e0b" />,
       info: <Info size={14} color="var(--info)" />,
       warning: <AlertTriangle size={14} color="var(--warning)" />,
       error: <XCircle size={14} color="var(--error)" />,
@@ -114,6 +120,11 @@ export default function Header({ title, subtitle }) {
                     </div>
                   ))
                 )}
+              </div>
+              <div className="notif-footer">
+                <button className="notif-see-all" onClick={() => { setShowNotifs(false); navigate('/notifications'); }}>
+                  See all notifications
+                </button>
               </div>
             </div>
           )}

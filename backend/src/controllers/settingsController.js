@@ -170,6 +170,18 @@ const getNotifications = async (req, res) => {
   }
 };
 
+const getAllNotifications = async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ notifications: result.rows });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get notifications' });
+  }
+};
+
 const markNotificationRead = async (req, res) => {
   try {
     await query(
@@ -196,5 +208,5 @@ const markAllNotificationsRead = async (req, res) => {
 
 module.exports = {
   getSettings, updateSettings, whatsappWebhook,
-  getNotifications, markNotificationRead, markAllNotificationsRead
+  getNotifications, getAllNotifications, markNotificationRead, markAllNotificationsRead
 };
