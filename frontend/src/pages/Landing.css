@@ -438,7 +438,8 @@
   transform: translateY(-3px); border-color: rgba(62,114,174,0.3);
   box-shadow: 0 16px 40px rgba(0,0,0,0.25);
 }
-.lp-int-icon { font-size: 36px; margin-bottom: 12px; display: block; }
+.lp-int-icon { width: 40px; height: 40px; margin-bottom: 12px; display: block; }
+.lp-int-icon svg { width: 40px; height: 40px; display: block; }
 .lp-int-name { font-size: 14px; font-weight: 700; color: var(--lp-white); margin-bottom: 6px; }
 .lp-int-desc { font-size: 12px; color: var(--lp-white50); line-height: 1.5; }
 .lp-int-status {
@@ -464,7 +465,7 @@
   background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(62,114,174,0.25) 0%, transparent 70%);
 }
 .lp-cta-box > * { position: relative; z-index: 1; }
-.lp-cta-title { font-size: clamp(30px, 4vw, 48px); font-weight: 900; margin-bottom: 18px; letter-spacing: -0.02em; }
+.lp-cta-title { font-size: clamp(30px, 4vw, 48px); font-weight: 900; margin-bottom: 18px; letter-spacing: -0.02em; color: var(--lp-white); }
 .lp-cta-desc { font-size: 17px; color: var(--lp-white50); line-height: 1.7; max-width: 540px; margin: 0 auto 36px; }
 .lp-cta-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
 .lp-cta-note { margin-top: 18px; font-size: 12.5px; color: var(--lp-white50); }

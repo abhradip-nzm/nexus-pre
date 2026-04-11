@@ -471,14 +471,97 @@ export default function Landing() {
 
           <div className="lp-int-grid">
             {[
-              { icon: '🪟', name: 'Microsoft 365', desc: 'Calendar sync, Outlook integration & Teams meeting links', status: 'live' },
-              { icon: '💬', name: 'WhatsApp Business', desc: 'Auto-capture leads from WhatsApp group messages', status: 'live' },
-              { icon: '📧', name: 'Outlook Mail', desc: 'Email tracking and client correspondence logging', status: 'live' },
-              { icon: '🔗', name: 'Slack', desc: 'Deal updates and notifications pushed to your channels', status: 'soon' },
-              { icon: '📊', name: 'Power BI', desc: 'Export pipeline data for advanced reporting', status: 'soon' },
-              { icon: '🗂️', name: 'SharePoint', desc: 'Link documents and proposals directly to deals', status: 'soon' },
-              { icon: '📞', name: 'Twilio', desc: 'SMS and voice communication for deal follow-ups', status: 'soon' },
-              { icon: '🔑', name: 'SSO / SAML', desc: 'Enterprise single sign-on with Azure AD support', status: 'live' },
+              {
+                icon: (
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="44" height="44" fill="#f25022"/>
+                    <rect x="53" y="3" width="44" height="44" fill="#7fba00"/>
+                    <rect x="3" y="53" width="44" height="44" fill="#00a4ef"/>
+                    <rect x="53" y="53" width="44" height="44" fill="#ffb900"/>
+                  </svg>
+                ),
+                name: 'Microsoft 365', desc: 'Calendar sync, Outlook integration & Teams meeting links', status: 'live',
+              },
+              {
+                icon: (
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="48" fill="#25D366"/>
+                    <path fill="white" d="M50 18C32.3 18 18 32.3 18 50c0 6.4 1.9 12.4 5.1 17.5L18 82l15-5c4.9 2.9 10.6 4.6 16.8 4.6 17.7 0 32-14.3 32-32S67.7 18 50 18zm0 58.6c-5.7 0-11-1.6-15.5-4.4l-1.1-.7-9.7 2.8 2.9-9.4-.7-1.2C23.7 59.3 22 54.8 22 50c0-15.5 12.5-28 28-28s28 12.5 28 28-12.5 28.6-28 28.6zm15.4-20.8c-.8-.4-4.9-2.4-5.7-2.7-.8-.3-1.3-.4-1.9.4-.6.8-2.2 2.7-2.7 3.3-.5.6-1 .6-1.8.2-4.8-2.4-7.9-4.2-11.1-9.6-.8-1.4.8-1.3 2.3-4.4.3-.6.1-1.1-.1-1.6-.2-.5-1.9-4.6-2.6-6.3-.7-1.7-1.4-1.4-1.9-1.4-.5 0-1 0-1.6 0-.5 0-1.4.2-2.2 1-.7.8-2.8 2.8-2.8 6.7 0 3.9 2.9 7.8 3.3 8.3.4.5 5.7 8.8 13.9 12.3 5.2 2.2 7.2 2.4 9.8 2 1.6-.2 4.9-2 5.6-3.9.7-1.9.7-3.5.5-3.9-.2-.3-.7-.5-1.5-.9z"/>
+                  </svg>
+                ),
+                name: 'WhatsApp Business', desc: 'Auto-capture leads from WhatsApp group messages', status: 'live',
+              },
+              {
+                icon: (
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="5" y="18" width="58" height="64" rx="6" fill="#0078D4"/>
+                    <rect x="38" y="28" width="57" height="46" rx="6" fill="#0364B8"/>
+                    <path fill="white" d="M95 28H38v11l28.5 16L95 39z"/>
+                    <ellipse cx="27" cy="50" rx="14" ry="18" fill="white"/>
+                    <ellipse cx="27" cy="50" rx="8" ry="11" fill="#0078D4"/>
+                  </svg>
+                ),
+                name: 'Outlook Mail', desc: 'Email tracking and client correspondence logging', status: 'live',
+              },
+              {
+                icon: (
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#E01E5A" d="M21 63.5c0 4.7-3.8 8.5-8.5 8.5S4 68.2 4 63.5s3.8-8.5 8.5-8.5H21v8.5z"/>
+                    <path fill="#E01E5A" d="M25 63.5c0-4.7 3.8-8.5 8.5-8.5S42 58.8 42 63.5V85c0 4.7-3.8 8.5-8.5 8.5S25 89.7 25 85V63.5z"/>
+                    <path fill="#36C5F0" d="M33.5 21c-4.7 0-8.5-3.8-8.5-8.5S28.8 4 33.5 4 42 7.8 42 12.5V21h-8.5z"/>
+                    <path fill="#36C5F0" d="M33.5 25c4.7 0 8.5 3.8 8.5 8.5S38.2 42 33.5 42H12C7.3 42 4 38.2 4 33.5S7.3 25 12 25h21.5z"/>
+                    <path fill="#2EB67D" d="M75.5 34c0-4.7 3.8-8.5 8.5-8.5S92.5 29.3 92.5 34s-3.8 8.5-8.5 8.5H75.5V34z"/>
+                    <path fill="#2EB67D" d="M72 34c0 4.7-3.8 8.5-8.5 8.5S55 38.7 55 34V12.5C55 7.8 58.8 4 63.5 4S72 7.8 72 12.5V34z"/>
+                    <path fill="#ECB22E" d="M63.5 76c4.7 0 8.5 3.8 8.5 8.5S68.2 93 63.5 93 55 89.2 55 84.5V76h8.5z"/>
+                    <path fill="#ECB22E" d="M63.5 72c-4.7 0-8.5-3.8-8.5-8.5S58.8 55 63.5 55H85c4.7 0 8.5 3.8 8.5 8.5S89.7 72 85 72H63.5z"/>
+                  </svg>
+                ),
+                name: 'Slack', desc: 'Deal updates and notifications pushed to your channels', status: 'soon',
+              },
+              {
+                icon: (
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="5" y="50" width="18" height="45" rx="3" fill="#F2C811"/>
+                    <rect x="29" y="32" width="18" height="63" rx="3" fill="#F2C811"/>
+                    <rect x="53" y="18" width="18" height="77" rx="3" fill="#F2C811"/>
+                    <rect x="77" y="38" width="18" height="57" rx="3" fill="#F2C811"/>
+                    <rect x="5" y="92" width="90" height="5" rx="2" fill="#F2C811" opacity="0.5"/>
+                  </svg>
+                ),
+                name: 'Power BI', desc: 'Export pipeline data for advanced reporting', status: 'soon',
+              },
+              {
+                icon: (
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="36" cy="50" r="30" fill="#038387"/>
+                    <circle cx="64" cy="36" r="24" fill="#1B9E9E"/>
+                    <circle cx="64" cy="64" r="20" fill="#37C6D0"/>
+                    <text x="22" y="63" fontSize="42" fontWeight="bold" fill="white" fontFamily="Arial, sans-serif">S</text>
+                  </svg>
+                ),
+                name: 'SharePoint', desc: 'Link documents and proposals directly to deals', status: 'soon',
+              },
+              {
+                icon: (
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="46" fill="#F22F46"/>
+                    <circle cx="50" cy="50" r="16" fill="white"/>
+                    <circle cx="50" cy="50" r="7" fill="#F22F46"/>
+                  </svg>
+                ),
+                name: 'Twilio', desc: 'SMS and voice communication for deal follow-ups', status: 'soon',
+              },
+              {
+                icon: (
+                  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#0078D4" d="M50 5L12 22v28c0 22 16.4 42.6 38 48 21.6-5.4 38-26 38-48V22L50 5z"/>
+                    <path fill="#50e6ff" d="M50 18l-26 12v18c0 15 11 29.4 26 33.2V18z"/>
+                    <path fill="white" d="M50 18v43.2c15-3.8 26-18.2 26-33.2V30L50 18z" opacity="0.6"/>
+                    <text x="33" y="65" fontSize="36" fontWeight="bold" fill="white" fontFamily="Arial, sans-serif">ID</text>
+                  </svg>
+                ),
+                name: 'SSO / SAML', desc: 'Enterprise single sign-on with Azure AD support', status: 'live',
+              },
             ].map((int, i) => (
               <div className="lp-int-card" key={i}>
                 <span className="lp-int-icon">{int.icon}</span>
