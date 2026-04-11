@@ -61,6 +61,11 @@ async function cleanup() {
     await del(client, 'prospect_tags');
     await del(client, 'probable_prospects');
 
+    // Integrations referencing user_stories (must come before user_stories)
+    await del(client, 'meetings');
+    await del(client, 'emails');
+    await del(client, 'whatsapp_messages');
+
     // Story data
     await del(client, 'task_change_logs');
     await del(client, 'task_assignees');
@@ -76,11 +81,6 @@ async function cleanup() {
     // Teams
     await del(client, 'team_members');
     await del(client, 'teams');
-
-    // Integrations
-    await del(client, 'meetings');
-    await del(client, 'emails');
-    await del(client, 'whatsapp_messages');
 
     // Notifications (clear all — admin will get fresh ones)
     await del(client, 'notifications');
