@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../utils/exportExcel';
-import { toProperCase } from '../utils/helpers';
+import { toProperCase, formatDate, getInitials, getAvatarColor } from '../utils/helpers';
 import './Prospects.css';
 
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
@@ -58,27 +58,52 @@ const emptyForm = {
 
 function ProspectTasksSection({ prospectId }) {
   const [tasks, setTasks] = useState([]);
+  const [assignableUsers, setAssignableUsers] = useState([]);
+
+  // New task form
   const [showForm, setShowForm] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newStartDate, setNewStartDate] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
+  const [newAssigneeIds, setNewAssigneeIds] = useState([]);
+
+  // Complete task
   const [completingTask, setCompletingTask] = useState(null);
   const [responseDetails, setResponseDetails] = useState('');
+
+  // Edit task
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editStartDate, setEditStartDate] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
+  const [editAssigneeIds, setEditAssigneeIds] = useState([]);
   const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
     api.get(`/prospects/${prospectId}/tasks`).then(r => setTasks(r.data.tasks || []));
+    api.get(`/prospects/${prospectId}/assignable-users`).then(r => setAssignableUsers(r.data.users || [])).catch(() => {});
   }, [prospectId]);
+
+  const toggleNewAssignee = (uid) =>
+    setNewAssigneeIds(prev => prev.includes(uid) ? prev.filter(x => x !== uid) : [...prev, uid]);
+
+  const toggleEditAssignee = (uid) =>
+    setEditAssigneeIds(prev => prev.includes(uid) ? prev.filter(x => x !== uid) : [...prev, uid]);
 
   const addTask = async () => {
     if (!newTitle.trim()) return;
-    const res = await api.post(`/prospects/${prospectId}/tasks`, { title: newTitle, start_date: newStartDate || null, due_date: newDueDate || null });
-    setTasks(prev => [...prev, res.data.task]);
-    setNewTitle(''); setNewStartDate(''); setNewDueDate(''); setShowForm(false);
+    try {
+      const res = await api.post(`/prospects/${prospectId}/tasks`, {
+        title: newTitle.trim(),
+        start_date: newStartDate || null,
+        due_date: newDueDate || null,
+        assignee_ids: newAssigneeIds,
+      });
+      setTasks(prev => [...prev, res.data.task]);
+      setNewTitle(''); setNewStartDate(''); setNewDueDate(''); setNewAssigneeIds([]); setShowForm(false);
+    } catch {
+      toast.error('Failed to add task');
+    }
   };
 
   const startEdit = (task) => {
@@ -86,6 +111,7 @@ function ProspectTasksSection({ prospectId }) {
     setEditTitle(task.title);
     setEditStartDate(task.start_date ? task.start_date.slice(0, 10) : '');
     setEditDueDate(task.due_date ? task.due_date.slice(0, 10) : '');
+    setEditAssigneeIds(task.assignees ? task.assignees.map(a => a.id) : []);
     setCompletingTask(null);
   };
 
@@ -97,6 +123,7 @@ function ProspectTasksSection({ prospectId }) {
         title: editTitle.trim(),
         start_date: editStartDate || null,
         due_date: editDueDate || null,
+        assignee_ids: editAssigneeIds,
       });
       setTasks(prev => prev.map(t => t.id === editingTaskId ? res.data.task : t));
       setEditingTaskId(null);
@@ -127,6 +154,41 @@ function ProspectTasksSection({ prospectId }) {
     api.delete(`/prospect-tasks/${id}`).then(() => setTasks(prev => prev.filter(t => t.id !== id)));
   };
 
+  // Reusable assignee checklist
+  const AssigneeChecklist = ({ selected, onToggle }) => {
+    if (!assignableUsers.length) return null;
+    return (
+      <div>
+        <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4, fontWeight: 600 }}>
+          <Users size={11} style={{ marginRight: 4, verticalAlign: 'middle' }} />Assignees
+        </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, border: '1.5px solid var(--border)', borderRadius: 6, padding: '6px 8px', maxHeight: 130, overflowY: 'auto' }}>
+          {assignableUsers.map(u => {
+            const name = `${u.first_name} ${u.last_name}`;
+            const isSelected = selected.includes(u.id);
+            return (
+              <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '3px 4px', borderRadius: 4, background: isSelected ? 'var(--primary-50)' : 'transparent', transition: 'background 0.1s' }}>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggle(u.id)}
+                  style={{ accentColor: 'var(--primary)', width: 13, height: 13 }}
+                />
+                <span style={{ width: 22, height: 22, borderRadius: '50%', background: getAvatarColor(name), color: 'white', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {getInitials(name)}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 500, flex: 1 }}>{name}</span>
+                <span style={{ fontSize: 9, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '1px 5px', borderRadius: 10 }}>
+                  {u.role_name === 'pre_sales_executive' ? 'Executive' : u.role_name === 'pre_sales_manager' ? 'Manager' : u.role_name}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ marginTop: 20, borderTop: '1px solid var(--border-light)', paddingTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -138,8 +200,9 @@ function ProspectTasksSection({ prospectId }) {
         )}
       </div>
 
+      {/* ── New task form ── */}
       {showForm && (
-        <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 12, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 12, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <input className="form-control" placeholder="Task title" value={newTitle} onChange={e => setNewTitle(e.target.value)} autoFocus />
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1 }}>
@@ -151,13 +214,15 @@ function ProspectTasksSection({ prospectId }) {
               <input type="date" className="form-control form-control-sm" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} />
             </div>
           </div>
+          <AssigneeChecklist selected={newAssigneeIds} onToggle={toggleNewAssignee} />
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-primary btn-sm" onClick={addTask} disabled={!newTitle.trim()}>Add</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setShowForm(false); setNewTitle(''); }}>Cancel</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setShowForm(false); setNewTitle(''); setNewAssigneeIds([]); }}>Cancel</button>
           </div>
         </div>
       )}
 
+      {/* ── Complete task prompt ── */}
       {completingTask && (
         <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 12, marginBottom: 12 }}>
           <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>Complete: {completingTask.title}</p>
@@ -170,6 +235,7 @@ function ProspectTasksSection({ prospectId }) {
         </div>
       )}
 
+      {/* ── Task list ── */}
       {tasks.length === 0 && !showForm ? (
         <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>No tasks yet.</p>
       ) : (
@@ -180,7 +246,8 @@ function ProspectTasksSection({ prospectId }) {
             return (
               <div key={task.id} style={{ border: '1px solid var(--border-light)', borderRadius: 8, overflow: 'hidden' }}>
                 {isEditing ? (
-                  <div style={{ background: '#f8fafc', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  /* ── Edit mode ── */
+                  <div style={{ background: '#f8fafc', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <input className="form-control" value={editTitle} onChange={e => setEditTitle(e.target.value)} autoFocus placeholder="Task title" />
                     <div style={{ display: 'flex', gap: 8 }}>
                       <div style={{ flex: 1 }}>
@@ -192,6 +259,7 @@ function ProspectTasksSection({ prospectId }) {
                         <input type="date" className="form-control form-control-sm" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} />
                       </div>
                     </div>
+                    <AssigneeChecklist selected={editAssigneeIds} onToggle={toggleEditAssignee} />
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={editSaving || !editTitle.trim()}>
                         {editSaving ? 'Saving…' : 'Save'}
@@ -200,6 +268,7 @@ function ProspectTasksSection({ prospectId }) {
                     </div>
                   </div>
                 ) : (
+                  /* ── View mode ── */
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: isDone ? '#f8fffe' : 'white' }}>
                     <button
                       onClick={() => toggleTask(task)}
@@ -208,25 +277,41 @@ function ProspectTasksSection({ prospectId }) {
                     >
                       {isDone && <Check size={10} />}
                     </button>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: isDone ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: isDone ? 'line-through' : 'none' }}>{task.title}</div>
+
+                      {/* Assignee avatars */}
                       {task.assignees && task.assignees.length > 0 && (
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                          {task.assignees.map(a => a.name).join(', ')}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                          {task.assignees.map(a => (
+                            <span key={a.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-light)', borderRadius: 12, padding: '1px 7px 1px 2px', fontSize: 11 }}>
+                              <span style={{ width: 16, height: 16, borderRadius: '50%', background: getAvatarColor(a.name), color: 'white', fontSize: 7, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                {getInitials(a.name)}
+                              </span>
+                              <span style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>{a.name}</span>
+                            </span>
+                          ))}
                         </div>
                       )}
+
+                      {/* Response details */}
                       {task.response_details && (
                         <div style={{ marginTop: 4, padding: '4px 8px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 5, fontSize: 11, color: '#166534' }}>
                           <strong>Response:</strong> {task.response_details}
                         </div>
                       )}
+
+                      {/* Date range */}
                       {(task.start_date || task.due_date) && (
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                          {task.start_date ? new Date(task.start_date).toLocaleDateString() : '—'} → {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Calendar size={9} />
+                          {formatDate(task.start_date) || '—'} → {task.due_date ? formatDate(task.due_date) : 'No due date'}
                         </div>
                       )}
                     </div>
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+
+                    {/* Action buttons */}
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
                       {!isDone && (
                         <button onClick={() => startEdit(task)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2, display: 'flex', alignItems: 'center' }} title="Edit task">
                           <Pencil size={12} />
@@ -407,10 +492,7 @@ export default function Prospects() {
     return '$' + parseFloat(val).toLocaleString();
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  // formatDate is imported from helpers — no local override needed
 
   if (loading) return (
     <div className="page-loading">
@@ -478,7 +560,7 @@ export default function Prospects() {
                 'Country': p.country || '',
                 'Notes': p.notes || '',
                 'Assoc. Sales Director': p.sales_director_name || '',
-                'Created': p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
+                'Created': formatDate(p.created_at),
               }));
               exportToExcel(data, 'prospects');
             }}

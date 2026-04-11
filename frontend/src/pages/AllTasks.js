@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../utils/exportExcel';
+import { formatDate } from '../utils/helpers';
 import './MyTasks.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -386,9 +387,9 @@ export default function AllTasks() {
                 'Status': t.status || '',
                 'Priority': t.priority || '',
                 'Assignees': (t.assignees || []).map(a => a.name).join(', '),
-                'Start Date': t.start_date ? new Date(t.start_date).toLocaleDateString() : '',
-                'Due Date': t.due_date ? new Date(t.due_date).toLocaleDateString() : '',
-                'Created': t.created_at ? new Date(t.created_at).toLocaleDateString() : '',
+                'Start Date': formatDate(t.start_date),
+                'Due Date': formatDate(t.due_date),
+                'Created': formatDate(t.created_at),
               }));
               exportToExcel(data, 'all-tasks');
             }}

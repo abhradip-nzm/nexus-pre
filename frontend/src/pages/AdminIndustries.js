@@ -4,6 +4,7 @@ import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../utils/exportExcel';
+import { formatDate } from '../utils/helpers';
 import './AdminIndustries.css';
 
 export default function AdminIndustries() {
@@ -76,7 +77,7 @@ export default function AdminIndustries() {
                 onClick={() => {
                   const data = industries.map(ind => ({
                     'Industry Name': ind.name,
-                    'Created': ind.created_at ? new Date(ind.created_at).toLocaleDateString() : '',
+                    'Created': formatDate(ind.created_at),
                   }));
                   exportToExcel(data, 'industries');
                 }}

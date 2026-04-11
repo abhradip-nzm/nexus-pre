@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, X, Users, UserCheck, Crown, Download } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
-import { formatRoleName } from '../utils/helpers';
+import { formatRoleName, formatDate } from '../utils/helpers';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../utils/exportExcel';
 import './AdminTeams.css';
@@ -150,7 +150,7 @@ export default function AdminTeams() {
               const data = teams.map(t => ({
                 'Team Name': t.name,
                 'Members Count': (t.members || []).length,
-                'Created': t.created_at ? new Date(t.created_at).toLocaleDateString() : '',
+                'Created': formatDate(t.created_at),
               }));
               exportToExcel(data, 'teams');
             }}

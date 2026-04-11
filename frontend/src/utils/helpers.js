@@ -3,7 +3,21 @@ import { format, formatDistanceToNow, isToday, isTomorrow, parseISO } from 'date
 export const formatDate = (date, fmt = 'MMM d, yyyy') => {
   if (!date) return '—';
   try {
-    return format(typeof date === 'string' ? parseISO(date) : date, fmt);
+    let d;
+    if (typeof date === 'string') {
+      // Date-only strings like "2024-01-15" must be treated as local midnight.
+      // Both `new Date("2024-01-15")` and parseISO treat them as UTC midnight,
+      // which shifts the display date in non-UTC timezones.
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        d = new Date(date + 'T00:00:00'); // local midnight
+      } else {
+        // Full timestamps (with or without offset) — parseISO handles these correctly
+        d = parseISO(date);
+      }
+    } else {
+      d = date;
+    }
+    return format(d, fmt);
   } catch { return '—'; }
 };
 

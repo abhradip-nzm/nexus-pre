@@ -8,6 +8,7 @@ import StoryDetailModal from '../components/kanban/StoryDetailModal';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../utils/exportExcel';
+import { formatDate } from '../utils/helpers';
 import './MyTasks.css';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -392,8 +393,8 @@ export default function MyTasks() {
                 'Story Title': t.story_title || '',
                 'Status': t.status || '',
                 'Priority': t.priority || '',
-                'Start Date': t.start_date ? new Date(t.start_date).toLocaleDateString() : '',
-                'Due Date': t.due_date ? new Date(t.due_date).toLocaleDateString() : '',
+                'Start Date': formatDate(t.start_date),
+                'Due Date': formatDate(t.due_date),
               }));
               exportToExcel(data, 'my-tasks');
             }}

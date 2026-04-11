@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, X, Check, RefreshCw, KeyRound, Copy, Download, Pencil, Eye, ToggleLeft, ToggleRight } from 'lucide-react';
-import { formatRoleName } from '../utils/helpers';
+import { formatRoleName, formatDate, formatDateTime, timeAgo } from '../utils/helpers';
 import Header from '../components/layout/Header';
 import PhoneInput from '../components/PhoneInput';
 import api from '../utils/api';
@@ -256,7 +256,7 @@ export default function AdminUsers() {
                 'Phone': u.phone || '',
                 'Role': formatRoleName(u.role_name),
                 'Status': u.is_active ? 'Active' : 'Inactive',
-                'Created': u.created_at ? new Date(u.created_at).toLocaleDateString() : '',
+                'Created': formatDate(u.created_at),
               }));
               exportToExcel(data, 'users');
             }}
@@ -310,8 +310,10 @@ export default function AdminUsers() {
                       {user.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="last-login">
-                    {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : 'Never'}
+                  <td className="last-login" title={user.last_login ? formatDateTime(user.last_login) : undefined}>
+                    {user.last_login
+                      ? <><span style={{ display: 'block' }}>{formatDateTime(user.last_login)}</span><span style={{ fontSize: 10, color: 'var(--text-light)' }}>{timeAgo(user.last_login)}</span></>
+                      : <span style={{ color: 'var(--text-light)' }}>Never</span>}
                   </td>
                   <td>
                     <div className="user-actions">

@@ -13,7 +13,7 @@ import StoryModal from '../components/kanban/StoryModal';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
 import TransitionFormModal from '../components/kanban/TransitionFormModal';
 import { useAuth } from '../contexts/AuthContext';
-import { formatCurrency, getInitials, getAvatarColor, getSourceIcon } from '../utils/helpers';
+import { formatCurrency, formatDate, getInitials, getAvatarColor, getSourceIcon } from '../utils/helpers';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../utils/exportExcel';
@@ -527,7 +527,7 @@ export default function KanbanBoard() {
       'Sub Stage': s.sub_stage_name || '',
       'Priority': s.priority || '',
       'Estimated Value': s.estimated_value || '',
-      'Effective Start Date': s.effective_start_date ? new Date(s.effective_start_date).toLocaleDateString() : '',
+      'Effective Start Date': formatDate(s.effective_start_date),
       'Assigned Teams': (s.team_assignments || []).map(t => t.name).filter(Boolean).join(', '),
       'Assigned Members': (s.member_assignments || []).map(m => m.name).filter(Boolean).join(', '),
       'Industries': (s.industry_assignments || []).map(i => i.name).filter(Boolean).join(', '),
@@ -538,7 +538,7 @@ export default function KanbanBoard() {
       'Contact Email': s.client_email || '',
       'Contact Phone': s.client_phone || '',
       'Created By': s.created_by_name || '',
-      'Created': new Date(s.created_at).toLocaleDateString(),
+      'Created': formatDate(s.created_at),
     }));
     exportToExcel(data, 'kanban-stories');
   };
@@ -810,7 +810,7 @@ export default function KanbanBoard() {
                     <td>{story.sub_stage_name ? <span className="klv-substage-badge">{story.sub_stage_name}</span> : '—'}</td>
                     <td><span className={`priority-badge priority-${story.priority}`}>{story.priority ? story.priority.charAt(0).toUpperCase() + story.priority.slice(1) : '—'}</span></td>
                     <td style={{ color: 'var(--success)', fontWeight: 600 }}>{story.estimated_value ? `$${parseFloat(story.estimated_value).toLocaleString()}` : '—'}</td>
-                    <td>{story.effective_start_date ? new Date(story.effective_start_date).toLocaleDateString() : '—'}</td>
+                    <td>{formatDate(story.effective_start_date)}</td>
                     <td>{(story.team_assignments || []).map(t => t.name).filter(Boolean).join(', ') || '—'}</td>
                     <td>{(story.member_assignments || []).map(m => m.name).filter(Boolean).join(', ') || '—'}</td>
                     <td>{(story.industry_assignments || []).map(i => i.name).filter(Boolean).join(', ') || '—'}</td>
@@ -821,7 +821,7 @@ export default function KanbanBoard() {
                     <td>{story.client_email || '—'}</td>
                     <td>{story.client_phone || '—'}</td>
                     <td>{story.created_by_name || '—'}</td>
-                    <td>{new Date(story.created_at).toLocaleDateString()}</td>
+                    <td>{formatDate(story.created_at)}</td>
                     <td>
                       <button
                         className="tbl-btn tbl-btn-view"

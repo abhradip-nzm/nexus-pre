@@ -4,6 +4,7 @@ import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../utils/exportExcel';
+import { formatDate } from '../utils/helpers';
 import './AdminTags.css';
 
 export default function AdminTags() {
@@ -78,7 +79,7 @@ export default function AdminTags() {
                 onClick={() => {
                   const data = tags.map(t => ({
                     'Tag Name': t.name,
-                    'Created': t.created_at ? new Date(t.created_at).toLocaleDateString() : '',
+                    'Created': formatDate(t.created_at),
                   }));
                   exportToExcel(data, 'tags');
                 }}
