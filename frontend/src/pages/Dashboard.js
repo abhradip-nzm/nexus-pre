@@ -218,7 +218,7 @@ export default function Dashboard() {
             {exporting ? 'Generating PDF...' : 'Export PDF'}
           </button>
         </div>
-        <div ref={dashRef}>
+        <div ref={dashRef} className="dash-inner">
 
         {/* ── KPI Row ────────────────────────────────────────────────── */}
         <div className="dash-kpi-grid">

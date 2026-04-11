@@ -18,8 +18,15 @@
 /* ── KPI Cards ───────────────────────────────────────────────── */
 .dash-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
+}
+
+/* Inner wrapper that holds all dashboard sections with spacing */
+.dash-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .dash-stat-card {
@@ -314,6 +321,9 @@
   .dash-charts-row > .dash-card { min-width: calc(50% - 9px); }
   .dash-bottom-row { flex-wrap: wrap; }
   .dash-secondary-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .dash-kpi-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 640px) {
   .dash-kpi-grid { grid-template-columns: repeat(2, 1fr); }
