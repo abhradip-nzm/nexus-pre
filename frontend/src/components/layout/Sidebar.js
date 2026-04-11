@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   LayoutDashboard, Kanban, Users, Settings,
-  ChevronDown, LogOut, KeyRound, UserPen,
+  ChevronDown, LogOut, KeyRound, PencilLine,
   UsersRound, LayoutGrid, UserCog,
   Calendar as CalendarIcon, Tag as TagIcon, Building2,
   GitBranch, CalendarCheck, Target, FormInput
@@ -245,7 +245,7 @@ export default function Sidebar() {
             <div className="sidebar-user-role">{formatRoleName(user?.role_name)}</div>
           </div>
           <button className="btn btn-ghost btn-icon sidebar-prof-btn" onClick={openProfile} title="Edit Profile">
-            <UserPen size={15} />
+            <PencilLine size={15} />
           </button>
           <button className="btn btn-ghost btn-icon" onClick={openChangePw} title="Change Password">
             <KeyRound size={16} />
