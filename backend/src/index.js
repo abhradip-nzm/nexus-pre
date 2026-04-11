@@ -23,6 +23,8 @@ app.use(cors({
     'http://localhost:3000',
     'http://localhost:5173',
     'https://unique-duckanoo-fe44b4.netlify.app',
+    'https://nexuspre.com',
+    'https://www.nexuspre.com',
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Settings as SettingsIcon, MessageSquare, Monitor,
-  Plus, Trash2, Save, X, Edit2, Check, Copy, Info
+  Plus, Trash2, Save, X, Edit2, Check, Copy, Info, Globe, Server, Layers
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +12,7 @@ import './Settings.css';
 const TABS = [
   { id: 'integrations', label: 'Integrations', icon: MessageSquare },
   { id: 'app', label: 'App Settings', icon: Monitor },
+  { id: 'deployment', label: 'Deployment', icon: Info },
 ];
 
 export default function Settings() {
@@ -67,6 +68,9 @@ export default function Settings() {
             )}
             {activeTab === 'app' && (
               <AppSettings settings={settings} onSave={saveSettings} saving={saving} isAdmin={isSystemAdmin()} />
+            )}
+            {activeTab === 'deployment' && (
+              <DeploymentInfo />
             )}
           </div>
         </div>
@@ -233,8 +237,11 @@ function IntegrationsSettings({ settings, onSave, saving, isAdmin }) {
   const [waEnabled, setWaEnabled] = useState(settings.whatsapp_enabled?.value === 'true');
   const [waGroups, setWaGroups] = useState(settings.whatsapp_group_ids?.value || '');
 
-  const webhookUrl = `${window.location.origin.replace('3000', '4000')}/api/webhooks/whatsapp`;
-  const msRedirectUri = `${window.location.origin.replace('3000', '4000')}/api/auth/microsoft/callback`;
+  const apiBase = window.location.hostname === 'localhost'
+    ? 'http://localhost:4000'
+    : 'https://api.nexuspre.com';
+  const webhookUrl = `${apiBase}/api/webhooks/whatsapp`;
+  const msRedirectUri = `${apiBase}/api/auth/microsoft/callback`;
 
   const save = () => {
     onSave({
@@ -435,6 +442,105 @@ function IntegrationsSettings({ settings, onSave, saving, isAdmin }) {
           Save Integration Settings
         </button>
       )}
+    </div>
+  );
+}
+
+function DeploymentInfo() {
+  const isProduction = window.location.hostname !== 'localhost';
+  const env = isProduction ? 'Production' : 'Development';
+
+  const rows = [
+    {
+      icon: <Globe size={16} />,
+      label: 'Frontend URL',
+      value: isProduction ? 'https://nexuspre.com' : 'http://localhost:3000',
+      note: isProduction ? 'Hosted on Netlify' : 'Local CRA dev server',
+    },
+    {
+      icon: <Server size={16} />,
+      label: 'API Base URL',
+      value: isProduction ? 'https://api.nexuspre.com' : 'http://localhost:4000',
+      note: isProduction ? 'Hosted on Render' : 'Local Express server',
+    },
+    {
+      icon: <Layers size={16} />,
+      label: 'WhatsApp Webhook',
+      value: isProduction
+        ? 'https://api.nexuspre.com/api/webhooks/whatsapp'
+        : 'http://localhost:4000/api/webhooks/whatsapp',
+      note: 'Paste this into Meta Business → WhatsApp → Configuration',
+    },
+    {
+      icon: <Layers size={16} />,
+      label: 'Microsoft Redirect URI',
+      value: isProduction
+        ? 'https://api.nexuspre.com/api/auth/microsoft/callback'
+        : 'http://localhost:4000/api/auth/microsoft/callback',
+      note: 'Add this to Azure App Registration → Authentication',
+    },
+  ];
+
+  return (
+    <div className="settings-section">
+      <div className="settings-section-header">
+        <h2>Deployment Information</h2>
+        <p>URLs and endpoints for the current environment. Use these when configuring external services.</p>
+      </div>
+
+      <div className="deployment-env-badge" data-env={isProduction ? 'production' : 'development'}>
+        <span className="status-dot-sm" />
+        {env} environment
+      </div>
+
+      <div className="deployment-rows">
+        {rows.map(row => (
+          <div className="deployment-row" key={row.label}>
+            <div className="deployment-row-label">
+              {row.icon}
+              <span>{row.label}</span>
+            </div>
+            <div className="deployment-row-value">
+              <CodeLine value={row.value} />
+              <p className="form-hint" style={{ marginTop: 4 }}>{row.note}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="setup-guide" style={{ marginTop: 24 }}>
+        <h4><Info size={14} /> DNS Configuration</h4>
+        <div className="setup-steps">
+          <div className="setup-step">
+            <span className="step-num">1</span>
+            <div>
+              <strong>nexuspre.com → Netlify</strong>
+              <p>In GoDaddy DNS, add an <strong>A record</strong>: <code>@</code> → <code>75.2.60.5</code> and a <strong>CNAME</strong>: <code>www</code> → <code>unique-duckanoo-fe44b4.netlify.app</code></p>
+            </div>
+          </div>
+          <div className="setup-step">
+            <span className="step-num">2</span>
+            <div>
+              <strong>api.nexuspre.com → Render</strong>
+              <p>In GoDaddy DNS, add a <strong>CNAME</strong>: <code>api</code> → your Render service hostname (e.g. <code>nexus-pre-api.onrender.com</code>)</p>
+            </div>
+          </div>
+          <div className="setup-step">
+            <span className="step-num">3</span>
+            <div>
+              <strong>Netlify — set environment variable</strong>
+              <p>In Netlify → Site configuration → Environment variables, add: <code>REACT_APP_API_URL</code> = <code>https://api.nexuspre.com</code></p>
+            </div>
+          </div>
+          <div className="setup-step">
+            <span className="step-num">4</span>
+            <div>
+              <strong>Render — set environment variable</strong>
+              <p>In Render → your backend service → Environment, set: <code>FRONTEND_URL</code> = <code>https://nexuspre.com</code></p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
