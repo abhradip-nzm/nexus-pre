@@ -29,6 +29,7 @@ const getProspects = async (req, res) => {
       SELECT pp.*,
         i.name as industry_name,
         u.first_name || ' ' || u.last_name as created_by_name,
+        bt.name as sales_director_name,
         COALESCE((
           SELECT json_agg(json_build_object('industry_id', pia.industry_id, 'industry_name', ind.name))
           FROM prospect_industry_assignments pia
@@ -55,6 +56,7 @@ const getProspects = async (req, res) => {
       FROM probable_prospects pp
       LEFT JOIN industries i ON i.id = pp.industry_id
       LEFT JOIN users u ON u.id = pp.created_by
+      LEFT JOIN business_team bt ON bt.id = pp.sales_director_id
       WHERE pp.promoted_at IS NULL
       ${visibilityWhere}
       ORDER BY pp.created_at DESC
@@ -68,11 +70,11 @@ const getProspects = async (req, res) => {
 
 const createProspect = async (req, res) => {
   try {
-    const { title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, industry_ids, team_ids, member_ids, tags, country } = req.body;
+    const { title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, industry_ids, team_ids, member_ids, tags, country, sales_director_id } = req.body;
     const result = await query(`
-      INSERT INTO probable_prospects (title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, created_by, country)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *
-    `, [title, company_name, contact_name, contact_email, contact_phone, source, priority || 'medium', notes, estimated_value || null, req.user.id, country || null]);
+      INSERT INTO probable_prospects (title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, created_by, country, sales_director_id)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *
+    `, [title, company_name, contact_name, contact_email, contact_phone, source, priority || 'medium', notes, estimated_value || null, req.user.id, country || null, sales_director_id || null]);
     const prospect = result.rows[0];
     const id = prospect.id;
 
@@ -111,13 +113,14 @@ const createProspect = async (req, res) => {
 const updateProspect = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, industry_ids, team_ids, member_ids, tags, country } = req.body;
+    const { title, company_name, contact_name, contact_email, contact_phone, source, priority, notes, estimated_value, industry_ids, team_ids, member_ids, tags, country, sales_director_id } = req.body;
     const result = await query(`
       UPDATE probable_prospects SET
         title=$1, company_name=$2, contact_name=$3, contact_email=$4, contact_phone=$5,
-        source=$6, priority=$7, notes=$8, estimated_value=$9, updated_at=NOW(), country=$10
-      WHERE id=$11 RETURNING *
-    `, [title, company_name, contact_name, contact_email, contact_phone, source, priority || 'medium', notes, estimated_value || null, country || null, id]);
+        source=$6, priority=$7, notes=$8, estimated_value=$9, updated_at=NOW(), country=$10,
+        sales_director_id=$11
+      WHERE id=$12 RETURNING *
+    `, [title, company_name, contact_name, contact_email, contact_phone, source, priority || 'medium', notes, estimated_value || null, country || null, sales_director_id || null, id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Not found' });
 
     // Replace industry assignments

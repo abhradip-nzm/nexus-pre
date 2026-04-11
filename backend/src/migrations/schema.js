@@ -509,7 +509,10 @@ const migrations = [
     task_id UUID REFERENCES prospect_tasks(id) ON DELETE CASCADE,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE(task_id, user_id)
-  )`
+  )`,
+
+  // Associate Sales Director link on prospects
+  `ALTER TABLE probable_prospects ADD COLUMN IF NOT EXISTS sales_director_id INTEGER REFERENCES business_team(id) ON DELETE SET NULL`
 ];
 
 async function runMigrations() {

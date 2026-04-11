@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers, Download, Eye, Check, Users, Globe } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers, Download, Eye, Check, Users, Globe, Filter, Calendar, UserCheck } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
@@ -52,6 +52,7 @@ const emptyForm = {
   notes: '',
   country: '',
   assignment_type: '',
+  sales_director_id: '',
 };
 
 function ProspectTasksSection({ prospectId }) {
@@ -186,6 +187,7 @@ export default function Prospects() {
   const [teams, setTeams] = useState([]);
   const [tagOptions, setTagOptions] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const [asdMembers, setAsdMembers] = useState([]); // Associate Sales Directors
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingProspect, setEditingProspect] = useState(null);
@@ -199,23 +201,31 @@ export default function Prospects() {
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const tagInputRef = useRef(null);
 
+  // Filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterAsd, setFilterAsd] = useState('');
+
   const lblStyle = { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 4 };
   const valStyle = { fontSize: 13, color: 'var(--text-primary)', margin: 0 };
 
   const loadData = useCallback(async () => {
     try {
-      const [prospectsRes, industriesRes, teamsRes, tagsRes, usersRes] = await Promise.all([
+      const [prospectsRes, industriesRes, teamsRes, tagsRes, usersRes, bizRes] = await Promise.all([
         api.get('/prospects'),
         api.get('/industries').catch(() => ({ data: { industries: [] } })),
         api.get('/teams').catch(() => ({ data: { teams: [] } })),
         api.get('/tags').catch(() => ({ data: { tags: [] } })),
         api.get('/users').catch(() => ({ data: { users: [] } })),
+        api.get('/business-team').catch(() => ({ data: [] })),
       ]);
       setProspects(prospectsRes.data || []);
       setIndustries(industriesRes.data.industries || []);
       setTeams(teamsRes.data.teams || []);
       setTagOptions(tagsRes.data.tags || []);
       setAllUsers((usersRes.data.users || []).filter(u => ['pre_sales_manager','pre_sales_executive'].includes(u.role_name)));
+      setAsdMembers((bizRes.data || []).filter(m => m.role === 'asd'));
     } catch {
       toast.error('Failed to load prospects');
     } finally {
@@ -250,6 +260,7 @@ export default function Prospects() {
       notes: prospect.notes || '',
       country: prospect.country || '',
       assignment_type: (prospect.team_assignments || []).length > 0 ? 'team' : (prospect.member_assignments || []).length > 0 ? 'member' : '',
+      sales_director_id: prospect.sales_director_id ? String(prospect.sales_director_id) : '',
     });
     setTagInput('');
     setShowModal(true);
@@ -277,6 +288,7 @@ export default function Prospects() {
       const payload = {
         ...form,
         estimated_value: form.estimated_value ? parseFloat(form.estimated_value) : null,
+        sales_director_id: form.sales_director_id ? parseInt(form.sales_director_id) : null,
       };
       if (editingProspect) {
         await api.put(`/prospects/${editingProspect.id}`, payload);
@@ -336,6 +348,24 @@ export default function Prospects() {
     </div>
   );
 
+  // Apply filters
+  const filteredProspects = prospects.filter(p => {
+    if (filterDateFrom) {
+      const created = new Date(p.created_at);
+      if (created < new Date(filterDateFrom)) return false;
+    }
+    if (filterDateTo) {
+      const created = new Date(p.created_at);
+      const to = new Date(filterDateTo);
+      to.setHours(23, 59, 59, 999);
+      if (created > to) return false;
+    }
+    if (filterAsd && String(p.sales_director_id) !== filterAsd) return false;
+    return true;
+  });
+
+  const activeFilterCount = [filterDateFrom, filterDateTo, filterAsd].filter(Boolean).length;
+
   return (
     <>
       <Header title="Probable Prospects" subtitle="Manage and track potential opportunities before promoting to the pipeline" />
@@ -343,12 +373,25 @@ export default function Prospects() {
 
         <div className="users-toolbar">
           <div className="users-stats">
-            <span className="stat-pill">{prospects.length} prospect{prospects.length !== 1 ? 's' : ''}</span>
+            <span className="stat-pill">{filteredProspects.length} of {prospects.length} prospect{prospects.length !== 1 ? 's' : ''}</span>
           </div>
+          <button
+            className={`btn btn-sm ${showFilters || activeFilterCount > 0 ? 'btn-secondary' : 'btn-ghost'}`}
+            onClick={() => setShowFilters(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Filter size={14} />
+            Filters
+            {activeFilterCount > 0 && (
+              <span style={{ background: 'var(--primary)', color: 'white', borderRadius: '50%', width: 16, height: 16, fontSize: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
           <button
             className="btn btn-secondary btn-sm"
             onClick={() => {
-              const data = prospects.map(p => ({
+              const data = filteredProspects.map(p => ({
                 'Title': p.title,
                 'Company': p.company_name || '',
                 'Contact Name': p.contact_name || '',
@@ -359,6 +402,7 @@ export default function Prospects() {
                 'Estimated Value': p.estimated_value || '',
                 'Country': p.country || '',
                 'Notes': p.notes || '',
+                'Assoc. Sales Director': p.sales_director_name || '',
                 'Created': p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
               }));
               exportToExcel(data, 'prospects');
@@ -371,6 +415,53 @@ export default function Prospects() {
             <Plus size={14} /> Add Prospect
           </button>
         </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="kanban-filter-panel" style={{ marginBottom: 16 }}>
+            <div className="filter-group">
+              <label className="filter-label"><Calendar size={12} /> Created Date Range</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  style={{ width: 150 }}
+                  value={filterDateFrom}
+                  onChange={e => setFilterDateFrom(e.target.value)}
+                />
+                <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>to</span>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  style={{ width: 150 }}
+                  value={filterDateTo}
+                  onChange={e => setFilterDateTo(e.target.value)}
+                />
+              </div>
+            </div>
+            {asdMembers.length > 0 && (
+              <div className="filter-group">
+                <label className="filter-label"><UserCheck size={12} /> Assoc. Sales Director</label>
+                <div className="filter-chips">
+                  <button className={`filter-chip ${filterAsd === '' ? 'active' : ''}`} onClick={() => setFilterAsd('')}>All</button>
+                  <button className={`filter-chip ${filterAsd === 'none' ? 'active' : ''}`} onClick={() => setFilterAsd(filterAsd === 'none' ? '' : 'none')}>Not Assigned</button>
+                  {asdMembers.map(m => (
+                    <button
+                      key={m.id}
+                      className={`filter-chip ${filterAsd === String(m.id) ? 'active' : ''}`}
+                      onClick={() => setFilterAsd(filterAsd === String(m.id) ? '' : String(m.id))}
+                    >{m.name}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {activeFilterCount > 0 && (
+              <button className="btn btn-ghost btn-sm filter-clear-btn" onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); setFilterAsd(''); }}>
+                <X size={12} /> Clear filters
+              </button>
+            )}
+          </div>
+        )}
 
         {prospects.length === 0 ? (
           <div className="prospects-empty">
@@ -396,13 +487,14 @@ export default function Prospects() {
                   <th>Contact</th>
                   <th>Priority</th>
                   <th>Est. Value</th>
+                  <th>ASD</th>
                   <th>Country</th>
                   <th>Created</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {prospects.map(prospect => {
+                {filteredProspects.map(prospect => {
                   const pColor = PRIORITY_COLORS[prospect.priority] || '#718096';
                   return (
                     <tr key={prospect.id}>
@@ -442,6 +534,11 @@ export default function Prospects() {
                         </span>
                       </td>
                       <td style={{ fontWeight: 500, color: 'var(--success)' }}>{formatValue(prospect.estimated_value)}</td>
+                      <td>
+                        {prospect.sales_director_name
+                          ? <span style={{ fontSize: 12, background: '#6b5ea818', color: '#6b5ea8', padding: '2px 8px', borderRadius: 20, border: '1px solid #6b5ea830', fontWeight: 600, whiteSpace: 'nowrap' }}>{prospect.sales_director_name}</span>
+                          : <span className="user-email">—</span>}
+                      </td>
                       <td>{prospect.country || <span className="user-email">—</span>}</td>
                       <td className="last-login">{formatDate(prospect.created_at)}</td>
                       <td>
@@ -695,6 +792,23 @@ export default function Prospects() {
                       />
                     </div>
 
+                    {/* Associate Sales Director */}
+                    {asdMembers.length > 0 && (
+                      <div className="form-group">
+                        <label className="form-label"><UserCheck size={12} /> Associate Sales Director</label>
+                        <select
+                          className="form-control"
+                          value={form.sales_director_id}
+                          onChange={e => handleChange('sales_director_id', e.target.value)}
+                        >
+                          <option value="">— Not assigned —</option>
+                          {asdMembers.map(m => (
+                            <option key={m.id} value={String(m.id)}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     {/* Assignment - Teams OR Members */}
                     <div className="form-group">
                       <label className="form-label">Assignment</label>
@@ -850,6 +964,12 @@ export default function Prospects() {
                 <div><label style={lblStyle}>Source</label><p style={valStyle}>{viewingProspect.source || '—'}</p></div>
                 <div><label style={lblStyle}>Estimated Value</label><p style={valStyle}>{formatValue(viewingProspect.estimated_value)}</p></div>
                 <div><label style={lblStyle}>Country</label><p style={valStyle}>{viewingProspect.country || '—'}</p></div>
+                <div>
+                  <label style={lblStyle}>Associate Sales Director</label>
+                  {viewingProspect.sales_director_name
+                    ? <span style={{ fontSize: 12, background: '#6b5ea818', color: '#6b5ea8', padding: '3px 10px', borderRadius: 20, border: '1px solid #6b5ea830', fontWeight: 600 }}>{viewingProspect.sales_director_name}</span>
+                    : <p style={valStyle}>—</p>}
+                </div>
                 {(viewingProspect.industry_assignments || []).length > 0 && (
                   <div style={{ gridColumn: '1/-1' }}>
                     <label style={lblStyle}>Industries</label>

@@ -232,7 +232,7 @@ function MemberModal({ member, members, onClose, onSave }) {
                 {errors.name && <span className="field-error">{errors.name}</span>}
               </div>
 
-              <div className="form-group">
+              <div className="form-group full">
                 <label>Phone <span className="req">*</span></label>
                 <PhoneInput
                   value={form.phone}
@@ -242,7 +242,7 @@ function MemberModal({ member, members, onClose, onSave }) {
                 {errors.phone && <span className="field-error">{errors.phone}</span>}
               </div>
 
-              <div className="form-group">
+              <div className="form-group full">
                 <label>Official Email <span className="req">*</span></label>
                 <input
                   className={`form-input ${errors.email ? 'input-error' : ''}`}

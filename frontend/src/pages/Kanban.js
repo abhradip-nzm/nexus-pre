@@ -7,7 +7,7 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare, SlidersHorizontal, Download, LayoutGrid, List, User, Calendar, Tag, Users, Briefcase } from 'lucide-react';
+import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare, SlidersHorizontal, Download, LayoutGrid, List, User, Calendar, Tag, Users, Briefcase, CalendarRange } from 'lucide-react';
 import Header from '../components/layout/Header';
 import StoryModal from '../components/kanban/StoryModal';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
@@ -255,6 +255,10 @@ export default function KanbanBoard() {
     has_incomplete_tasks: false,
     assigned_team: [],
     assigned_member: [],
+    created_from: '',
+    created_to: '',
+    effective_start_from: '',
+    effective_start_to: '',
   });
   const [showFilters, setShowFilters] = useState(false);
   const [filterOptions, setFilterOptions] = useState({ teams: [], industries: [], tags: [] });
@@ -468,6 +472,20 @@ export default function KanbanBoard() {
         return filters.assigned_member.some(id => id !== 'none' && memberIds.includes(String(id)));
       });
     }
+    if (filters.created_from) {
+      colStories = colStories.filter(s => new Date(s.created_at) >= new Date(filters.created_from));
+    }
+    if (filters.created_to) {
+      const to = new Date(filters.created_to); to.setHours(23, 59, 59, 999);
+      colStories = colStories.filter(s => new Date(s.created_at) <= to);
+    }
+    if (filters.effective_start_from) {
+      colStories = colStories.filter(s => s.effective_start_date && new Date(s.effective_start_date) >= new Date(filters.effective_start_from));
+    }
+    if (filters.effective_start_to) {
+      const to = new Date(filters.effective_start_to); to.setHours(23, 59, 59, 999);
+      colStories = colStories.filter(s => s.effective_start_date && new Date(s.effective_start_date) <= to);
+    }
     return colStories;
   };
 
@@ -486,6 +504,10 @@ export default function KanbanBoard() {
     filters.has_incomplete_tasks,
     filters.assigned_team.length > 0,
     filters.assigned_member.length > 0,
+    filters.created_from,
+    filters.created_to,
+    filters.effective_start_from,
+    filters.effective_start_to,
   ].filter(Boolean).length;
 
   // All filtered stories across all columns (used in list view)
@@ -657,10 +679,50 @@ export default function KanbanBoard() {
                 </div>
               </div>
             )}
+            <div className="filter-group">
+              <label className="filter-label"><Calendar size={12} style={{ display: 'inline', marginRight: 4 }} />Created Date</label>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  style={{ width: 140, fontSize: 12 }}
+                  value={filters.created_from}
+                  onChange={e => setFilters(f => ({ ...f, created_from: e.target.value }))}
+                />
+                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  style={{ width: 140, fontSize: 12 }}
+                  value={filters.created_to}
+                  onChange={e => setFilters(f => ({ ...f, created_to: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label"><Calendar size={12} style={{ display: 'inline', marginRight: 4 }} />Effective Start Date</label>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  style={{ width: 140, fontSize: 12 }}
+                  value={filters.effective_start_from}
+                  onChange={e => setFilters(f => ({ ...f, effective_start_from: e.target.value }))}
+                />
+                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  style={{ width: 140, fontSize: 12 }}
+                  value={filters.effective_start_to}
+                  onChange={e => setFilters(f => ({ ...f, effective_start_to: e.target.value }))}
+                />
+              </div>
+            </div>
             {activeFilterCount > 0 && (
               <button
                 className="btn btn-ghost btn-sm filter-clear-btn"
-                onClick={() => setFilters({ priority: '', has_incomplete_tasks: false, assigned_team: [], assigned_member: [] })}
+                onClick={() => setFilters({ priority: '', has_incomplete_tasks: false, assigned_team: [], assigned_member: [], created_from: '', created_to: '', effective_start_from: '', effective_start_to: '' })}
               >
                 <X size={12} /> Clear filters
               </button>

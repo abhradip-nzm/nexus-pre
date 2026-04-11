@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, X, Check, RefreshCw, KeyRound, Copy, Download, Pencil, Eye, ToggleLeft, ToggleRight } from 'lucide-react';
 import { formatRoleName } from '../utils/helpers';
 import Header from '../components/layout/Header';
+import PhoneInput from '../components/PhoneInput';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import { exportToExcel } from '../utils/exportExcel';
@@ -57,7 +58,7 @@ export default function AdminUsers() {
   const [activeTab, setActiveTab] = useState('info');
   const [overrides, setOverrides] = useState({});
   const [roleDefaults, setRoleDefaults] = useState({});
-  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', role_id: '', password: '' });
+  const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '', role_id: '', password: '' });
   const [newPasswordModal, setNewPasswordModal] = useState(null); // { name, password }
 
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function AdminUsers() {
 
   const openCreate = () => {
     setEditUser(null);
-    setForm({ first_name: '', last_name: '', email: '', role_id: roles[0]?.id || '', password: '' });
+    setForm({ first_name: '', last_name: '', email: '', phone: '', role_id: roles[0]?.id || '', password: '' });
     setActiveTab('info');
     setOverrides({});
     setRoleDefaults({});
@@ -90,7 +91,7 @@ export default function AdminUsers() {
 
   const openEdit = async (user) => {
     setEditUser(user);
-    setForm({ first_name: user.first_name, last_name: user.last_name, email: user.email, role_id: user.role_id, password: '' });
+    setForm({ first_name: user.first_name, last_name: user.last_name, email: user.email, phone: user.phone || '', role_id: user.role_id, password: '' });
     setActiveTab('info');
     setShowModal(true);
 
@@ -122,12 +123,20 @@ export default function AdminUsers() {
           first_name: form.first_name,
           last_name: form.last_name,
           email: form.email,
+          phone: form.phone || null,
           role_id: form.role_id,
         });
         toast.success('User updated');
       } else {
         if (!form.password) return toast.error('Password is required');
-        await api.post('/users', form);
+        await api.post('/users', {
+          first_name: form.first_name,
+          last_name: form.last_name,
+          email: form.email,
+          phone: form.phone || null,
+          role_id: form.role_id,
+          password: form.password,
+        });
         toast.success('User created');
       }
       setShowModal(false);
@@ -244,6 +253,7 @@ export default function AdminUsers() {
                 'First Name': u.first_name,
                 'Last Name': u.last_name,
                 'Email': u.email,
+                'Phone': u.phone || '',
                 'Role': formatRoleName(u.role_name),
                 'Status': u.is_active ? 'Active' : 'Inactive',
                 'Created': u.created_at ? new Date(u.created_at).toLocaleDateString() : '',
@@ -266,6 +276,7 @@ export default function AdminUsers() {
               <tr>
                 <th>User</th>
                 <th>Role</th>
+                <th>Phone</th>
                 <th>Status</th>
                 <th>Last Login</th>
                 <th></th>
@@ -293,6 +304,7 @@ export default function AdminUsers() {
                       {formatRoleName(user.role_name)}
                     </span>
                   </td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{user.phone || <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
                   <td>
                     <span className={`status-pill ${user.is_active ? 'active' : 'inactive'}`}>
                       {user.is_active ? 'Active' : 'Inactive'}
@@ -390,6 +402,14 @@ export default function AdminUsers() {
                   <div className="form-group full">
                     <label>Email</label>
                     <input className="form-input" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+                  </div>
+                  <div className="form-group full">
+                    <label>Phone Number</label>
+                    <PhoneInput
+                      value={form.phone}
+                      onChange={val => setForm(p => ({ ...p, phone: val }))}
+                      placeholder="Enter phone number"
+                    />
                   </div>
                   <div className="form-group">
                     <label>Role</label>
