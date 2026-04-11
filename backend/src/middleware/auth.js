@@ -49,6 +49,7 @@ const requireRole = (...roles) => {
 };
 
 const requireSystemAdmin = requireRole('system_admin');
+const requireAdmin = requireRole('system_admin', 'super_admin');
 const requireManager = requireRole('system_admin', 'super_admin', 'pre_sales_manager');
 
 const checkPermission = (module, action) => {
@@ -91,4 +92,4 @@ const checkPermission = (module, action) => {
   };
 };
 
-module.exports = { authenticate, requireRole, requireSystemAdmin, requireManager, checkPermission };
+module.exports = { authenticate, requireRole, requireSystemAdmin, requireAdmin, requireManager, checkPermission };

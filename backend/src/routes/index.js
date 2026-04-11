@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, requireSystemAdmin, requireManager } = require('../middleware/auth');
+const { authenticate, requireSystemAdmin, requireAdmin, requireManager } = require('../middleware/auth');
 
 // Auth
 const { login, getMe, changePassword } = require('../controllers/authController');
@@ -176,17 +176,17 @@ router.delete('/prospect-tasks/:taskId', authenticate, deleteProspectTask);
 router.get('/prospects/:id/assignable-users', authenticate, getProspectAssignableUsers);
 
 // Transition Forms (Admin management)
-const { getForms, createForm, updateForm, deleteForm, getFormFields, addField, updateField, deleteField, reorderFields, getFormForTransition, submitFormResponse, getStoryFormResponses } = require('./controllers/transitionFormController');
+const { getForms, createForm, updateForm, deleteForm, getFormFields, addField, updateField, deleteField, reorderFields, getFormForTransition, submitFormResponse, getStoryFormResponses } = require('../controllers/transitionFormController');
 router.get('/transition-forms/for-transition', authenticate, getFormForTransition);
-router.get('/transition-forms', authenticate, requireManager, getForms);
-router.post('/transition-forms', authenticate, requireSystemAdmin, createForm);
-router.put('/transition-forms/fields/:fieldId', authenticate, requireSystemAdmin, updateField);
-router.delete('/transition-forms/fields/:fieldId', authenticate, requireSystemAdmin, deleteField);
-router.put('/transition-forms/:id', authenticate, requireSystemAdmin, updateForm);
-router.delete('/transition-forms/:id', authenticate, requireSystemAdmin, deleteForm);
-router.get('/transition-forms/:id/fields', authenticate, requireManager, getFormFields);
-router.post('/transition-forms/:id/fields', authenticate, requireSystemAdmin, addField);
-router.put('/transition-forms/:id/fields/reorder', authenticate, requireSystemAdmin, reorderFields);
+router.get('/transition-forms', authenticate, requireAdmin, getForms);
+router.post('/transition-forms', authenticate, requireAdmin, createForm);
+router.put('/transition-forms/fields/:fieldId', authenticate, requireAdmin, updateField);
+router.delete('/transition-forms/fields/:fieldId', authenticate, requireAdmin, deleteField);
+router.put('/transition-forms/:id', authenticate, requireAdmin, updateForm);
+router.delete('/transition-forms/:id', authenticate, requireAdmin, deleteForm);
+router.get('/transition-forms/:id/fields', authenticate, requireAdmin, getFormFields);
+router.post('/transition-forms/:id/fields', authenticate, requireAdmin, addField);
+router.put('/transition-forms/:id/fields/reorder', authenticate, requireAdmin, reorderFields);
 router.post('/transition-forms/:id/responses', authenticate, submitFormResponse);
 router.get('/stories/:storyId/form-responses', authenticate, getStoryFormResponses);
 
