@@ -25,6 +25,7 @@ app.use(cors({
     'https://unique-duckanoo-fe44b4.netlify.app',
     'https://nexuspre.com',
     'https://www.nexuspre.com',
+    // api.nexuspre.com is not an origin — /api/* is proxied by Netlify, origin is always nexuspre.com
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

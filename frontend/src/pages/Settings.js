@@ -239,7 +239,7 @@ function IntegrationsSettings({ settings, onSave, saving, isAdmin }) {
 
   const apiBase = window.location.hostname === 'localhost'
     ? 'http://localhost:4000'
-    : 'https://api.nexuspre.com';
+    : window.location.origin;
   const webhookUrl = `${apiBase}/api/webhooks/whatsapp`;
   const msRedirectUri = `${apiBase}/api/auth/microsoft/callback`;
 
@@ -453,21 +453,21 @@ function DeploymentInfo() {
   const rows = [
     {
       icon: <Globe size={16} />,
-      label: 'Frontend URL',
+      label: 'Application URL',
       value: isProduction ? 'https://nexuspre.com' : 'http://localhost:3000',
       note: isProduction ? 'Hosted on Netlify' : 'Local CRA dev server',
     },
     {
       icon: <Server size={16} />,
       label: 'API Base URL',
-      value: isProduction ? 'https://api.nexuspre.com' : 'http://localhost:4000',
-      note: isProduction ? 'Hosted on Render' : 'Local Express server',
+      value: isProduction ? 'https://nexuspre.com/api' : 'http://localhost:4000/api',
+      note: isProduction ? 'Proxied via Netlify → Render (nexus-pre.onrender.com)' : 'Local Express server',
     },
     {
       icon: <Layers size={16} />,
       label: 'WhatsApp Webhook',
       value: isProduction
-        ? 'https://api.nexuspre.com/api/webhooks/whatsapp'
+        ? 'https://nexuspre.com/api/webhooks/whatsapp'
         : 'http://localhost:4000/api/webhooks/whatsapp',
       note: 'Paste this into Meta Business → WhatsApp → Configuration',
     },
@@ -475,7 +475,7 @@ function DeploymentInfo() {
       icon: <Layers size={16} />,
       label: 'Microsoft Redirect URI',
       value: isProduction
-        ? 'https://api.nexuspre.com/api/auth/microsoft/callback'
+        ? 'https://nexuspre.com/api/auth/microsoft/callback'
         : 'http://localhost:4000/api/auth/microsoft/callback',
       note: 'Add this to Azure App Registration → Authentication',
     },
@@ -509,33 +509,26 @@ function DeploymentInfo() {
       </div>
 
       <div className="setup-guide" style={{ marginTop: 24 }}>
-        <h4><Info size={14} /> DNS Configuration</h4>
+        <h4><Info size={14} /> Architecture</h4>
         <div className="setup-steps">
           <div className="setup-step">
             <span className="step-num">1</span>
             <div>
-              <strong>nexuspre.com → Netlify</strong>
-              <p>In GoDaddy DNS, add an <strong>A record</strong>: <code>@</code> → <code>75.2.60.5</code> and a <strong>CNAME</strong>: <code>www</code> → <code>unique-duckanoo-fe44b4.netlify.app</code></p>
+              <strong>nexuspre.com → Netlify (frontend + API proxy)</strong>
+              <p>In GoDaddy DNS: <strong>A record</strong> <code>@</code> → <code>75.2.60.5</code> and <strong>CNAME</strong> <code>www</code> → <code>unique-duckanoo-fe44b4.netlify.app</code></p>
             </div>
           </div>
           <div className="setup-step">
             <span className="step-num">2</span>
             <div>
-              <strong>api.nexuspre.com → Render</strong>
-              <p>In GoDaddy DNS, add a <strong>CNAME</strong>: <code>api</code> → your Render service hostname (e.g. <code>nexus-pre-api.onrender.com</code>)</p>
+              <strong>nexuspre.com/api/* → Render (proxied by Netlify)</strong>
+              <p>All <code>/api/*</code> requests are automatically proxied by Netlify to <code>nexus-pre.onrender.com</code>. No subdomain or extra DNS record needed.</p>
             </div>
           </div>
           <div className="setup-step">
             <span className="step-num">3</span>
             <div>
-              <strong>Netlify — set environment variable</strong>
-              <p>In Netlify → Site configuration → Environment variables, add: <code>REACT_APP_API_URL</code> = <code>https://api.nexuspre.com</code></p>
-            </div>
-          </div>
-          <div className="setup-step">
-            <span className="step-num">4</span>
-            <div>
-              <strong>Render — set environment variable</strong>
+              <strong>Render — environment variable</strong>
               <p>In Render → your backend service → Environment, set: <code>FRONTEND_URL</code> = <code>https://nexuspre.com</code></p>
             </div>
           </div>
