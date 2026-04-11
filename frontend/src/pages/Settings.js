@@ -237,9 +237,8 @@ function IntegrationsSettings({ settings, onSave, saving, isAdmin }) {
   const [waEnabled, setWaEnabled] = useState(settings.whatsapp_enabled?.value === 'true');
   const [waGroups, setWaGroups] = useState(settings.whatsapp_group_ids?.value || '');
 
-  const apiBase = window.location.hostname === 'localhost'
-    ? 'http://localhost:4000'
-    : window.location.origin;
+  const isLocal = window.location.hostname === 'localhost';
+  const apiBase = isLocal ? 'http://localhost:4000' : window.location.origin;
   const webhookUrl = `${apiBase}/api/webhooks/whatsapp`;
   const msRedirectUri = `${apiBase}/api/auth/microsoft/callback`;
 
@@ -322,21 +321,36 @@ function IntegrationsSettings({ settings, onSave, saving, isAdmin }) {
               <div className="setup-step">
                 <span className="step-num">4</span>
                 <div>
-                  <strong>Copy credentials to your .env file</strong>
-                  <p>Under <strong>Overview</strong> copy the Application ID and Tenant ID. Under <strong>Certificates & secrets → New client secret</strong> create a secret and copy the value.</p>
-                  <div className="env-block">
-                    <CodeLine value="MS_CLIENT_ID=your-application-id" />
-                    <CodeLine value="MS_CLIENT_SECRET=your-client-secret-value" />
-                    <CodeLine value="MS_TENANT_ID=your-tenant-id" />
-                    <CodeLine value={`MS_REDIRECT_URI=${msRedirectUri}`} />
-                  </div>
+                  <strong>{isLocal ? 'Copy credentials to your .env file' : 'Add credentials to Render environment variables'}</strong>
+                  <p>Under <strong>Overview</strong> copy the Application ID and Tenant ID. Under <strong>Certificates &amp; secrets → New client secret</strong> create a secret and copy the value.</p>
+                  {isLocal ? (
+                    <div className="env-block">
+                      <CodeLine value="MS_CLIENT_ID=your-application-id" />
+                      <CodeLine value="MS_CLIENT_SECRET=your-client-secret-value" />
+                      <CodeLine value="MS_TENANT_ID=your-tenant-id" />
+                      <CodeLine value={`MS_REDIRECT_URI=${msRedirectUri}`} />
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ marginTop: 6 }}>Go to <strong>Render → nexus-pre-api → Environment</strong> and add these variables:</p>
+                      <div className="env-block">
+                        <CodeLine value="MS_CLIENT_ID=your-application-id" />
+                        <CodeLine value="MS_CLIENT_SECRET=your-client-secret-value" />
+                        <CodeLine value="MS_TENANT_ID=your-tenant-id" />
+                        <CodeLine value={`MS_REDIRECT_URI=${msRedirectUri}`} />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="setup-step">
                 <span className="step-num">5</span>
                 <div>
-                  <strong>Restart the backend</strong>
-                  <p>After saving the <code>.env</code> file, restart the backend server. Each user will then be prompted to connect their Microsoft account on first login.</p>
+                  <strong>{isLocal ? 'Restart the backend' : 'Redeploy the backend on Render'}</strong>
+                  {isLocal
+                    ? <p>After saving the <code>.env</code> file, restart the backend server. Each user will then be prompted to connect their Microsoft account on first login.</p>
+                    : <p>After saving the environment variables in Render, trigger a manual deploy: <strong>Render → nexus-pre-api → Manual Deploy → Deploy latest commit</strong>. Each user will then be prompted to connect their Microsoft account on first login.</p>
+                  }
                 </div>
               </div>
             </div>
@@ -393,7 +407,7 @@ function IntegrationsSettings({ settings, onSave, saving, isAdmin }) {
                     </div>
                     <div>
                       <span className="env-label">Verify Token:</span>
-                      <CodeLine value="WHATSAPP_VERIFY_TOKEN (set this in .env)" />
+                      <CodeLine value="any-secret-string-you-choose (must match WHATSAPP_VERIFY_TOKEN)" />
                     </div>
                   </div>
                   <p style={{ marginTop: 8 }}>Subscribe to the <strong>messages</strong> webhook field.</p>
@@ -402,13 +416,15 @@ function IntegrationsSettings({ settings, onSave, saving, isAdmin }) {
               <div className="setup-step">
                 <span className="step-num">3</span>
                 <div>
-                  <strong>Add credentials to .env</strong>
+                  <strong>{isLocal ? 'Add credentials to .env' : 'Add credentials to Render environment variables'}</strong>
+                  {!isLocal && <p style={{ marginBottom: 6 }}>Go to <strong>Render → nexus-pre-api → Environment</strong> and add:</p>}
                   <div className="env-block">
                     <CodeLine value="WHATSAPP_VERIFY_TOKEN=your-custom-verify-token" />
                     <CodeLine value="WHATSAPP_ACCESS_TOKEN=your-permanent-access-token" />
                     <CodeLine value="WHATSAPP_PHONE_NUMBER_ID=your-phone-number-id" />
                   </div>
-                  <p style={{ marginTop: 8 }}>The <strong>Access Token</strong> and <strong>Phone Number ID</strong> are found under <strong>WhatsApp → API Setup</strong>.</p>
+                  <p style={{ marginTop: 8 }}>The <strong>Access Token</strong> and <strong>Phone Number ID</strong> are found under <strong>WhatsApp → API Setup</strong>. The <strong>Verify Token</strong> is any string you choose — use the same value in both Meta and Render.</p>
+                  {!isLocal && <p style={{ marginTop: 6 }}>After saving, trigger a <strong>Manual Deploy</strong> on Render.</p>}
                 </div>
               </div>
               <div className="setup-step">
