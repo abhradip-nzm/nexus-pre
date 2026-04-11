@@ -105,7 +105,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { first_name, last_name, phone, role_id, is_active, whatsapp_number } = req.body;
+    const { first_name, last_name, phone, role_id, is_active, whatsapp_number, avatar_url } = req.body;
 
     // Non-admins can only update their own profile (limited fields)
     if (req.user.role_name !== 'system_admin' && req.user.id !== id) {
@@ -120,6 +120,7 @@ const updateUser = async (req, res) => {
     if (last_name) { updates.push(`last_name = $${idx++}`); values.push(last_name); }
     if (phone !== undefined) { updates.push(`phone = $${idx++}`); values.push(phone); }
     if (whatsapp_number !== undefined) { updates.push(`whatsapp_number = $${idx++}`); values.push(whatsapp_number); }
+    if (avatar_url !== undefined) { updates.push(`avatar_url = $${idx++}`); values.push(avatar_url); }
 
     // Only system admin can change roles and active status
     if (req.user.role_name === 'system_admin') {

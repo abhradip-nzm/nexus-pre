@@ -1,6 +1,36 @@
 const express = require('express');
-const router = express.Router();
+const multer  = require('multer');
+const router  = express.Router();
 const { authenticate, requireSystemAdmin, requireAdmin, requireManager } = require('../middleware/auth');
+const { uploadFile, ALLOWED_TYPES, MAX_SIZE_BYTES } = require('../utils/storage');
+
+// Multer — memory storage, 10 MB limit, allowed types only
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_SIZE_BYTES },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_TYPES[file.mimetype]) return cb(null, true);
+    cb(new Error(`File type not allowed: ${file.mimetype}`));
+  },
+});
+
+// File upload endpoint — returns { url, key }
+router.post('/upload', authenticate, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file provided' });
+    const folder = req.body.folder || 'uploads';
+    const { url, key } = await uploadFile(
+      req.file.buffer,
+      folder,
+      req.file.originalname,
+      req.file.mimetype
+    );
+    res.json({ url, key });
+  } catch (err) {
+    console.error('[Upload]', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
 
 // Auth
 const { login, getMe, changePassword } = require('../controllers/authController');

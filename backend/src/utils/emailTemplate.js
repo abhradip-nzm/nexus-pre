@@ -340,7 +340,7 @@ function buildEmail(opts = {}) {
                      style="margin-bottom:16px;">
                 <tr>
                   <td style="padding:0 10px;">
-                    <a href="#" style="font-size:12px; color:${BRAND.primary};
+                    <a href="https://nexuspre.com/dashboard" style="font-size:12px; color:${BRAND.primary};
                                        text-decoration:none; font-weight:600;
                                        font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
                       Dashboard
@@ -348,7 +348,7 @@ function buildEmail(opts = {}) {
                   </td>
                   <td style="padding:0 10px; color:${BRAND.border}; font-size:12px;">|</td>
                   <td style="padding:0 10px;">
-                    <a href="#" style="font-size:12px; color:${BRAND.primary};
+                    <a href="https://nexuspre.com" style="font-size:12px; color:${BRAND.primary};
                                        text-decoration:none; font-weight:600;
                                        font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
                       Help &amp; Support
@@ -356,7 +356,7 @@ function buildEmail(opts = {}) {
                   </td>
                   <td style="padding:0 10px; color:${BRAND.border}; font-size:12px;">|</td>
                   <td style="padding:0 10px;">
-                    <a href="#" style="font-size:12px; color:${BRAND.primary};
+                    <a href="https://nexuspre.com" style="font-size:12px; color:${BRAND.primary};
                                        text-decoration:none; font-weight:600;
                                        font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
                       Privacy Policy

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Pagination from '../components/common/Pagination';
-import { Plus, Search, X, Check, RefreshCw, KeyRound, Copy, Download, Pencil, Eye, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Search, X, Check, RefreshCw, KeyRound, Copy, Download, Pencil, Eye, ToggleLeft, ToggleRight, Camera } from 'lucide-react';
 import { formatRoleName, formatDate, formatDateTime, timeAgo } from '../utils/helpers';
 import Header from '../components/layout/Header';
 import PhoneInput from '../components/PhoneInput';
@@ -88,7 +88,7 @@ export default function AdminUsers() {
 
   const openCreate = () => {
     setEditUser(null);
-    setForm({ first_name: '', last_name: '', email: '', phone: '', role_id: roles[0]?.id || '', password: '' });
+    setForm({ first_name: '', last_name: '', email: '', phone: '', role_id: roles[0]?.id || '', password: '', avatar_url: '' });
     setActiveTab('info');
     setOverrides({});
     setRoleDefaults({});
@@ -97,7 +97,7 @@ export default function AdminUsers() {
 
   const openEdit = async (user) => {
     setEditUser(user);
-    setForm({ first_name: user.first_name, last_name: user.last_name, email: user.email, phone: user.phone || '', role_id: user.role_id, password: '' });
+    setForm({ first_name: user.first_name, last_name: user.last_name, email: user.email, phone: user.phone || '', role_id: user.role_id, password: '', avatar_url: user.avatar_url || '' });
     setActiveTab('info');
     setShowModal(true);
 
@@ -131,6 +131,7 @@ export default function AdminUsers() {
           email: form.email,
           phone: form.phone || null,
           role_id: form.role_id,
+          avatar_url: form.avatar_url || null,
         });
         toast.success('User updated');
       } else {
@@ -298,9 +299,11 @@ export default function AdminUsers() {
                     <div className="user-cell">
                       <div
                         className="avatar"
-                        style={{ background: ROLE_COLORS[user.role_name] || '#3e72ae', color: 'white', fontSize: '12px' }}
+                        style={{ background: ROLE_COLORS[user.role_name] || '#3e72ae', color: 'white', fontSize: '12px', overflow: 'hidden', padding: 0 }}
                       >
-                        {getInitials(user.first_name, user.last_name)}
+                        {user.avatar_url
+                          ? <img src={user.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
+                          : getInitials(user.first_name, user.last_name)}
                       </div>
                       <div>
                         <div className="user-name">{user.first_name} {user.last_name}</div>
@@ -411,6 +414,14 @@ export default function AdminUsers() {
             <div className="modal-body">
               {activeTab === 'info' ? (
                 <div className="form-grid">
+                  <div className="form-group full" style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                    <AvatarUpload
+                      value={form.avatar_url}
+                      initials={getInitials(form.first_name, form.last_name)}
+                      color={ROLE_COLORS[roles.find(r => r.id == form.role_id)?.name] || '#3e72ae'}
+                      onChange={url => setForm(p => ({ ...p, avatar_url: url }))}
+                    />
+                  </div>
                   <div className="form-group">
                     <label>First Name</label>
                     <input className="form-input" value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} />
@@ -495,5 +506,58 @@ export default function AdminUsers() {
         </div>
       )}
     </>
+  );
+}
+
+function AvatarUpload({ value, initials, color, onChange }) {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('folder', 'avatars');
+      const res = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      onChange(res.data.url);
+      toast.success('Avatar uploaded');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  return (
+    <div className="avatar-upload-wrap">
+      <div
+        className="avatar avatar-upload-preview"
+        style={{ background: color, color: 'white', fontSize: '18px', overflow: 'hidden', padding: 0 }}
+      >
+        {value
+          ? <img src={value} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} />
+          : initials}
+      </div>
+      <button
+        type="button"
+        className="avatar-upload-btn"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        title="Upload photo"
+      >
+        <Camera size={14} />
+        {uploading ? 'Uploading…' : 'Upload Photo'}
+      </button>
+      {value && (
+        <button type="button" className="avatar-remove-btn" onClick={() => onChange('')} title="Remove photo">
+          <X size={12} /> Remove
+        </button>
+      )}
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleFile} />
+    </div>
   );
 }

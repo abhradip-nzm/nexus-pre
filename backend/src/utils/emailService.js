@@ -16,10 +16,28 @@ function getTransporter() {
   if (_transporter) return _transporter;
 
   const {
+    // Brevo-specific (preferred)
+    BREVO_SMTP_KEY, BREVO_SMTP_USER,
+    // Generic SMTP fallback
     SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS,
     EMAIL_FROM_NAME, EMAIL_FROM_ADDRESS,
   } = process.env;
 
+  // Brevo SMTP (preferred)
+  if (BREVO_SMTP_KEY) {
+    _transporter = nodemailer.createTransport({
+      host: 'smtp-relay.brevo.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: BREVO_SMTP_USER || EMAIL_FROM_ADDRESS || SMTP_USER,
+        pass: BREVO_SMTP_KEY,
+      },
+    });
+    return _transporter;
+  }
+
+  // Generic SMTP fallback
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     console.warn('[Email] SMTP not configured — emails will be logged to console only.');
     return null;
