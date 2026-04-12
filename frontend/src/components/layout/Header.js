@@ -166,6 +166,7 @@ export default function Header({ title, subtitle }) {
   };
 
   return (
+    <>
     <header className="header">
       <div className="header-left">
         {title && (
@@ -350,6 +351,6 @@ export default function Header({ title, subtitle }) {
       </div>,
       document.body
     )}
-
+    </>
   );
 }
