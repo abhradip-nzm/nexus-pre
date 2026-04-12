@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { Bell, Check, CheckCheck, MessageSquare, Calendar, Info, AlertTriangle, XCircle, ArrowRight, ArrowUpCircle, CheckSquare, KeyRound, PencilLine, LogOut, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -270,81 +271,85 @@ export default function Header({ title, subtitle }) {
         </div>
       </div>
 
-      {/* ── Edit Profile Modal ── */}
-      {showProfile && (
-        <div className="cpw-overlay" onClick={() => setShowProfile(false)}>
-          <div className="cpw-modal" style={{ width: 400 }} onClick={e => e.stopPropagation()}>
-            <div className="cpw-header">
-              <div className="avatar" style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #3e72ae 0%, #16a085 100%)', color: 'white', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>
-                {(profForm.first_name?.[0] || user?.first_name?.[0] || '?').toUpperCase()}
-                {(profForm.last_name?.[0] || user?.last_name?.[0] || '').toUpperCase()}
-              </div>
-              <span>My Profile</span>
-              <button className="cpw-close" onClick={() => setShowProfile(false)}>×</button>
-            </div>
-            <form onSubmit={handleSaveProfile} className="cpw-body">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--primary-50)', borderRadius: 8, marginBottom: 2 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {formatRoleName(user?.role_name)}
-                </span>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{user?.email}</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div className="cpw-field">
-                  <label>First Name <span style={{ color: '#dc3545' }}>*</span></label>
-                  <input className="form-control" value={profForm.first_name} onChange={e => setProfForm(p => ({ ...p, first_name: e.target.value }))} required autoFocus placeholder="First name" />
-                </div>
-                <div className="cpw-field">
-                  <label>Last Name <span style={{ color: '#dc3545' }}>*</span></label>
-                  <input className="form-control" value={profForm.last_name} onChange={e => setProfForm(p => ({ ...p, last_name: e.target.value }))} required placeholder="Last name" />
-                </div>
-              </div>
-              <div className="cpw-field">
-                <label>Phone Number</label>
-                <input className="form-control" type="tel" value={profForm.phone} onChange={e => setProfForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 234 567 8900" />
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Include country code, e.g. +91 98765 43210</span>
-              </div>
-              <div className="cpw-footer">
-                <button type="button" className="btn btn-ghost" onClick={() => setShowProfile(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={profSaving}>{profSaving ? 'Saving…' : 'Save Profile'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Change Password Modal ── */}
-      {showChangePw && (
-        <div className="cpw-overlay" onClick={() => setShowChangePw(false)}>
-          <div className="cpw-modal" onClick={e => e.stopPropagation()}>
-            <div className="cpw-header">
-              <KeyRound size={16} />
-              <span>Change Password</span>
-              <button className="cpw-close" onClick={() => setShowChangePw(false)}>×</button>
-            </div>
-            <form onSubmit={handleChangePw} className="cpw-body">
-              <div className="cpw-field">
-                <label>Current Password</label>
-                <input type="password" className="form-control" value={pwForm.currentPassword} onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))} required autoFocus />
-              </div>
-              <div className="cpw-field">
-                <label>New Password</label>
-                <input type="password" className="form-control" value={pwForm.newPassword} onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))} required minLength={8} placeholder="Min. 8 characters" />
-              </div>
-              <div className="cpw-field">
-                <label>Confirm New Password</label>
-                <input type="password" className="form-control" value={pwForm.confirmPassword} onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))} required />
-              </div>
-              {pwError && <div className="cpw-error">{pwError}</div>}
-              {pwSuccess && <div className="cpw-success">{pwSuccess}</div>}
-              <div className="cpw-footer">
-                <button type="button" className="btn btn-ghost" onClick={() => setShowChangePw(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={pwSaving}>{pwSaving ? 'Saving…' : 'Update Password'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </header>
+
+    {/* ── Portals: rendered to document.body to escape header's stacking context ── */}
+
+    {showProfile && ReactDOM.createPortal(
+      <div className="cpw-overlay" onClick={() => setShowProfile(false)}>
+        <div className="cpw-modal" style={{ width: 400 }} onClick={e => e.stopPropagation()}>
+          <div className="cpw-header">
+            <div className="avatar" style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #3e72ae 0%, #16a085 100%)', color: 'white', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>
+              {(profForm.first_name?.[0] || user?.first_name?.[0] || '?').toUpperCase()}
+              {(profForm.last_name?.[0] || user?.last_name?.[0] || '').toUpperCase()}
+            </div>
+            <span>My Profile</span>
+            <button className="cpw-close" onClick={() => setShowProfile(false)}>×</button>
+          </div>
+          <form onSubmit={handleSaveProfile} className="cpw-body">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--primary-50)', borderRadius: 8, marginBottom: 2 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {formatRoleName(user?.role_name)}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{user?.email}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="cpw-field">
+                <label>First Name <span style={{ color: '#dc3545' }}>*</span></label>
+                <input className="form-control" value={profForm.first_name} onChange={e => setProfForm(p => ({ ...p, first_name: e.target.value }))} required autoFocus placeholder="First name" />
+              </div>
+              <div className="cpw-field">
+                <label>Last Name <span style={{ color: '#dc3545' }}>*</span></label>
+                <input className="form-control" value={profForm.last_name} onChange={e => setProfForm(p => ({ ...p, last_name: e.target.value }))} required placeholder="Last name" />
+              </div>
+            </div>
+            <div className="cpw-field">
+              <label>Phone Number</label>
+              <input className="form-control" type="tel" value={profForm.phone} onChange={e => setProfForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 234 567 8900" />
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Include country code, e.g. +91 98765 43210</span>
+            </div>
+            <div className="cpw-footer">
+              <button type="button" className="btn btn-ghost" onClick={() => setShowProfile(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={profSaving}>{profSaving ? 'Saving…' : 'Save Profile'}</button>
+            </div>
+          </form>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {showChangePw && ReactDOM.createPortal(
+      <div className="cpw-overlay" onClick={() => setShowChangePw(false)}>
+        <div className="cpw-modal" onClick={e => e.stopPropagation()}>
+          <div className="cpw-header">
+            <KeyRound size={16} />
+            <span>Change Password</span>
+            <button className="cpw-close" onClick={() => setShowChangePw(false)}>×</button>
+          </div>
+          <form onSubmit={handleChangePw} className="cpw-body">
+            <div className="cpw-field">
+              <label>Current Password</label>
+              <input type="password" className="form-control" value={pwForm.currentPassword} onChange={e => setPwForm(p => ({ ...p, currentPassword: e.target.value }))} required autoFocus />
+            </div>
+            <div className="cpw-field">
+              <label>New Password</label>
+              <input type="password" className="form-control" value={pwForm.newPassword} onChange={e => setPwForm(p => ({ ...p, newPassword: e.target.value }))} required minLength={8} placeholder="Min. 8 characters" />
+            </div>
+            <div className="cpw-field">
+              <label>Confirm New Password</label>
+              <input type="password" className="form-control" value={pwForm.confirmPassword} onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))} required />
+            </div>
+            {pwError && <div className="cpw-error">{pwError}</div>}
+            {pwSuccess && <div className="cpw-success">{pwSuccess}</div>}
+            <div className="cpw-footer">
+              <button type="button" className="btn btn-ghost" onClick={() => setShowChangePw(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={pwSaving}>{pwSaving ? 'Saving…' : 'Update Password'}</button>
+            </div>
+          </form>
+        </div>
+      </div>,
+      document.body
+    )}
+
   );
 }
