@@ -159,7 +159,7 @@ export default function StoryModal({
   const selectedColumn = columns.find(c => String(c.id) === String(form.column_id));
   const subStages = selectedColumn?.sub_stages || [];
   const salesExecutives = businessTeam.filter(m => m.role === 'sales_executive');
-  const assignableUsers = users.filter(u => ['pre_sales_manager', 'pre_sales_executive'].includes(u.role_name));
+  const assignableUsers = users.filter(u => ['system_admin', 'pre_sales_manager', 'pre_sales_executive'].includes(u.role_name));
 
   const getSmHierarchy = (smId) => {
     if (!smId) return [];

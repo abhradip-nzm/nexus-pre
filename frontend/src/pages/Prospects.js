@@ -180,7 +180,7 @@ function ProspectTasksSection({ prospectId }) {
                 </span>
                 <span style={{ fontSize: 12, fontWeight: 500, flex: 1 }}>{name}</span>
                 <span style={{ fontSize: 9, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '1px 5px', borderRadius: 10 }}>
-                  {u.role_name === 'pre_sales_executive' ? 'Executive' : u.role_name === 'pre_sales_manager' ? 'Manager' : u.role_name}
+                  {u.role_name === 'pre_sales_executive' ? 'Executive' : u.role_name === 'pre_sales_manager' ? 'Manager' : u.role_name === 'system_admin' ? 'Admin' : u.role_name}
                 </span>
               </label>
             );
@@ -387,7 +387,7 @@ export default function Prospects() {
       setIndustries(industriesRes.data.industries || []);
       setTeams(teamsRes.data.teams || []);
       setTagOptions(tagsRes.data.tags || []);
-      setAllUsers((usersRes.data.users || []).filter(u => ['pre_sales_manager','pre_sales_executive'].includes(u.role_name)));
+      setAllUsers((usersRes.data.users || []).filter(u => ['system_admin', 'pre_sales_manager','pre_sales_executive'].includes(u.role_name)));
       setAsdMembers((bizRes.data || []).filter(m => m.role === 'asd'));
     } catch {
       toast.error('Failed to load prospects');

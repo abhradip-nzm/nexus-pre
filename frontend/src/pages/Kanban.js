@@ -683,7 +683,7 @@ export default function KanbanBoard() {
                   >
                     Not Assigned
                   </button>
-                  {users.filter(u => ['pre_sales_manager', 'pre_sales_executive'].includes(u.role_name)).map(u => (
+                  {users.filter(u => ['system_admin', 'pre_sales_manager', 'pre_sales_executive'].includes(u.role_name)).map(u => (
                     <button
                       key={u.id}
                       className={`filter-chip ${filters.assigned_member.includes(u.id) ? 'active' : ''}`}

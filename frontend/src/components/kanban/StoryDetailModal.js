@@ -95,7 +95,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
 
   const assignableUsers = storyAssignableUsers.length > 0
     ? storyAssignableUsers
-    : users.filter(u => ['pre_sales_manager', 'pre_sales_executive'].includes(u.role_name));
+    : users.filter(u => ['system_admin', 'pre_sales_manager', 'pre_sales_executive'].includes(u.role_name));
 
   const toggleTaskAssignee = (userId) => {
     setNewTaskAssignees(prev =>

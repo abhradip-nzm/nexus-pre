@@ -418,7 +418,8 @@ const getProspectAssignableUsers = async (req, res) => {
     const allUsers = await query(`
       SELECT u.id, u.first_name, u.last_name, r.name as role_name
       FROM users u JOIN roles r ON r.id = u.role_id
-      WHERE r.name IN ('pre_sales_manager', 'pre_sales_executive') AND u.is_active = true
+      WHERE r.name IN ('system_admin', 'pre_sales_manager', 'pre_sales_executive') AND u.is_active = true
+      ORDER BY u.first_name, u.last_name
     `);
     res.json({ users: allUsers.rows });
   } catch (err) {
