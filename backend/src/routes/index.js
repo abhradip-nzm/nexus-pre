@@ -120,7 +120,7 @@ const { query } = require('../config/database');
 router.post('/setup/init', async (req, res) => {
   try {
     const existing = await query(
-      "SELECT id FROM users u JOIN roles r ON u.role_id = r.id WHERE r.name = 'system_admin' LIMIT 1"
+      "SELECT u.id FROM users u JOIN roles r ON u.role_id = r.id WHERE r.name = 'system_admin' LIMIT 1"
     );
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: 'System already initialized' });
