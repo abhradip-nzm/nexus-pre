@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/database');
 const { sendWelcomeEmail, sendPasswordResetEmail } = require('../utils/emailService');
+const { createNotification } = require('../utils/notifications');
 
 const getAllUsers = async (req, res) => {
   try {
@@ -77,19 +78,20 @@ const createUser = async (req, res) => {
     );
 
     // Create in-app notification
-    await query(
-      `INSERT INTO notifications (user_id, title, message, type)
-       VALUES ($1, 'Welcome to Nexus Pre', 'Your account has been created. Please change your password on first login.', 'info')`,
-      [result.rows[0].id]
+    await createNotification(
+      result.rows[0].id,
+      'Welcome to Nexus Pre',
+      'Your account has been created. Please change your password on first login.',
+      'info'
     );
 
-    // Send welcome email (non-blocking)
+    // Send welcome email with temp password (separate from notification email — richer template)
     sendWelcomeEmail(email.toLowerCase(), {
       name:        `${first_name} ${last_name}`,
       email:       email.toLowerCase(),
       tempPassword,
-      loginUrl:    `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`,
-    }).catch(err => console.error('[Email] Welcome email failed:', err.message));
+      loginUrl:    `${process.env.FRONTEND_URL || 'https://nexuspre.com'}/login`,
+    }).catch(err => console.error('[Email] ❌ Welcome email failed — code:', err.code, '| response:', err.response || err.message));
 
     res.status(201).json({
       user: result.rows[0],
@@ -176,8 +178,8 @@ const resetPassword = async (req, res) => {
         name:        `${u.first_name} ${u.last_name}`,
         email:       u.email,
         tempPassword,
-        loginUrl:    `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`,
-      }).catch(err => console.error('[Email] Password reset email failed:', err.message));
+        loginUrl:    `${process.env.FRONTEND_URL || 'https://nexuspre.com'}/login`,
+      }).catch(err => console.error('[Email] ❌ Password reset email failed — code:', err.code, '| response:', err.response || err.message));
     }
 
     res.json({
