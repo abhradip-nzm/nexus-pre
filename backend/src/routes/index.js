@@ -131,7 +131,27 @@ router.post('/setup/init', async (req, res) => {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
-    const roleResult = await query("SELECT id FROM roles WHERE name = 'system_admin'");
+    let roleResult = await query("SELECT id FROM roles WHERE name = 'system_admin'");
+
+    // If roles haven't been seeded yet, seed them now
+    if (roleResult.rows.length === 0) {
+      console.log('[Setup] Roles table empty — seeding default roles...');
+      await query(`
+        INSERT INTO roles (name, display_name, description) VALUES
+          ('system_admin',       'System Admin',         'Full system access'),
+          ('pre_sales_manager',  'Pre-Sales Manager',    'Manages pre-sales team and stories'),
+          ('pre_sales_executive','Pre-Sales Executive',  'Handles pre-sales stories and tasks'),
+          ('viewer',             'Viewer',               'Read-only access')
+        ON CONFLICT (name) DO NOTHING
+      `);
+      roleResult = await query("SELECT id FROM roles WHERE name = 'system_admin'");
+    }
+
+    if (roleResult.rows.length === 0) {
+      console.error('[Setup] Failed to find or create system_admin role');
+      return res.status(500).json({ error: 'Could not seed roles — check database migrations' });
+    }
+
     const hash = await bcrypt.hash(password, 12);
 
     await query(
@@ -142,8 +162,8 @@ router.post('/setup/init', async (req, res) => {
 
     res.json({ message: 'System admin created successfully' });
   } catch (error) {
-    console.error('Init error:', error);
-    res.status(500).json({ error: 'Setup failed' });
+    console.error('[Setup] Init error:', error);
+    res.status(500).json({ error: 'Setup failed', detail: error.message });
   }
 });
 
