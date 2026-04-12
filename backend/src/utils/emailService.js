@@ -18,7 +18,7 @@ const {
 async function sendViaBrevoAPI(to, template) {
   const apiKey      = process.env.BREVO_API_KEY;
   const fromName    = process.env.EMAIL_FROM_NAME    || 'Nexus Pre';
-  const fromAddress = process.env.EMAIL_FROM_ADDRESS || 'noreply@nexuspre.com';
+  const fromAddress = process.env.EMAIL_FROM_ADDRESS || 'support@nexuspre.com';
 
   const recipients = (Array.isArray(to) ? to : [to]).map(email => ({ email }));
 
@@ -79,7 +79,7 @@ async function verifyEmailSetup() {
         headers: { 'api-key': BREVO_API_KEY },
         timeout: 8000,
       });
-      const from = process.env.EMAIL_FROM_ADDRESS || 'noreply@nexuspre.com';
+      const from = process.env.EMAIL_FROM_ADDRESS || 'support@nexuspre.com';
       console.log(`[Email] ✅ Brevo API connected — sending as: ${from}`);
     } catch (err) {
       const status = err.response?.status;
@@ -131,7 +131,7 @@ async function sendEmail(to, template) {
   const transporter = getSmtpTransporter();
   if (transporter) {
     const fromName    = EMAIL_FROM_NAME    || 'Nexus Pre';
-    const fromAddress = EMAIL_FROM_ADDRESS || SMTP_USER || 'noreply@nexuspre.com';
+    const fromAddress = EMAIL_FROM_ADDRESS || SMTP_USER || 'support@nexuspre.com';
     try {
       const info = await transporter.sendMail({
         from:    `"${fromName}" <${fromAddress}>`,
@@ -149,7 +149,7 @@ async function sendEmail(to, template) {
   }
 
   // ── Console fallback (dev mode)
-  const fromAddress = EMAIL_FROM_ADDRESS || SMTP_USER || 'noreply@nexuspre.com';
+  const fromAddress = EMAIL_FROM_ADDRESS || SMTP_USER || 'support@nexuspre.com';
   console.log('\n─────── EMAIL (console mode) ───────');
   console.log('To:     ', Array.isArray(to) ? to.join(', ') : to);
   console.log('From:   ', fromAddress);
