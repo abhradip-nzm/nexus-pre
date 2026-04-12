@@ -1,17 +1,21 @@
 /**
- * ONE-TIME DATA CLEANUP SCRIPT
+ * FULL DATA CLEANUP SCRIPT
  *
- * Deletes all user-generated data from every table.
- * Preserves:
- *   - The system_admin user account (so login still works)
- *   - roles, kanban_columns, kanban_sub_stages, app_settings
- *     (these are seeded by migrations and are needed for the app to function)
+ * Deletes ALL data from every table including all users.
+ * Preserves (seeded by migrations, needed for the app to function):
+ *   - roles
+ *   - kanban_columns
+ *   - kanban_sub_stages
+ *   - app_settings
  *
- * Run once with:
- *   node scripts/cleanup-data.js
+ * After running this script the app will be completely empty.
+ * You will need to create a new system_admin via the setup endpoint.
  *
- * Requires DATABASE_URL in environment (same as the main app).
- * Uses a transaction — if anything fails, the entire cleanup rolls back.
+ * Run with:
+ *   cd backend && node scripts/cleanup-data.js
+ *
+ * Requires DATABASE_URL in environment (.env file or set in shell).
+ * Uses a transaction — if anything fails, everything rolls back.
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
@@ -25,28 +29,15 @@ const pool = new Pool({
 async function cleanup() {
   const client = await pool.connect();
   try {
-    // Confirm the system_admin user exists before we do anything
-    const adminCheck = await client.query(
-      `SELECT u.id, u.email, u.first_name, u.last_name
-       FROM users u
-       JOIN roles r ON r.id = u.role_id
-       WHERE r.name = 'system_admin'`
-    );
-
-    if (adminCheck.rows.length === 0) {
-      console.error('❌ No system_admin user found. Aborting — nothing was deleted.');
-      process.exit(1);
-    }
-
-    const admin = adminCheck.rows[0];
-    console.log(`✅ System admin found: ${admin.first_name} ${admin.last_name} (${admin.email})`);
-    console.log('🚨 Starting cleanup inside a transaction...\n');
+    console.log('🚨 Full cleanup — ALL data including users will be deleted.');
+    console.log('   Roles, kanban columns, and app settings will be preserved.');
+    console.log('   Starting transaction...\n');
 
     await client.query('BEGIN');
 
     // ── Delete in dependency order (children before parents) ──────────────
 
-    // Transition form responses
+    // Transition forms
     await del(client, 'transition_form_field_responses');
     await del(client, 'transition_form_responses');
     await del(client, 'transition_form_fields');
@@ -82,10 +73,10 @@ async function cleanup() {
     await del(client, 'team_members');
     await del(client, 'teams');
 
-    // Notifications (clear all — admin will get fresh ones)
+    // Notifications
     await del(client, 'notifications');
 
-    // Access control overrides and permissions (non-admin users being deleted anyway)
+    // Access controls and permissions
     await del(client, 'role_access_controls');
     await del(client, 'user_access_overrides');
     await del(client, 'user_permissions');
@@ -95,22 +86,14 @@ async function cleanup() {
     await del(client, 'industries');
     await del(client, 'business_team');
 
-    // Users — delete everyone except the system_admin user(s)
-    const userDel = await client.query(
-      `DELETE FROM users
-       WHERE id NOT IN (
-         SELECT u.id FROM users u
-         JOIN roles r ON r.id = u.role_id
-         WHERE r.name = 'system_admin'
-       )`
-    );
-    console.log(`  🗑  users — deleted ${userDel.rowCount} row(s) (system_admin preserved)`);
+    // ALL users
+    await del(client, 'users');
 
     await client.query('COMMIT');
 
-    console.log('\n✅ Cleanup complete.');
-    console.log(`   System admin "${admin.email}" is intact and can log in.`);
-    console.log('   Kanban columns, sub-stages, roles, and app settings are untouched.');
+    console.log('\n✅ Full cleanup complete. Database is empty.');
+    console.log('   Next step: create a new system_admin by calling:');
+    console.log('   POST /api/setup/init  with { email, password, first_name, last_name }');
 
   } catch (err) {
     await client.query('ROLLBACK');
