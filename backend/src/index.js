@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const { runMigrations } = require('./migrations/schema');
+const { verifyEmailSetup } = require('./utils/emailService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -74,6 +75,7 @@ app.use((err, req, res, next) => {
 async function start() {
   try {
     await runMigrations();
+    await verifyEmailSetup();
     app.listen(PORT, () => {
       console.log(`🚀 Nexus Pre API running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV}`);
