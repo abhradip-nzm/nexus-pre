@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Pagination from '../components/common/Pagination';
-import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers, Download, Eye, Check, Users, Globe, Filter, Calendar, UserCheck } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUpCircle, X, Save, DollarSign, Building, User, Phone, Mail, Tag, Layers, Download, Eye, Check, Users, Globe, Filter, Calendar, UserCheck, Search } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
@@ -357,6 +357,17 @@ export default function Prospects() {
   const tagsWrapperRef = useRef(null);
   const [tagDropdownPos, setTagDropdownPos] = useState(null);
 
+  // Search
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const searchTimer = useRef(null);
+
+  const handleSearchChange = (val) => {
+    setSearchInput(val);
+    clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => { setPage(1); setSearch(val.trim()); }, 350);
+  };
+
   // Filters
   const [showFilters, setShowFilters] = useState(false);
   const [filterDateFrom, setFilterDateFrom] = useState('');
@@ -402,9 +413,10 @@ export default function Prospects() {
   useEffect(() => {
     if (loading) return;
     const params = { page, limit: 20 };
-    if (filterDateFrom) params.date_from = filterDateFrom;
-    if (filterDateTo)   params.date_to   = filterDateTo;
-    if (filterAsd)      params.asd        = filterAsd;
+    if (search)         params.search       = search;
+    if (filterDateFrom) params.date_from    = filterDateFrom;
+    if (filterDateTo)   params.date_to      = filterDateTo;
+    if (filterAsd)      params.asd          = filterAsd;
     if (filterTasks)    params.tasks_filter = filterTasks;
     api.get('/prospects', { params })
       .then(res => {
@@ -412,7 +424,7 @@ export default function Prospects() {
         setPagination(res.data.pagination || null);
       })
       .catch(() => toast.error('Failed to reload prospects'));
-  }, [page, filterDateFrom, filterDateTo, filterAsd, filterTasks, refreshTick]); // eslint-disable-line
+  }, [page, search, filterDateFrom, filterDateTo, filterAsd, filterTasks, refreshTick]); // eslint-disable-line
 
   const openCreate = () => {
     setEditingProspect(null);
@@ -541,6 +553,24 @@ export default function Prospects() {
           <div className="users-stats">
             <span className="stat-pill">{totalProspects} prospect{totalProspects !== 1 ? 's' : ''}</span>
           </div>
+
+          {/* Search box */}
+          <div className="prospects-search-wrap">
+            <Search size={14} className="prospects-search-icon" />
+            <input
+              className="prospects-search-input"
+              type="text"
+              placeholder="Search title, company, contact…"
+              value={searchInput}
+              onChange={e => handleSearchChange(e.target.value)}
+            />
+            {searchInput && (
+              <button className="prospects-search-clear" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
           <button
             className={`btn btn-sm ${showFilters || activeFilterCount > 0 ? 'btn-secondary' : 'btn-ghost'}`}
             onClick={() => setShowFilters(v => !v)}
@@ -559,9 +589,10 @@ export default function Prospects() {
             onClick={async () => {
               try {
                 const params = { page: 1, limit: 2000 };
-                if (filterDateFrom) params.date_from = filterDateFrom;
-                if (filterDateTo)   params.date_to   = filterDateTo;
-                if (filterAsd)      params.asd        = filterAsd;
+                if (search)         params.search       = search;
+                if (filterDateFrom) params.date_from    = filterDateFrom;
+                if (filterDateTo)   params.date_to      = filterDateTo;
+                if (filterAsd)      params.asd          = filterAsd;
                 if (filterTasks)    params.tasks_filter = filterTasks;
                 const res = await api.get('/prospects', { params });
                 const data = (res.data.prospects || []).map(p => ({

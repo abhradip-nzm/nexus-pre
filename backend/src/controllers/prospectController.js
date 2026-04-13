@@ -17,6 +17,7 @@ const getProspects = async (req, res) => {
     const dateTo       = req.query.date_to      || '';
     const asd          = req.query.asd          || '';   // sales_director_id
     const tasksFilter  = req.query.tasks_filter || '';
+    const search       = (req.query.search       || '').trim();
 
     const conditions = ['pp.promoted_at IS NULL'];
     const params = [];
@@ -53,6 +54,11 @@ const getProspects = async (req, res) => {
     } else if (asd) {
       conditions.push(`pp.sales_director_id = $${idx}`);
       params.push(parseInt(asd, 10));
+      idx++;
+    }
+    if (search) {
+      conditions.push(`(pp.title ILIKE $${idx} OR pp.company_name ILIKE $${idx} OR pp.contact_name ILIKE $${idx})`);
+      params.push(`%${search}%`);
       idx++;
     }
     if (tasksFilter === 'has_tasks') {
