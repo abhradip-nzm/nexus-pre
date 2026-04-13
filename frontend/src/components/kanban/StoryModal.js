@@ -112,7 +112,7 @@ export default function StoryModal({
     client_phone: story?.client_phone || '',
     country: story?.country || '',
     column_id: story?.column_id || columnId || '',
-    sub_stage_id: story?.sub_stage_id || '',
+    sub_stage: story?.sub_stage_name || '',
     priority: story?.priority || 'medium',
     estimated_value: story?.estimated_value || '',
     effective_start_date: story?.effective_start_date ? story.effective_start_date.slice(0, 10) : '',
@@ -157,7 +157,6 @@ export default function StoryModal({
   }, []);
 
   const selectedColumn = columns.find(c => String(c.id) === String(form.column_id));
-  const subStages = selectedColumn?.sub_stages || [];
   const salesExecutives = businessTeam.filter(m => m.role === 'sales_executive');
   const assignableUsers = users.filter(u => ['system_admin', 'pre_sales_manager', 'pre_sales_executive'].includes(u.role_name));
 
@@ -180,7 +179,7 @@ export default function StoryModal({
   );
 
   const handleChange = (field, value) => {
-    setForm(prev => ({ ...prev, [field]: value, ...(field === 'column_id' ? { sub_stage_id: '' } : {}) }));
+    setForm(prev => ({ ...prev, [field]: value }));
   };
 
   const addTagByName = (name) => {
@@ -260,7 +259,7 @@ export default function StoryModal({
     const payload = {
       ...form,
       estimated_value: form.estimated_value ? parseFloat(form.estimated_value) : null,
-      sub_stage_id: form.sub_stage_id || null,
+      sub_stage: form.sub_stage || null,
       business_team_member_id: form.business_team_member_id || null,
     };
 
@@ -451,15 +450,16 @@ export default function StoryModal({
                     {columns.map(col => <option key={col.id} value={col.id}>{col.name}</option>)}
                   </select>
                 </div>
-                {subStages.length > 0 && (
-                  <div className="form-group">
-                    <label className="form-label">Sub Stage</label>
-                    <select className="form-control" value={form.sub_stage_id} onChange={e => handleChange('sub_stage_id', e.target.value)}>
-                      <option value="">Select sub-stage</option>
-                      {subStages.map(ss => <option key={ss.id} value={ss.id}>{ss.name}</option>)}
-                    </select>
-                  </div>
-                )}
+                <div className="form-group">
+                  <label className="form-label">Sub Stage</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. First Meeting, Discovery…"
+                    value={form.sub_stage}
+                    onChange={e => handleChange('sub_stage', e.target.value)}
+                  />
+                </div>
                 <div className="form-group">
                   <label className="form-label">Priority</label>
                   <div className="priority-selector">

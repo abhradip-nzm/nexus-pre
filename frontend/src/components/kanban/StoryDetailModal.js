@@ -577,7 +577,13 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                     )}
                     <div className="sidebar-stat">
                       <span className="ss-label">Assigned To</span>
-                      <span className="ss-value">{story.assigned_to_name || 'Unassigned'}</span>
+                      <span className="ss-value">
+                        {teamAssignments.length > 0
+                          ? teamAssignments.map(t => t.name).join(', ')
+                          : memberAssignments.length > 0
+                            ? memberAssignments.map(m => m.name || m.user_name).join(', ')
+                            : story.assigned_to_name || 'Unassigned'}
+                      </span>
                     </div>
                     {story.estimated_value && (
                       <div className="sidebar-stat">

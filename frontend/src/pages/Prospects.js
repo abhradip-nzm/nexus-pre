@@ -379,7 +379,7 @@ export default function Prospects() {
         api.get('/industries').catch(() => ({ data: { industries: [] } })),
         api.get('/teams').catch(() => ({ data: { teams: [] } })),
         api.get('/tags').catch(() => ({ data: { tags: [] } })),
-        api.get('/users').catch(() => ({ data: { users: [] } })),
+        api.get('/users/assignable').catch(() => ({ data: { users: [] } })),
         api.get('/business-team').catch(() => ({ data: [] })),
       ]);
       setProspects(prospectsRes.data.prospects || []);
@@ -387,7 +387,7 @@ export default function Prospects() {
       setIndustries(industriesRes.data.industries || []);
       setTeams(teamsRes.data.teams || []);
       setTagOptions(tagsRes.data.tags || []);
-      setAllUsers((usersRes.data.users || []).filter(u => ['system_admin', 'pre_sales_manager','pre_sales_executive'].includes(u.role_name)));
+      setAllUsers(usersRes.data.users || []);
       setAsdMembers((bizRes.data || []).filter(m => m.role === 'asd'));
     } catch {
       toast.error('Failed to load prospects');

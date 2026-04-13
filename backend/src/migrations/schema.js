@@ -223,34 +223,11 @@ const migrations = [
     ('Closed Lost', 'closed_lost', 7, '#c0392b', true)
   ON CONFLICT (slug) DO NOTHING`,
 
-  // Seed default sub stages
-  `INSERT INTO kanban_sub_stages (column_id, name, position) 
-  SELECT id, 'First L1 Meeting', 1 FROM kanban_columns WHERE slug = 'l1_stage'
-  ON CONFLICT DO NOTHING`,
-
-  `INSERT INTO kanban_sub_stages (column_id, name, position)
-  SELECT id, 'Second L1 Meeting', 2 FROM kanban_columns WHERE slug = 'l1_stage'
-  ON CONFLICT DO NOTHING`,
-
-  `INSERT INTO kanban_sub_stages (column_id, name, position)
-  SELECT id, 'Discovery', 1 FROM kanban_columns WHERE slug = 'l2_stage'
-  ON CONFLICT DO NOTHING`,
-
-  `INSERT INTO kanban_sub_stages (column_id, name, position)
-  SELECT id, 'Solution Walkthrough', 2 FROM kanban_columns WHERE slug = 'l2_stage'
-  ON CONFLICT DO NOTHING`,
-
-  `INSERT INTO kanban_sub_stages (column_id, name, position)
-  SELECT id, 'Technical Proposal Presentation', 3 FROM kanban_columns WHERE slug = 'l2_stage'
-  ON CONFLICT DO NOTHING`,
-
-  `INSERT INTO kanban_sub_stages (column_id, name, position)
-  SELECT id, 'Contract Signing Pending', 1 FROM kanban_columns WHERE slug = 'contract_stage'
-  ON CONFLICT DO NOTHING`,
-
-  `INSERT INTO kanban_sub_stages (column_id, name, position)
-  SELECT id, 'Contract Signed', 2 FROM kanban_columns WHERE slug = 'contract_stage'
-  ON CONFLICT DO NOTHING`,
+  // Sub-stage is now free-text on stories; drop the FK column and add a text column
+  `ALTER TABLE user_stories ADD COLUMN IF NOT EXISTS sub_stage TEXT`,
+  `ALTER TABLE user_stories DROP COLUMN IF EXISTS sub_stage_id`,
+  // Remove all pre-seeded sub-stage dummy data
+  `DELETE FROM kanban_sub_stages`,
 
   // Transition Forms
   `CREATE TABLE IF NOT EXISTS transition_forms (

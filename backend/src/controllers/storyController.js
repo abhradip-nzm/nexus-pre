@@ -7,7 +7,7 @@ const FIELD_LABELS = {
   client_name: 'Client Name',
   client_company: 'Client Company',
   column_id: 'Stage',
-  sub_stage_id: 'Sub Stage',
+  sub_stage: 'Sub Stage',
   assigned_to: 'Assigned To',
   estimated_value: 'Est. Value',
   business_team_member_id: 'Sales Executive',
@@ -23,9 +23,8 @@ const resolveDisplayValue = async (field, value) => {
       const r = await query('SELECT name FROM kanban_columns WHERE id = $1', [value]);
       return r.rows[0]?.name || String(value);
     }
-    if (field === 'sub_stage_id') {
-      const r = await query('SELECT name FROM kanban_sub_stages WHERE id = $1', [value]);
-      return r.rows[0]?.name || String(value);
+    if (field === 'sub_stage') {
+      return String(value);
     }
     if (field === 'assigned_to') {
       const r = await query("SELECT first_name || ' ' || last_name as name FROM users WHERE id = $1", [value]);
@@ -97,7 +96,7 @@ const getAllStories = async (req, res) => {
     const result = await query(
       `SELECT us.*,
               kc.name as column_name, kc.slug as column_slug, kc.color as column_color,
-              kss.name as sub_stage_name,
+              us.sub_stage as sub_stage_name,
               u1.first_name || ' ' || u1.last_name as assigned_to_name,
               u1.avatar_url as assigned_to_avatar,
               u2.first_name || ' ' || u2.last_name as created_by_name,
@@ -125,14 +124,13 @@ const getAllStories = async (req, res) => {
               ), '[]') as industry_assignments
        FROM user_stories us
        LEFT JOIN kanban_columns kc ON us.column_id = kc.id
-       LEFT JOIN kanban_sub_stages kss ON us.sub_stage_id = kss.id
        LEFT JOIN users u1 ON us.assigned_to = u1.id
        LEFT JOIN users u2 ON us.created_by = u2.id
        LEFT JOIN tasks t ON t.user_story_id = us.id
        LEFT JOIN story_comments sc ON sc.user_story_id = us.id
        LEFT JOIN business_team bt ON us.business_team_member_id = bt.id
        ${whereClause}
-       GROUP BY us.id, kc.name, kc.slug, kc.color, kss.name, u1.first_name, u1.last_name,
+       GROUP BY us.id, kc.name, kc.slug, kc.color, u1.first_name, u1.last_name,
                 u1.avatar_url, u2.first_name, u2.last_name, bt.name
        ORDER BY us.position ASC, us.created_at DESC
        LIMIT $${idx++} OFFSET $${idx++}`,
@@ -163,14 +161,13 @@ const getStoryById = async (req, res) => {
     const storyResult = await query(
       `SELECT us.*,
               kc.name as column_name, kc.slug as column_slug,
-              kss.name as sub_stage_name,
+              us.sub_stage as sub_stage_name,
               u1.first_name || ' ' || u1.last_name as assigned_to_name,
               u2.first_name || ' ' || u2.last_name as created_by_name,
               bt.name as business_team_member_name,
               bt.role as business_team_member_role
        FROM user_stories us
        LEFT JOIN kanban_columns kc ON us.column_id = kc.id
-       LEFT JOIN kanban_sub_stages kss ON us.sub_stage_id = kss.id
        LEFT JOIN users u1 ON us.assigned_to = u1.id
        LEFT JOIN users u2 ON us.created_by = u2.id
        LEFT JOIN business_team bt ON us.business_team_member_id = bt.id
@@ -304,7 +301,7 @@ const createStory = async (req, res) => {
 
     const {
       title, description, client_name, client_company, client_email,
-      client_phone, column_id, sub_stage_id, assigned_to, priority,
+      client_phone, column_id, sub_stage, assigned_to, priority,
       estimated_value, tags, due_date, effective_start_date, business_team_member_id, team_ids, member_ids, industry_ids, country
     } = req.body;
 
@@ -322,13 +319,13 @@ const createStory = async (req, res) => {
     const result = await query(
       `INSERT INTO user_stories
        (title, description, client_name, client_company, client_email, client_phone,
-        column_id, sub_stage_id, assigned_to, created_by, priority, estimated_value,
+        column_id, sub_stage, assigned_to, created_by, priority, estimated_value,
         tags, due_date, effective_start_date, position, business_team_member_id, country)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
        RETURNING *`,
       [title, description || null, client_name || null, client_company || null,
        client_email || null, client_phone || null,
-       column_id, sub_stage_id || null, assigned_to || null, req.user.id,
+       column_id, sub_stage || null, assigned_to || null, req.user.id,
        priority || 'medium', estimated_value || null, tags || null,
        due_date || null, effective_start_date || null, position, business_team_member_id || null, country || null]
     );
@@ -391,7 +388,7 @@ const updateStory = async (req, res) => {
 
     const {
       title, description, client_name, client_company, client_email, client_phone,
-      column_id, sub_stage_id, assigned_to, priority, estimated_value, tags, due_date,
+      column_id, sub_stage, assigned_to, priority, estimated_value, tags, due_date,
       effective_start_date, business_team_member_id, team_ids, member_ids, industry_ids, country
     } = req.body;
 
@@ -436,9 +433,9 @@ const updateStory = async (req, res) => {
       await trackChange('column_id', old.column_id, column_id);
       updates.push(`column_id = $${idx++}`); values.push(column_id);
     }
-    if (sub_stage_id !== undefined) {
-      await trackChange('sub_stage_id', old.sub_stage_id, sub_stage_id || null);
-      updates.push(`sub_stage_id = $${idx++}`); values.push(sub_stage_id || null);
+    if (sub_stage !== undefined) {
+      await trackChange('sub_stage', old.sub_stage, sub_stage || null);
+      updates.push(`sub_stage = $${idx++}`); values.push(sub_stage || null);
     }
     if (assigned_to !== undefined) {
       await trackChange('assigned_to', old.assigned_to, assigned_to || null);
@@ -529,7 +526,7 @@ const updateStory = async (req, res) => {
 const moveStory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { column_id, position, sub_stage_id } = req.body;
+    const { column_id, position, sub_stage } = req.body;
 
     const existing = await query('SELECT column_id FROM user_stories WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
@@ -537,8 +534,8 @@ const moveStory = async (req, res) => {
     }
 
     await query(
-      `UPDATE user_stories SET column_id = $1, position = $2, sub_stage_id = $3, updated_at = NOW() WHERE id = $4`,
-      [column_id, position, sub_stage_id || null, id]
+      `UPDATE user_stories SET column_id = $1, position = $2, sub_stage = $3, updated_at = NOW() WHERE id = $4`,
+      [column_id, position, sub_stage || null, id]
     );
 
     // Log column change with human-readable column names

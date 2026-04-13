@@ -225,7 +225,7 @@ function StageColumn({ column, stories, subStageMap, onAdd, onView }) {
             <StoryCard
               key={story.id}
               story={story}
-              subStageName={story.sub_stage_id ? subStageMap[story.sub_stage_id] : null}
+              subStageName={story.sub_stage_name || null}
               onView={onView}
             />
           ))}
@@ -281,7 +281,7 @@ export default function KanbanBoard() {
       const [colRes, storyRes, userRes, teamsRes, indRes, tagsRes] = await Promise.all([
         api.get('/kanban/columns'),
         api.get('/stories?limit=500'),
-        api.get('/users').catch(() => ({ data: { users: [] } })),
+        api.get('/users/assignable').catch(() => ({ data: { users: [] } })),
         api.get('/teams').catch(() => ({ data: { teams: [] } })),
         api.get('/industries').catch(() => ({ data: { industries: [] } })),
         api.get('/tags').catch(() => ({ data: { tags: [] } })),
@@ -325,7 +325,7 @@ export default function KanbanBoard() {
     const movingStory = (storiesSnapshot[sourceColId] || []).find(s => s.id === activeId);
     if (!movingStory) return;
 
-    const newSubStageId = destColId === sourceColId ? (movingStory.sub_stage_id || null) : null;
+    const newSubStage = destColId === sourceColId ? (movingStory.sub_stage_name || null) : null;
 
     const newStories = { ...storiesSnapshot };
     const sourceList = (newStories[sourceColId] || []).filter(s => s.id !== activeId);
@@ -338,7 +338,7 @@ export default function KanbanBoard() {
     destList.splice(overIdx >= 0 ? overIdx : destList.length, 0, {
       ...movingStory,
       column_id: destColId,
-      sub_stage_id: newSubStageId,
+      sub_stage_name: newSubStage,
     });
     newStories[destColId] = destList;
     setStories(newStories);
@@ -354,7 +354,7 @@ export default function KanbanBoard() {
     try {
       await api.patch(`/stories/${activeId}/move`, {
         column_id: destColId,
-        sub_stage_id: newSubStageId,
+        sub_stage: newSubStage,
         position,
       });
     } catch {
