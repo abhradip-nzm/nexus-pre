@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import {
   X, Plus, Send, Check, Pencil, Trash2,
   Calendar, User, DollarSign, Activity, MessageSquare,
@@ -38,6 +39,8 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Details');
   const [showEdit, setShowEdit] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Task state
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -90,6 +93,21 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
       toast.error('Failed to load story');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteStory = async () => {
+    setDeleting(true);
+    try {
+      await api.delete(`/stories/${storyId}`);
+      toast.success('Story and all related tasks deleted');
+      onClose();
+      if (onUpdated) onUpdated();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to delete story');
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -351,6 +369,11 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
               {!readOnly && canDo('user_stories', 'update') && user?.role_name === 'system_admin' && (
                 <button className="btn btn-secondary btn-sm" onClick={() => setShowEdit(true)}>
                   <Pencil size={14} /> Edit
+                </button>
+              )}
+              {!readOnly && (user?.role_name === 'system_admin' || user?.role_name === 'pre_sales_manager') && (
+                <button className="btn btn-danger btn-sm" onClick={() => setShowDeleteConfirm(true)}>
+                  <Trash2 size={14} /> Delete
                 </button>
               )}
               <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
@@ -1009,6 +1032,30 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
           onClose={() => setShowEdit(false)}
           onSaved={handleUpdated}
         />
+      )}
+
+      {showDeleteConfirm && ReactDOM.createPortal(
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowDeleteConfirm(false)}>
+          <div className="modal modal-sm">
+            <div className="modal-header">
+              <h2 className="modal-title">Delete Story</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowDeleteConfirm(false)}><X size={18} /></button>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete <strong>{story?.title}</strong>?</p>
+              <p style={{ marginTop: 8, fontSize: 13, color: 'var(--text-muted)' }}>
+                This will permanently delete the story and all its tasks, comments, meetings, and activity. This cannot be undone.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={handleDeleteStory} disabled={deleting}>
+                <Trash2 size={14} /> {deleting ? 'Deleting…' : 'Delete Story'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   );

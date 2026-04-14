@@ -1180,7 +1180,10 @@ export default function Prospects() {
               </button>
             </div>
             <div className="modal-body">
-              <p>Are you sure you want to delete this prospect? This action cannot be undone.</p>
+              <p>Are you sure you want to delete this prospect?</p>
+              <p style={{ marginTop: 8, fontSize: 13, color: 'var(--text-muted)' }}>
+                This will permanently delete the prospect and all its tasks, comments, and activity. This cannot be undone.
+              </p>
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>Cancel</button>
