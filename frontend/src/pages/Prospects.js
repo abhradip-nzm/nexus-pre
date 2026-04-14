@@ -555,18 +555,18 @@ export default function Prospects() {
           </div>
 
           {/* Search box */}
-          <div className="prospects-search-wrap">
-            <Search size={14} className="prospects-search-icon" />
+          <div className="users-search">
+            <Search size={15} />
             <input
-              className="prospects-search-input"
+              className="users-search-input"
               type="text"
               placeholder="Search title, company, contact…"
               value={searchInput}
               onChange={e => handleSearchChange(e.target.value)}
             />
             {searchInput && (
-              <button className="prospects-search-clear" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>
-                <X size={12} />
+              <button className="search-clear" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}>
+                <X size={13} />
               </button>
             )}
           </div>

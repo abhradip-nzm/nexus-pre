@@ -21,7 +21,7 @@ async function getAll(req, res) {
     const result = await query(`
       SELECT
         bt.id, bt.name, bt.phone, bt.email, bt.role,
-        bt.parent_id, bt.created_at, bt.updated_at,
+        bt.parent_id, bt.is_individual_contributor, bt.created_at, bt.updated_at,
         p.name AS parent_name, p.role AS parent_role
       FROM business_team bt
       LEFT JOIN business_team p ON p.id = bt.parent_id
@@ -45,7 +45,7 @@ async function getAll(req, res) {
 async function getTree(req, res) {
   try {
     const result = await query(`
-      SELECT id, name, phone, email, role, parent_id
+      SELECT id, name, phone, email, role, parent_id, is_individual_contributor
       FROM business_team
       ORDER BY
         CASE role
@@ -80,7 +80,8 @@ async function getTree(req, res) {
 // POST /api/business-team
 async function create(req, res) {
   try {
-    const { name, phone, email, role, parent_id } = req.body;
+    const { name, phone, email, role, parent_id, is_individual_contributor } = req.body;
+    const isIC = role === 'sales_manager' && !!is_individual_contributor;
 
     if (!name || !phone || !email || !role) {
       return res.status(400).json({ error: 'Name, phone, email and role are required' });
@@ -101,8 +102,8 @@ async function create(req, res) {
       }
     }
 
-    // Validate parent for non-CGO roles
-    const requiredParentRole = PARENT_ROLE[role];
+    // Individual-contributor Sales Managers report to CGO; otherwise use normal hierarchy
+    const requiredParentRole = isIC ? 'cgo' : PARENT_ROLE[role];
     if (requiredParentRole) {
       if (!parent_id) {
         return res.status(400).json({
@@ -127,10 +128,10 @@ async function create(req, res) {
     }
 
     const result = await query(
-      `INSERT INTO business_team (name, phone, email, role, parent_id)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO business_team (name, phone, email, role, parent_id, is_individual_contributor)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [name.trim(), phone.trim(), email.toLowerCase().trim(), role, parent_id || null]
+      [name.trim(), phone.trim(), email.toLowerCase().trim(), role, parent_id || null, isIC]
     );
 
     res.status(201).json(result.rows[0]);
@@ -144,7 +145,8 @@ async function create(req, res) {
 async function update(req, res) {
   try {
     const { id } = req.params;
-    const { name, phone, email, role, parent_id } = req.body;
+    const { name, phone, email, role, parent_id, is_individual_contributor } = req.body;
+    const isIC = role === 'sales_manager' && !!is_individual_contributor;
 
     if (!name || !phone || !email || !role) {
       return res.status(400).json({ error: 'Name, phone, email and role are required' });
@@ -173,8 +175,8 @@ async function update(req, res) {
       return res.status(400).json({ error: 'Chief Growth Officer cannot have a parent' });
     }
 
-    // Validate parent for non-CGO roles
-    const requiredParentRole = PARENT_ROLE[role];
+    // Individual-contributor Sales Managers report to CGO; otherwise use normal hierarchy
+    const requiredParentRole = isIC ? 'cgo' : PARENT_ROLE[role];
     if (requiredParentRole) {
       if (!parent_id) {
         return res.status(400).json({
@@ -211,7 +213,6 @@ async function update(req, res) {
     if (current.role !== role) {
       const children = await query(`SELECT id, role FROM business_team WHERE parent_id = $1`, [id]);
       if (children.rows.length > 0) {
-        // Each child's required parent role must match new role
         for (const child of children.rows) {
           if (PARENT_ROLE[child.role] !== role) {
             return res.status(400).json({
@@ -224,10 +225,11 @@ async function update(req, res) {
 
     const result = await query(
       `UPDATE business_team
-       SET name = $1, phone = $2, email = $3, role = $4, parent_id = $5, updated_at = NOW()
-       WHERE id = $6
+       SET name = $1, phone = $2, email = $3, role = $4, parent_id = $5,
+           is_individual_contributor = $6, updated_at = NOW()
+       WHERE id = $7
        RETURNING *`,
-      [name.trim(), phone.trim(), email.toLowerCase().trim(), role, parent_id || null, id]
+      [name.trim(), phone.trim(), email.toLowerCase().trim(), role, parent_id || null, isIC, id]
     );
 
     res.json(result.rows[0]);

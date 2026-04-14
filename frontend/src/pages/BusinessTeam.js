@@ -67,7 +67,12 @@ function TreeNode({ node, onEdit, onDelete }) {
             {node.name.charAt(0).toUpperCase()}
           </div>
           <div className="bt-tree-info">
-            <div className="bt-tree-name">{node.name}</div>
+            <div className="bt-tree-name">
+              {node.name}
+              {node.is_individual_contributor && (
+                <span className="bt-ic-badge">IC</span>
+              )}
+            </div>
             <div className="bt-tree-meta">
               <RoleBadge role={node.role} />
               <span className="bt-tree-contact"><Phone size={11} /> {node.phone}</span>
@@ -102,6 +107,7 @@ function MemberModal({ member, members, onClose, onSave }) {
     email: member?.email || '',
     role: member?.role || '',
     parent_id: member?.parent_id ? String(member.parent_id) : '',
+    is_individual_contributor: member?.is_individual_contributor || false,
   });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -112,12 +118,17 @@ function MemberModal({ member, members, onClose, onSave }) {
   };
 
   const handleRoleChange = (val) => {
-    setForm(f => ({ ...f, role: val, parent_id: '' }));
+    setForm(f => ({ ...f, role: val, parent_id: '', is_individual_contributor: false }));
     setErrors(e => ({ ...e, role: '', parent_id: '' }));
   };
 
-  const eligibleParents = form.role && PARENT_ROLE[form.role]
-    ? members.filter(m => m.role === PARENT_ROLE[form.role] && m.id !== member?.id)
+  // Individual contributor Sales Managers report to CGO directly
+  const effectiveParentRole = (form.role === 'sales_manager' && form.is_individual_contributor)
+    ? 'cgo'
+    : PARENT_ROLE[form.role];
+
+  const eligibleParents = form.role && effectiveParentRole
+    ? members.filter(m => m.role === effectiveParentRole && m.id !== member?.id)
     : [];
 
   const validate = () => {
@@ -127,8 +138,8 @@ function MemberModal({ member, members, onClose, onSave }) {
     if (!form.email.trim()) errs.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email';
     if (!form.role) errs.role = 'Role is required';
-    if (form.role && PARENT_ROLE[form.role] && !form.parent_id) {
-      errs.parent_id = `Must select a ${getRoleInfo(PARENT_ROLE[form.role]).label}`;
+    if (form.role && effectiveParentRole && !form.parent_id) {
+      errs.parent_id = `Must select a ${getRoleInfo(effectiveParentRole).label}`;
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -193,16 +204,38 @@ function MemberModal({ member, members, onClose, onSave }) {
               {errors.role && <span className="field-error">{errors.role}</span>}
             </div>
 
-            {form.role && PARENT_ROLE[form.role] && (
+            {/* Individual Contributor toggle — only for Sales Manager */}
+            {form.role === 'sales_manager' && (
+              <div className="form-group">
+                <div className="bt-ic-toggle-row">
+                  <div>
+                    <span className="bt-ic-label">Individual Contributor</span>
+                    <span className="bt-ic-hint">Reports directly to CGO, not via an Associate Sales Director</span>
+                  </div>
+                  <button
+                    type="button"
+                    className={`toggle-switch ${form.is_individual_contributor ? 'on' : 'off'}`}
+                    onClick={() => {
+                      setForm(f => ({ ...f, is_individual_contributor: !f.is_individual_contributor, parent_id: '' }));
+                      setErrors(e => ({ ...e, parent_id: '' }));
+                    }}
+                  >
+                    <span className="toggle-thumb" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {form.role && effectiveParentRole && (
               <div className="form-group">
                 <label>
-                  Reports To — {getRoleInfo(PARENT_ROLE[form.role]).label}
+                  Reports To — {getRoleInfo(effectiveParentRole).label}
                   <span className="req"> *</span>
                 </label>
                 {eligibleParents.length === 0 ? (
                   <div className="bt-no-parent-warning">
                     <AlertCircle size={14} />
-                    No {getRoleInfo(PARENT_ROLE[form.role]).label} found. Add one first.
+                    No {getRoleInfo(effectiveParentRole).label} found. Add one first.
                   </div>
                 ) : (
                   <select
@@ -210,7 +243,7 @@ function MemberModal({ member, members, onClose, onSave }) {
                     value={form.parent_id}
                     onChange={e => set('parent_id', e.target.value)}
                   >
-                    <option value="">Select {getRoleInfo(PARENT_ROLE[form.role]).label}…</option>
+                    <option value="">Select {getRoleInfo(effectiveParentRole).label}…</option>
                     {eligibleParents.map(p => (
                       <option key={p.id} value={String(p.id)}>{p.name}</option>
                     ))}
@@ -484,7 +517,12 @@ export default function BusinessTeam() {
                               {m.name.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <div className="user-name">{m.name}</div>
+                              <div className="user-name">
+                                {m.name}
+                                {m.is_individual_contributor && (
+                                  <span className="bt-ic-badge">IC</span>
+                                )}
+                              </div>
                               <div className="user-email">{m.email}</div>
                             </div>
                           </div>

@@ -223,6 +223,9 @@ const migrations = [
     ('Closed Lost', 'closed_lost', 7, '#c0392b', true)
   ON CONFLICT (slug) DO NOTHING`,
 
+  // Individual contributor flag for Sales Managers who report directly to CGO
+  `ALTER TABLE business_team ADD COLUMN IF NOT EXISTS is_individual_contributor BOOLEAN DEFAULT false`,
+
   // Sub-stage is now free-text on stories; drop the FK column and add a text column
   `ALTER TABLE user_stories ADD COLUMN IF NOT EXISTS sub_stage TEXT`,
   `ALTER TABLE user_stories DROP COLUMN IF EXISTS sub_stage_id`,

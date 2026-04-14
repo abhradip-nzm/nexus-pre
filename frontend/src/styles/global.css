@@ -620,3 +620,37 @@ select.form-control:focus {
 .grid-2 { grid-template-columns: repeat(2, 1fr); }
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* ── Shared search box (AdminUsers, Prospects, etc.) ── */
+.users-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  min-width: 260px;
+  color: var(--text-muted);
+}
+.users-search:focus-within { border-color: var(--primary); }
+.users-search-input {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+  outline: none;
+}
+.users-search-input::placeholder { color: var(--text-light); }
+.search-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+.search-clear:hover { color: var(--error); }
