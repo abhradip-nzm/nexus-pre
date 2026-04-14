@@ -37,6 +37,8 @@ function buildSubStageMap(columns) {
 
 // ── Draggable Story Card ──────────────────────────────────────────────────────
 function StoryCard({ story, subStageName, onView }) {
+  const { user } = useAuth();
+  const isSystemAdmin = user?.role_name === 'system_admin';
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging
   } = useSortable({ id: story.id });
@@ -124,12 +126,19 @@ function StoryCard({ story, subStageName, onView }) {
           </div>
         )}
 
-        {story.effective_start_date && (
+        {isSystemAdmin ? (
+          <div className={`story-card-meta-row story-card-esd${story.effective_start_date ? ' story-card-esd--set' : ' story-card-esd--empty'}`}>
+            <Calendar size={9} />
+            {story.effective_start_date
+              ? new Date(story.effective_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              : '—'}
+          </div>
+        ) : story.effective_start_date ? (
           <div className="story-card-meta-row">
             <Calendar size={9} />
             {new Date(story.effective_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </div>
-        )}
+        ) : null}
 
         {story.team_assignments?.length > 0 && (
           <div className="story-card-assignments">
@@ -545,7 +554,7 @@ export default function KanbanBoard() {
       'Assigned Members': (s.member_assignments || []).map(m => m.name).filter(Boolean).join(', '),
       'Industries': (s.industry_assignments || []).map(i => i.name).filter(Boolean).join(', '),
       'Tags': Array.isArray(s.tags) ? s.tags.join(', ') : (s.tags || ''),
-      'Sales Executive': s.business_team_member_name || '',
+      'BT Member': s.business_team_member_name || '',
       'Source': s.source || '',
       'Description': s.description || '',
       'Contact Email': s.client_email || '',
@@ -803,7 +812,7 @@ export default function KanbanBoard() {
                   <th>Assigned Members</th>
                   <th>Industries</th>
                   <th>Tags</th>
-                  <th>Sales Executive</th>
+                  <th>BT Member</th>
                   <th>Source</th>
                   <th>Description</th>
                   <th>Contact Email</th>

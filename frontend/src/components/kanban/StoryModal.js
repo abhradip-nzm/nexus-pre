@@ -157,13 +157,12 @@ export default function StoryModal({
   }, []);
 
   const selectedColumn = columns.find(c => String(c.id) === String(form.column_id));
-  const salesExecutives = businessTeam.filter(m => m.role === 'sales_executive');
   const assignableUsers = users.filter(u => ['system_admin', 'pre_sales_manager', 'pre_sales_executive'].includes(u.role_name));
 
-  const getSmHierarchy = (smId) => {
-    if (!smId) return [];
+  const getBtHierarchy = (memberId) => {
+    if (!memberId) return [];
     const chain = [];
-    let current = businessTeam.find(m => m.id === parseInt(smId));
+    let current = businessTeam.find(m => m.id === parseInt(memberId));
     while (current) {
       chain.unshift(current);
       current = current.parent_id ? businessTeam.find(m => m.id === current.parent_id) : null;
@@ -171,7 +170,15 @@ export default function StoryModal({
     return chain;
   };
 
-  const seHierarchy = getSmHierarchy(form.business_team_member_id);
+  const btMemberHierarchy = getBtHierarchy(form.business_team_member_id);
+
+  // Group business team members by role for display
+  const BT_ROLE_ORDER = ['cgo', 'asd', 'sales_manager', 'sales_executive'];
+  const btByRole = BT_ROLE_ORDER.reduce((acc, role) => {
+    const members = businessTeam.filter(m => m.role === role);
+    if (members.length > 0) acc[role] = members;
+    return acc;
+  }, {});
 
   const filteredTagOptions = tagOptions.filter(t =>
     !form.tags.includes(t.name) &&
@@ -480,15 +487,19 @@ export default function StoryModal({
                     onChange={e => handleChange('effective_start_date', e.target.value)} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label"><Briefcase size={12} /> Sales Executive</label>
+                  <label className="form-label"><Briefcase size={12} /> BT Member</label>
                   <select className="form-control" value={form.business_team_member_id}
                     onChange={e => handleChange('business_team_member_id', e.target.value)}>
                     <option value="">None</option>
-                    {salesExecutives.map(se => <option key={se.id} value={se.id}>{se.name}</option>)}
+                    {BT_ROLE_ORDER.filter(r => btByRole[r]).map(role => (
+                      <optgroup key={role} label={BT_ROLE_LABELS[role]}>
+                        {btByRole[role].map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </optgroup>
+                    ))}
                   </select>
-                  {seHierarchy.length > 1 && (
+                  {btMemberHierarchy.length > 1 && (
                     <div className="sm-hierarchy">
-                      {seHierarchy.map((node, i) => (
+                      {btMemberHierarchy.map((node, i) => (
                         <span key={node.id} className="sm-hierarchy-node">
                           {i > 0 && <span className="sm-hierarchy-arrow">›</span>}
                           <span className="sm-hierarchy-role">{BT_ROLE_LABELS[node.role] || node.role}</span>

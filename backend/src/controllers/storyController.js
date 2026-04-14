@@ -10,7 +10,7 @@ const FIELD_LABELS = {
   sub_stage: 'Sub Stage',
   assigned_to: 'Assigned To',
   estimated_value: 'Est. Value',
-  business_team_member_id: 'Sales Executive',
+  business_team_member_id: 'BT Member',
   priority: 'Priority',
   due_date: 'Due Date',
 };
@@ -101,6 +101,7 @@ const getAllStories = async (req, res) => {
               u1.avatar_url as assigned_to_avatar,
               u2.first_name || ' ' || u2.last_name as created_by_name,
               bt.name as business_team_member_name,
+              bt.role as business_team_member_role,
               COUNT(DISTINCT t.id) as task_count,
               COUNT(DISTINCT CASE WHEN t.status = 'done' THEN t.id END) as completed_task_count,
               COUNT(DISTINCT sc.id) as comment_count,
@@ -131,7 +132,7 @@ const getAllStories = async (req, res) => {
        LEFT JOIN business_team bt ON us.business_team_member_id = bt.id
        ${whereClause}
        GROUP BY us.id, kc.name, kc.slug, kc.color, u1.first_name, u1.last_name,
-                u1.avatar_url, u2.first_name, u2.last_name, bt.name
+                u1.avatar_url, u2.first_name, u2.last_name, bt.name, bt.role
        ORDER BY us.position ASC, us.created_at DESC
        LIMIT $${idx++} OFFSET $${idx++}`,
       [...values, limit, offset]

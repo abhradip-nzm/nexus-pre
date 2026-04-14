@@ -191,10 +191,8 @@ export default function MyTasks() {
     const endpoint = task.task_type === 'prospect' ? `/prospect-tasks/${task.id}` : `/tasks/${task.id}`;
     try {
       await api.put(endpoint, { status: 'todo' });
-      setTasks(prev => prev.map(t =>
-        t.id === task.id ? { ...t, status: 'todo', completed_at: null, response_details: null } : t
-      ));
       toast.success('Task reopened!');
+      loadTasks();
     } catch {
       toast.error('Failed to update task');
     }
@@ -205,14 +203,10 @@ export default function MyTasks() {
     const endpoint = completingTask.task_type === 'prospect' ? `/prospect-tasks/${completingTask.id}` : `/tasks/${completingTask.id}`;
     try {
       await api.put(endpoint, { status: 'done', response_details: responseDetails.trim() });
-      setTasks(prev => prev.map(t =>
-        t.id === completingTask.id
-          ? { ...t, status: 'done', completed_at: new Date().toISOString(), response_details: responseDetails.trim() }
-          : t
-      ));
       toast.success('Task marked complete!');
       setCompletingTask(null);
       setResponseDetails('');
+      loadTasks();
     } catch {
       toast.error('Failed to update task');
     }
@@ -332,7 +326,8 @@ export default function MyTasks() {
           columns={[]}
           users={[]}
           readOnly={true}
-          onClose={() => setViewingStoryId(null)}
+          onClose={() => { setViewingStoryId(null); loadTasks(); }}
+          onUpdated={loadTasks}
         />
       )}
       <Header title="My Tasks" subtitle="Your assigned tasks across all user stories" />

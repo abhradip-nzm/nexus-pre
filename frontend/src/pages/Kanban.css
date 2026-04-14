@@ -499,6 +499,33 @@
   color: var(--text-muted);
   margin-bottom: 3px;
 }
+
+.story-card-esd--set {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-50, #eef4fb);
+  border: 1px solid var(--primary-100, #dce8f5);
+  border-radius: 10px;
+  padding: 2px 7px;
+  margin-bottom: 3px;
+}
+
+.story-card-esd--empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 2px 7px;
+  margin-bottom: 3px;
+}
 .story-card-assignments {
   font-size: 10px;
   color: var(--text-muted);

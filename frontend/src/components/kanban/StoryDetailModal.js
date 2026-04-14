@@ -622,7 +622,7 @@ export default function StoryDetailModal({ storyId, columns, users, onClose, onU
                     )}
                     {story.business_team_member_name && (
                       <div className="sidebar-stat">
-                        <span className="ss-label">Sales Executive</span>
+                        <span className="ss-label">{BT_ROLE_LABELS[story.business_team_member_role] || 'BT Member'}</span>
                         <span className="ss-value">{story.business_team_member_name}</span>
                       </div>
                     )}
