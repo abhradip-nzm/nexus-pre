@@ -8,7 +8,7 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare, SlidersHorizontal, Download, LayoutGrid, List, User, Calendar, Tag, Users, Briefcase, CalendarRange } from 'lucide-react';
+import { Plus, Search, X, Eye, Building, CheckSquare, MessageSquare, SlidersHorizontal, Download, LayoutGrid, List, User, Calendar, Tag, Users, Briefcase, CalendarRange, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import Header from '../components/layout/Header';
 import StoryModal from '../components/kanban/StoryModal';
 import StoryDetailModal from '../components/kanban/StoryDetailModal';
@@ -201,6 +201,202 @@ function StoryCard({ story, subStageName, onView }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Calendar helpers ──────────────────────────────────────────────────────────
+const KCAL_MONTHS = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December'
+];
+const KCAL_DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function toKCalDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// ── Kanban Calendar View ──────────────────────────────────────────────────────
+function StoryCalendarView({ stories, columns, onView }) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+  const [expandedDay, setExpandedDay] = useState(null); // dateStr of expanded day
+
+  const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
+  const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
+  const goToday = () => { setYear(today.getFullYear()); setMonth(today.getMonth()); };
+
+  // Group stories by effective_start_date
+  const storiesByDate = {};
+  const unscheduled = [];
+  stories.forEach(s => {
+    if (s.effective_start_date) {
+      const dateStr = s.effective_start_date.slice(0, 10);
+      if (!storiesByDate[dateStr]) storiesByDate[dateStr] = [];
+      storiesByDate[dateStr].push(s);
+    } else {
+      unscheduled.push(s);
+    }
+  });
+
+  const scheduledCount = stories.length - unscheduled.length;
+
+  // Build calendar grid
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(year, month, 1).getDay();
+  const slots = [];
+  for (let i = 0; i < firstDay; i++) slots.push(null);
+  for (let d = 1; d <= daysInMonth; d++) slots.push(new Date(year, month, d));
+  while (slots.length % 7 !== 0) slots.push(null);
+  const weeks = [];
+  for (let i = 0; i < slots.length; i += 7) weeks.push(slots.slice(i, i + 7));
+
+  const todayStr = toKCalDateStr(today);
+  const SHOW_MAX = 3;
+
+  return (
+    <div className="kcal-wrapper">
+      {/* Navigation bar */}
+      <div className="kcal-nav">
+        <button className="kcal-nav-btn" onClick={prevMonth} title="Previous month">
+          <ChevronLeft size={16} />
+        </button>
+        <div className="kcal-nav-title">
+          <span className="kcal-nav-month">{KCAL_MONTHS[month]}</span>
+          <span className="kcal-nav-year">{year}</span>
+        </div>
+        <button className="kcal-nav-btn kcal-today-btn" onClick={goToday}>Today</button>
+        <button className="kcal-nav-btn" onClick={nextMonth} title="Next month">
+          <ChevronRight size={16} />
+        </button>
+        <div className="kcal-stats">
+          <span className="kcal-stat-pill kcal-stat-scheduled">
+            <CalendarDays size={12} /> {scheduledCount} scheduled
+          </span>
+          {unscheduled.length > 0 && (
+            <span className="kcal-stat-pill kcal-stat-unscheduled">
+              {unscheduled.length} unscheduled
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Stage legend */}
+      {columns.length > 0 && (
+        <div className="kcal-legend">
+          {columns.map(col => (
+            <span key={col.id} className="kcal-legend-item">
+              <span className="kcal-legend-dot" style={{ background: col.color }} />
+              {col.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Day headers */}
+      <div className="kcal-day-headers">
+        {KCAL_DAYS.map(d => <div key={d} className="kcal-day-header">{d}</div>)}
+      </div>
+
+      {/* Calendar grid */}
+      <div className="kcal-grid">
+        {weeks.map((week, wi) => (
+          <div key={wi} className="kcal-week">
+            {week.map((day, di) => {
+              if (!day) return <div key={di} className="kcal-cell kcal-cell--empty" />;
+              const dateStr = toKCalDateStr(day);
+              const dayStories = storiesByDate[dateStr] || [];
+              const isToday = dateStr === todayStr;
+              const isExpanded = expandedDay === dateStr;
+              const visible = isExpanded ? dayStories : dayStories.slice(0, SHOW_MAX);
+              const overflow = !isExpanded && dayStories.length > SHOW_MAX ? dayStories.length - SHOW_MAX : 0;
+
+              return (
+                <div
+                  key={di}
+                  className={`kcal-cell${isToday ? ' kcal-cell--today' : ''}${dayStories.length > 0 ? ' kcal-cell--has-stories' : ''}`}
+                >
+                  <div className="kcal-date-num-row">
+                    <span className={`kcal-date-num${isToday ? ' kcal-date-today' : ''}`}>
+                      {day.getDate()}
+                    </span>
+                    {dayStories.length > 0 && (
+                      <span className="kcal-day-count">{dayStories.length}</span>
+                    )}
+                  </div>
+                  <div className="kcal-day-stories">
+                    {visible.map(s => (
+                      <button
+                        key={s.id}
+                        className={`kcal-story-chip kcal-story-chip--${s.priority || 'medium'}`}
+                        style={{ borderLeftColor: s.column_color || '#3e72ae' }}
+                        onClick={e => { e.stopPropagation(); onView(s); }}
+                        title={`${s.title} · ${s.column_name}${s.client_company ? ' · ' + s.client_company : ''}`}
+                      >
+                        <span className="kcal-chip-stage-dot" style={{ background: s.column_color || '#3e72ae' }} />
+                        <span className="kcal-chip-title">{s.title}</span>
+                        {s.client_company && (
+                          <span className="kcal-chip-company">{s.client_company}</span>
+                        )}
+                      </button>
+                    ))}
+                    {overflow > 0 && (
+                      <button
+                        className="kcal-overflow-btn"
+                        onClick={e => { e.stopPropagation(); setExpandedDay(dateStr); }}
+                      >
+                        +{overflow} more
+                      </button>
+                    )}
+                    {isExpanded && dayStories.length > SHOW_MAX && (
+                      <button
+                        className="kcal-collapse-btn"
+                        onClick={e => { e.stopPropagation(); setExpandedDay(null); }}
+                      >
+                        Show less
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Unscheduled stories */}
+      {unscheduled.length > 0 && (
+        <div className="kcal-unscheduled">
+          <h4 className="kcal-unscheduled-title">
+            <Calendar size={14} /> Unscheduled Stories
+            <span className="kcal-unscheduled-count">{unscheduled.length}</span>
+          </h4>
+          <div className="kcal-unscheduled-grid">
+            {unscheduled.map(s => (
+              <button
+                key={s.id}
+                className="kcal-unscheduled-chip"
+                style={{ borderLeftColor: s.column_color || '#3e72ae' }}
+                onClick={() => onView(s)}
+                title={`${s.title} · ${s.column_name}`}
+              >
+                <span className="kcal-chip-stage-dot" style={{ background: s.column_color || '#3e72ae' }} />
+                <span className="kcal-unscheduled-info">
+                  <span className="kcal-chip-title">{s.title}</span>
+                  {s.client_company && <span className="kcal-chip-company">{s.client_company}</span>}
+                </span>
+                <span className="kcal-us-stage-badge" style={{ background: `${s.column_color}20`, color: s.column_color }}>
+                  {s.column_name}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -608,6 +804,13 @@ export default function KanbanBoard() {
               >
                 <List size={16} />
               </button>
+              <button
+                className={`view-btn ${viewMode === 'calendar' ? 'active' : ''}`}
+                onClick={() => setViewMode('calendar')}
+                title="Calendar View"
+              >
+                <CalendarDays size={16} />
+              </button>
             </div>
             <button
               className={`btn btn-sm ${showFilters || activeFilterCount > 0 ? 'btn-secondary' : 'btn-ghost'}`}
@@ -868,6 +1071,14 @@ export default function KanbanBoard() {
               />
             )}
           </div>
+        )}
+
+        {viewMode === 'calendar' && (
+          <StoryCalendarView
+            stories={allFilteredStories}
+            columns={columns}
+            onView={setViewStory}
+          />
         )}
       </div>
 
