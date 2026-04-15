@@ -3,6 +3,7 @@ const multer  = require('multer');
 const router  = express.Router();
 const { authenticate, requireSystemAdmin, requireAdmin, requireManager } = require('../middleware/auth');
 const { uploadFile, ALLOWED_TYPES, MAX_SIZE_BYTES } = require('../utils/storage');
+const { getAllAdhocTasks, createAdhocTask, updateAdhocTask, deleteAdhocTask } = require('../controllers/adhocTaskController');
 
 // Multer — memory storage, 10 MB limit, allowed types only
 const upload = multer({
