@@ -927,7 +927,48 @@ const getMyTasks = async (req, res) => {
       ${prospectWhereClause}
     `, prospectParams);
 
-    const allTasks = [...storyResult.rows, ...prospectResult.rows].sort((a, b) => {
+    // --- Ad-Hoc tasks (system_admin only) ---
+    let adhocRows = [];
+    if (isAdmin) {
+      let adhocWhere = '';
+      let adhocParams = [];
+      if (assigneeFilter === 'none') {
+        adhocWhere = 'WHERE at2.id NOT IN (SELECT adhoc_task_id FROM adhoc_task_member_assignments)';
+      } else if (filterUserId) {
+        adhocWhere = 'WHERE at2.id IN (SELECT adhoc_task_id FROM adhoc_task_member_assignments WHERE user_id = $1)';
+        adhocParams = [filterUserId];
+      }
+      // When no filter: system_admin sees all ad-hoc tasks they created
+      if (!adhocWhere && !filterUserId) {
+        adhocWhere = '';
+        adhocParams = [];
+      }
+      const adhocResult = await query(`
+        SELECT
+          at2.id, at2.title, at2.description, at2.status, at2.start_date, at2.due_date,
+          at2.completed_at, at2.created_at, at2.updated_at, at2.response_details,
+          'adhoc' AS task_type,
+          at2.story_id,
+          us.title AS story_title,
+          at2.prospect_id::text AS prospect_id,
+          pp.title AS prospect_title,
+          cb.first_name || ' ' || cb.last_name AS created_by_name,
+          COALESCE(
+            (SELECT json_agg(jsonb_build_object('id', u2.id, 'name', u2.first_name || ' ' || u2.last_name))
+             FROM adhoc_task_member_assignments ama JOIN users u2 ON u2.id = ama.user_id
+             WHERE ama.adhoc_task_id = at2.id),
+            '[]'
+          ) AS assignees
+        FROM adhoc_tasks at2
+        LEFT JOIN user_stories us ON us.id = at2.story_id
+        LEFT JOIN probable_prospects pp ON pp.id = at2.prospect_id
+        LEFT JOIN users cb ON cb.id = at2.created_by
+        ${adhocWhere}
+      `, adhocParams);
+      adhocRows = adhocResult.rows;
+    }
+
+    const allTasks = [...storyResult.rows, ...prospectResult.rows, ...adhocRows].sort((a, b) => {
       if (a.due_date && b.due_date) return new Date(a.due_date) - new Date(b.due_date);
       if (a.due_date) return -1;
       if (b.due_date) return 1;

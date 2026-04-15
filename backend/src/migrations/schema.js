@@ -577,7 +577,44 @@ const migrations = [
   // Calendar view loads meetings by time range
   `CREATE INDEX IF NOT EXISTS idx_meetings_start_time ON meetings(start_time)`,
   // Story detail panel loads linked meetings
-  `CREATE INDEX IF NOT EXISTS idx_meetings_user_story_id ON meetings(user_story_id) WHERE user_story_id IS NOT NULL`
+  `CREATE INDEX IF NOT EXISTS idx_meetings_user_story_id ON meetings(user_story_id) WHERE user_story_id IS NOT NULL`,
+
+  // ── Ad-Hoc Tasks (system_admin standalone tasks) ──────────────────────────
+  `CREATE TABLE IF NOT EXISTS adhoc_tasks (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'done')),
+    priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+    start_date DATE,
+    due_date DATE,
+    completed_at TIMESTAMPTZ,
+    response_details TEXT,
+    business_team_member_id INTEGER REFERENCES business_team(id) ON DELETE SET NULL,
+    story_id UUID REFERENCES user_stories(id) ON DELETE SET NULL,
+    prospect_id INTEGER REFERENCES probable_prospects(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS adhoc_task_team_assignments (
+    adhoc_task_id INTEGER REFERENCES adhoc_tasks(id) ON DELETE CASCADE,
+    team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
+    PRIMARY KEY (adhoc_task_id, team_id)
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS adhoc_task_member_assignments (
+    adhoc_task_id INTEGER REFERENCES adhoc_tasks(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (adhoc_task_id, user_id)
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS idx_adhoc_tasks_created_by ON adhoc_tasks(created_by)`,
+  `CREATE INDEX IF NOT EXISTS idx_adhoc_tasks_due_date ON adhoc_tasks(due_date) WHERE due_date IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_adhoc_tasks_story_id ON adhoc_tasks(story_id) WHERE story_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_adhoc_tasks_prospect_id ON adhoc_tasks(prospect_id) WHERE prospect_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_adhoc_tma_user_id ON adhoc_task_member_assignments(user_id)`
 ];
 
 async function runMigrations() {

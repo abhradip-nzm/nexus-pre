@@ -275,6 +275,14 @@ const promoteProspect = async (req, res) => {
     }
 
     await query('UPDATE probable_prospects SET promoted_at=NOW(), promoted_to_story_id=$1 WHERE id=$2', [story.id, id]);
+
+    // Keep ad-hoc task links intact: any ad-hoc task tagged with this prospect
+    // now also gets a story_id pointing to the newly created story.
+    await query(
+      `UPDATE adhoc_tasks SET story_id = $1 WHERE prospect_id = $2 AND story_id IS NULL`,
+      [story.id, id]
+    );
+
     await createNotificationForAdmins('Prospect Promoted', `"${p.title}" was promoted to a story in the pipeline`, 'promoted');
 
     res.json({ success: true, story });

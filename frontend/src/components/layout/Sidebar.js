@@ -6,7 +6,7 @@ import {
   ChevronDown, LogOut,
   UsersRound, LayoutGrid, UserCog,
   Calendar as CalendarIcon, Tag as TagIcon, Building2,
-  GitBranch, CalendarCheck, Target, FormInput
+  GitBranch, CalendarCheck, Target, FormInput, ListTodo
 } from 'lucide-react';
 import { formatRoleName } from '../../utils/helpers';
 import './Sidebar.css';
@@ -38,6 +38,7 @@ const adminNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
   { to: '/all-tasks', icon: CalendarCheck, label: 'All Tasks' },
+  { to: '/adhoc-tasks', icon: ListTodo, label: 'Ad-Hoc Tasks', systemAdminOnly: true },
   { to: '/calendar', icon: CalendarIcon, label: 'Calendar' },
   { to: '/admin/users', icon: UserCog, label: 'User Management' },
   { to: '/admin/teams', icon: UsersRound, label: 'Teams' },
@@ -59,9 +60,11 @@ export default function Sidebar() {
   const isAdminUser = user?.role_name === 'system_admin' || user?.role_name === 'super_admin';
   const toggle = (label) => setExpanded(p => ({ ...p, [label]: !p[label] }));
 
-  const visibleAdminItems = user?.role_name === 'super_admin'
-    ? adminNavItems.filter(item => item.to !== '/settings')
-    : adminNavItems;
+  const visibleAdminItems = adminNavItems.filter(item => {
+    if (item.systemAdminOnly && user?.role_name !== 'system_admin') return false;
+    if (item.to === '/settings' && user?.role_name !== 'system_admin') return false;
+    return true;
+  });
 
   return (
     <aside className="sidebar">

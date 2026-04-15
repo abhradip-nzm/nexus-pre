@@ -23,6 +23,7 @@ import TransitionForms from './pages/TransitionForms';
 import BusinessTeam from './pages/BusinessTeam';
 import MyTasks from './pages/MyTasks';
 import AllTasks from './pages/AllTasks';
+import AdHocTasks from './pages/AdHocTasks';
 import Prospects from './pages/Prospects';
 import Notifications from './pages/Notifications';
 import './styles/global.css';
@@ -219,6 +220,12 @@ function App() {
           <Route path="/all-tasks" element={
             <ProtectedRoute roles={['system_admin', 'super_admin']}>
               <AppLayout><AllTasks /></AppLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/adhoc-tasks" element={
+            <ProtectedRoute roles={['system_admin']}>
+              <AppLayout><AdHocTasks /></AppLayout>
             </ProtectedRoute>
           } />
 

@@ -182,15 +182,20 @@ export default function MyTasks() {
 
   useEffect(() => { loadTasks(); }, [loadTasks]);
 
+  const getTaskEndpoint = (task) => {
+    if (task.task_type === 'prospect') return `/prospect-tasks/${task.id}`;
+    if (task.task_type === 'adhoc') return `/adhoc-tasks/${task.id}`;
+    return `/tasks/${task.id}`;
+  };
+
   const handleToggleComplete = async (task) => {
     if (task.status !== 'done') {
       setCompletingTask(task);
       setResponseDetails('');
       return;
     }
-    const endpoint = task.task_type === 'prospect' ? `/prospect-tasks/${task.id}` : `/tasks/${task.id}`;
     try {
-      await api.put(endpoint, { status: 'todo' });
+      await api.put(getTaskEndpoint(task), { status: 'todo' });
       toast.success('Task reopened!');
       loadTasks();
     } catch {
@@ -200,9 +205,8 @@ export default function MyTasks() {
 
   const handleConfirmComplete = async () => {
     if (!responseDetails.trim() || !completingTask) return;
-    const endpoint = completingTask.task_type === 'prospect' ? `/prospect-tasks/${completingTask.id}` : `/tasks/${completingTask.id}`;
     try {
-      await api.put(endpoint, { status: 'done', response_details: responseDetails.trim() });
+      await api.put(getTaskEndpoint(completingTask), { status: 'done', response_details: responseDetails.trim() });
       toast.success('Task marked complete!');
       setCompletingTask(null);
       setResponseDetails('');
@@ -466,6 +470,9 @@ export default function MyTasks() {
                         {task.task_type === 'prospect' && (
                           <span style={{ fontSize: 9, background: '#f59e0b22', color: '#d97706', borderRadius: 4, padding: '1px 5px', marginLeft: 5, fontWeight: 600 }}>PROSPECT</span>
                         )}
+                        {task.task_type === 'adhoc' && (
+                          <span style={{ fontSize: 9, background: '#3e72ae22', color: '#3e72ae', borderRadius: 4, padding: '1px 5px', marginLeft: 5, fontWeight: 600 }}>AD-HOC</span>
+                        )}
                       </span>
                     </div>
                     <div className="mytasks-list-right">
@@ -479,11 +486,21 @@ export default function MyTasks() {
                       <span className={`mytasks-list-badge mytasks-list-badge--${cat}`}>
                         {cat === 'active' ? 'In Progress' : cat === 'overdue' ? 'Overdue' : cat === 'upcoming' ? 'Upcoming' : 'Completed'}
                       </span>
-                      {task.task_type !== 'prospect' && (
+                      {task.task_type !== 'prospect' && task.task_type !== 'adhoc' && task.story_id && (
                         <button
                           className="mytasks-view-story-btn"
                           onClick={() => setViewingStoryId(task.story_id)}
                           title="View story"
+                        >
+                          <ExternalLink size={13} />
+                          <span>Story</span>
+                        </button>
+                      )}
+                      {task.task_type === 'adhoc' && task.story_id && (
+                        <button
+                          className="mytasks-view-story-btn"
+                          onClick={() => setViewingStoryId(task.story_id)}
+                          title="View linked story"
                         >
                           <ExternalLink size={13} />
                           <span>Story</span>

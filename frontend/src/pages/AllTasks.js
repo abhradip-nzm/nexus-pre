@@ -195,15 +195,20 @@ export default function AllTasks() {
     loadTasks(selectedAssignee);
   }, [loadUsers, loadTasks, selectedAssignee]);
 
+  const getTaskEndpoint = (task) => {
+    if (task.task_type === 'prospect') return `/prospect-tasks/${task.id}`;
+    if (task.task_type === 'adhoc') return `/adhoc-tasks/${task.id}`;
+    return `/tasks/${task.id}`;
+  };
+
   const handleToggleComplete = async (task) => {
     if (task.status !== 'done') {
       setCompletingTask(task);
       setResponseDetails('');
       return;
     }
-    const endpoint = task.task_type === 'prospect' ? `/prospect-tasks/${task.id}` : `/tasks/${task.id}`;
     try {
-      await api.put(endpoint, { status: 'todo' });
+      await api.put(getTaskEndpoint(task), { status: 'todo' });
       toast.success('Task reopened!');
       loadTasks(selectedAssignee);
     } catch {
@@ -213,9 +218,8 @@ export default function AllTasks() {
 
   const handleConfirmComplete = async () => {
     if (!responseDetails.trim() || !completingTask) return;
-    const endpoint = completingTask.task_type === 'prospect' ? `/prospect-tasks/${completingTask.id}` : `/tasks/${completingTask.id}`;
     try {
-      await api.put(endpoint, { status: 'done', response_details: responseDetails.trim() });
+      await api.put(getTaskEndpoint(completingTask), { status: 'done', response_details: responseDetails.trim() });
       toast.success('Task marked complete!');
       setCompletingTask(null);
       setResponseDetails('');
@@ -494,9 +498,12 @@ export default function AllTasks() {
                         {task.title}
                       </span>
                       <span className="mytasks-list-story">
-                        {task.task_type === 'prospect' ? '' : ''}{task.story_title || task.prospect_title || ''}
+                        {task.story_title || task.prospect_title || ''}
                         {task.task_type === 'prospect' && (
                           <span style={{ fontSize: 9, background: '#f59e0b22', color: '#d97706', borderRadius: 4, padding: '1px 5px', marginLeft: 5, fontWeight: 600 }}>PROSPECT</span>
+                        )}
+                        {task.task_type === 'adhoc' && (
+                          <span style={{ fontSize: 9, background: '#3e72ae22', color: '#3e72ae', borderRadius: 4, padding: '1px 5px', marginLeft: 5, fontWeight: 600 }}>AD-HOC</span>
                         )}
                       </span>
                       {task.assignees?.length > 0 && (
@@ -516,11 +523,11 @@ export default function AllTasks() {
                       <span className={`mytasks-list-badge mytasks-list-badge--${cat}`}>
                         {cat === 'active' ? 'In Progress' : cat === 'overdue' ? 'Overdue' : cat === 'upcoming' ? 'Upcoming' : 'Completed'}
                       </span>
-                      {task.task_type !== 'prospect' && (
+                      {task.task_type !== 'prospect' && task.story_id && (
                         <button
                           className="mytasks-view-story-btn"
                           onClick={() => setViewingStoryId(task.story_id)}
-                          title="View story"
+                          title={task.task_type === 'adhoc' ? 'View linked story' : 'View story'}
                         >
                           <ExternalLink size={13} />
                           <span>Story</span>
