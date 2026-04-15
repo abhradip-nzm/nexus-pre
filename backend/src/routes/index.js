@@ -242,7 +242,6 @@ router.post('/transition-forms/:id/responses', authenticate, submitFormResponse)
 router.get('/stories/:storyId/form-responses', authenticate, getStoryFormResponses);
 
 // Ad-Hoc Tasks (system_admin only)
-const { getAllAdhocTasks, createAdhocTask, updateAdhocTask, deleteAdhocTask } = require('../controllers/adhocTaskController');
 router.get('/adhoc-tasks',      authenticate, requireSystemAdmin, getAllAdhocTasks);
 router.post('/adhoc-tasks',     authenticate, requireSystemAdmin, createAdhocTask);
 router.put('/adhoc-tasks/:id',  authenticate, requireSystemAdmin, updateAdhocTask);
