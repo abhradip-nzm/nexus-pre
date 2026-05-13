@@ -592,7 +592,7 @@ const migrations = [
     response_details TEXT,
     business_team_member_id INTEGER REFERENCES business_team(id) ON DELETE SET NULL,
     story_id UUID REFERENCES user_stories(id) ON DELETE SET NULL,
-    prospect_id INTEGER REFERENCES probable_prospects(id) ON DELETE SET NULL,
+    prospect_id UUID REFERENCES probable_prospects(id) ON DELETE SET NULL,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
