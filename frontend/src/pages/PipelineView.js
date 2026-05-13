@@ -548,7 +548,7 @@ function AnalyticsTab({ pipelineId }) {
           <div className="plv-a-title"><CircleDot size={15} /> Status Breakdown</div>
           {statusData.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
             <div className="plv-a-status-row">
-              <div style={{ flex: '0 0 260px' }}>
+              <div className="plv-a-pie-wrap">
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75}>
@@ -876,24 +876,26 @@ export default function PipelineView() {
                 />
                 {search && <button className="search-clear" onClick={() => setSearch('')}><X size={13} /></button>}
               </div>
-              <select className="filter-select" value={statusFilter} onChange={e => setStatusF(e.target.value)}>
-                <option value="">All Statuses</option>
-                {LEAD_STATUS.map(s => <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>)}
-              </select>
-              <select className="filter-select" value={bmFilter} onChange={e => setBmFilter(e.target.value)}>
-                <option value="">All Managers</option>
-                {salesManagers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-              <select className="filter-select" value={industryFilter} onChange={e => setIndF(e.target.value)}>
-                <option value="">All Industries</option>
-                {industries.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-              </select>
-              {(statusFilter || bmFilter || industryFilter || search) && (
-                <button className="btn btn-ghost btn-sm" onClick={() => { setSearch(''); setStatusF(''); setBmFilter(''); setIndF(''); }}>
-                  <Filter size={13} /> Clear
-                </button>
-              )}
-              <div style={{ flex: 1 }} />
+              <div className="plv-filters-row">
+                <select className="filter-select" value={statusFilter} onChange={e => setStatusF(e.target.value)}>
+                  <option value="">All Statuses</option>
+                  {LEAD_STATUS.map(s => <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>)}
+                </select>
+                <select className="filter-select" value={bmFilter} onChange={e => setBmFilter(e.target.value)}>
+                  <option value="">All Managers</option>
+                  {salesManagers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+                <select className="filter-select" value={industryFilter} onChange={e => setIndF(e.target.value)}>
+                  <option value="">All Industries</option>
+                  {industries.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                </select>
+                {(statusFilter || bmFilter || industryFilter || search) && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => { setSearch(''); setStatusF(''); setBmFilter(''); setIndF(''); }}>
+                    <Filter size={13} /> Clear
+                  </button>
+                )}
+              </div>
+              <div className="plv-toolbar-spacer" style={{ flex: 1 }} />
               <button className="btn btn-primary" onClick={() => { setEditLead(null); setLeadModal(true); }}>
                 <Plus size={15} /> Add Lead
               </button>

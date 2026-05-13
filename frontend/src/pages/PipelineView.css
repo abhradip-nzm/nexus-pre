@@ -401,14 +401,135 @@
 .plv-a-bm-name { font-weight: 600; color: var(--text-primary) !important; }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
+
+/* Analytics pie chart wrapper — fixed width on desktop, full-width on mobile */
+.plv-a-pie-wrap {
+  flex: 0 0 260px;
+  width: 260px;
+}
+
 @media (max-width: 900px) {
   .plv-analytics-grid { grid-template-columns: 1fr; }
   .plv-a-card-full    { grid-column: auto; }
 }
+
 @media (max-width: 768px) {
-  .plv-form-grid { grid-template-columns: 1fr; }
+  .plv-form-grid     { grid-template-columns: 1fr; }
   .plv-summary-pills { gap: 6px; }
   .plv-summary-pill  { padding: 5px 10px; }
+}
+
+/* ── Mobile (≤640px) ─────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Page layout */
+  .plv-page { gap: 12px; }
+
+  /* Top bar: stack vertically */
+  .plv-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .plv-pipe-info { flex-wrap: wrap; }
+
+  /* Summary pills: 2×2 grid */
+  .plv-summary-pills {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .plv-summary-pill {
+    border-radius: 10px;
+    padding: 8px 12px;
+    justify-content: space-between;
+  }
+
+  /* Tabs row: stack tabs above share button */
+  .plv-tabs-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .plv-tabs {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Hide scrollbar on mobile */
+    scrollbar-width: none;
+  }
+  .plv-tabs::-webkit-scrollbar { display: none; }
+  .plv-tab {
+    padding: 7px 13px;
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .plv-share-btn { align-self: flex-start; }
+
+  /* Toolbar: stack search full-width, filters 2-per-row, Add Lead full-width */
+  .pl-toolbar.plv-toolbar-wrap {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .pl-toolbar.plv-toolbar-wrap .users-search {
+    min-width: 0;
+    width: 100%;
+  }
+  .pl-toolbar.plv-toolbar-wrap .plv-filters-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .filter-select {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+  .pl-toolbar.plv-toolbar-wrap .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+  /* hide the flex spacer on mobile */
+  .plv-toolbar-spacer { display: none; }
+
+  /* Analytics: pie + legend stack vertically */
+  .plv-a-status-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .plv-a-pie-wrap {
+    flex: none;
+    width: 100%;
+    max-width: 280px;
+  }
+  .plv-a-legend {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    width: 100%;
+  }
+  .plv-a-legend-row { flex: 1 1 40%; }
+
+  /* Analytics cards: reduce padding */
+  .plv-a-card { padding: 14px; }
+
+  /* BM table min-width for horizontal scroll */
+  .plv-a-bm-table { min-width: 500px; }
+
+  /* Audit entries: stack all columns */
+  .plv-audit-entry { flex-direction: column; gap: 10px; }
+  .plv-audit-left  { flex: 1 1 auto; }
+  .plv-audit-right { white-space: normal; }
+
+  /* Reduce modal padding */
+  .modal-body { padding: 16px; }
+  .plv-add-update-row { flex-wrap: wrap; }
+  .plv-add-update-row .form-control[type="date"] {
+    width: 100%;
+    flex-shrink: 1;
+  }
 }
 
 /* ── Tabs row with Share button ──────────────────────────────────────────── */
@@ -422,7 +543,8 @@
 .plv-share-btn { white-space: nowrap; }
 
 /* ── Toolbar wrapping for extra filters ──────────────────────────────────── */
-.plv-toolbar-wrap { flex-wrap: wrap; gap: 8px; }
+.plv-toolbar-wrap  { flex-wrap: wrap; gap: 8px; }
+.plv-filters-row   { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* ── Share modal elements ────────────────────────────────────────────────── */
 .plv-share-pipe-name {
