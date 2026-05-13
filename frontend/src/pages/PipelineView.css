@@ -377,3 +377,168 @@
   .plv-summary-pills { gap: 6px; }
   .plv-summary-pill  { padding: 5px 10px; }
 }
+
+/* ── Tabs row with Share button ──────────────────────────────────────────── */
+.plv-tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.plv-share-btn { white-space: nowrap; }
+
+/* ── Toolbar wrapping for extra filters ──────────────────────────────────── */
+.plv-toolbar-wrap { flex-wrap: wrap; gap: 8px; }
+
+/* ── Share modal elements ────────────────────────────────────────────────── */
+.plv-share-pipe-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+.plv-optional {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.plv-recipients-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plv-recipient-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.plv-recipient-row .form-control { flex: 1; min-width: 0; }
+.plv-add-recipient-btn { align-self: flex-start; margin-top: 4px; }
+.plv-share-success-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+.plv-share-link-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-light);
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+.plv-share-link-url {
+  flex: 1;
+  font-size: 12px;
+  color: #3e72ae;
+  word-break: break-all;
+}
+.plv-share-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Audit trail tab ─────────────────────────────────────────────────────── */
+.plv-audit-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.plv-audit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.plv-audit-count {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.plv-audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.plv-audit-entry {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 14px 16px;
+  flex-wrap: wrap;
+}
+.plv-audit-left {
+  min-width: 200px;
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.plv-audit-who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.plv-audit-email { font-size: 11px; color: var(--text-muted); font-weight: 400; }
+.plv-audit-lead-name { font-size: 12px; color: var(--text-muted); }
+.plv-audit-center {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plv-audit-action {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  align-self: flex-start;
+}
+.plv-audit-action-update_lead {
+  background: #ebf5fb;
+  color: #2980b9;
+}
+.plv-audit-action-add_update {
+  background: #eafaf1;
+  color: #27ae60;
+}
+.plv-audit-changes { display: flex; flex-direction: column; gap: 4px; }
+.plv-audit-field-change { font-size: 12px; color: var(--text-secondary); display: flex; flex-wrap: wrap; }
+.plv-audit-field { text-transform: capitalize; font-weight: 600; color: var(--text-primary); }
+.plv-audit-old { color: #e74c3c; text-decoration: line-through; font-size: 12px; }
+.plv-audit-arrow { color: var(--text-muted); font-size: 12px; }
+.plv-audit-new { color: #27ae60; font-size: 12px; font-weight: 600; }
+.plv-audit-change-text { font-size: 12px; color: var(--text-secondary); font-style: italic; }
+.plv-audit-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .plv-audit-left { flex: 1 1 100%; }
+  .plv-recipient-row { flex-wrap: wrap; }
+}

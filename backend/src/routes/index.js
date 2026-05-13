@@ -10,6 +10,11 @@ const {
   addLeadUpdate, deleteLeadUpdate,
   getPipelineAnalytics,
 } = require('../controllers/pipelineController');
+const {
+  createShare, getShares, deactivateShare,
+  getLeadAudit, getPipelineAudit,
+  getSharedPipeline, updateSharedLead, addSharedLeadUpdate,
+} = require('../controllers/pipelineShareController');
 
 // Multer — memory storage, 10 MB limit, allowed types only
 const upload = multer({
@@ -247,6 +252,11 @@ router.put('/transition-forms/:id/fields/reorder', authenticate, requireAdmin, r
 router.post('/transition-forms/:id/responses', authenticate, submitFormResponse);
 router.get('/stories/:storyId/form-responses', authenticate, getStoryFormResponses);
 
+// ── Public share routes (no auth) ────────────────────────────────────────────
+router.get('/public/pipeline-share/:token',                       getSharedPipeline);
+router.put('/public/pipeline-share/:token/leads/:leadId',         updateSharedLead);
+router.post('/public/pipeline-share/:token/leads/:leadId/updates', addSharedLeadUpdate);
+
 // Pipelines (system_admin only)
 router.get('/pipelines',                          authenticate, requireSystemAdmin, getAllPipelines);
 router.get('/pipelines/:id',                      authenticate, requireSystemAdmin, getPipeline);
@@ -260,6 +270,12 @@ router.delete('/pipeline-leads/:leadId',          authenticate, requireSystemAdm
 router.post('/pipeline-leads/:leadId/updates',    authenticate, requireSystemAdmin, addLeadUpdate);
 router.delete('/pipeline-lead-updates/:updateId', authenticate, requireSystemAdmin, deleteLeadUpdate);
 router.get('/pipelines/:id/analytics',            authenticate, requireSystemAdmin, getPipelineAnalytics);
+// Pipeline shares (system_admin only)
+router.post('/pipelines/:id/shares',              authenticate, requireSystemAdmin, createShare);
+router.get('/pipelines/:id/shares',               authenticate, requireSystemAdmin, getShares);
+router.delete('/pipeline-shares/:shareId',        authenticate, requireSystemAdmin, deactivateShare);
+router.get('/pipelines/:id/audit',                authenticate, requireSystemAdmin, getPipelineAudit);
+router.get('/pipeline-leads/:leadId/audit',       authenticate, requireSystemAdmin, getLeadAudit);
 
 // Ad-Hoc Tasks (system_admin only)
 router.get('/adhoc-tasks',      authenticate, requireSystemAdmin, getAllAdhocTasks);

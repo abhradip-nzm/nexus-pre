@@ -653,7 +653,41 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_pipelines_created_by ON pipelines(created_by)`,
   `CREATE INDEX IF NOT EXISTS idx_pipeline_leads_pipeline_id ON pipeline_leads(pipeline_id)`,
   `CREATE INDEX IF NOT EXISTS idx_pipeline_leads_bm_id ON pipeline_leads(business_manager_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_pipeline_lead_updates_lead_id ON pipeline_lead_updates(lead_id)`
+  `CREATE INDEX IF NOT EXISTS idx_pipeline_lead_updates_lead_id ON pipeline_lead_updates(lead_id)`,
+
+  // ── Pipeline shares (shareable links) ────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS pipeline_shares (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pipeline_id INTEGER REFERENCES pipelines(id) ON DELETE CASCADE,
+    note TEXT,
+    is_active BOOLEAN DEFAULT true,
+    expires_at TIMESTAMPTZ,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS pipeline_share_recipients (
+    id SERIAL PRIMARY KEY,
+    share_id UUID REFERENCES pipeline_shares(id) ON DELETE CASCADE,
+    email VARCHAR(255) NOT NULL,
+    name VARCHAR(255),
+    sent_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS pipeline_lead_audit (
+    id SERIAL PRIMARY KEY,
+    lead_id INTEGER REFERENCES pipeline_leads(id) ON DELETE CASCADE,
+    share_id UUID REFERENCES pipeline_shares(id) ON DELETE SET NULL,
+    changed_by_email VARCHAR(255),
+    changed_by_name VARCHAR(255),
+    action TEXT NOT NULL,
+    changes JSONB,
+    changed_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS idx_pipeline_shares_pipeline_id ON pipeline_shares(pipeline_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_pipeline_share_recipients_share_id ON pipeline_share_recipients(share_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_pipeline_lead_audit_lead_id ON pipeline_lead_audit(lead_id)`
 ];
 
 async function runMigrations() {

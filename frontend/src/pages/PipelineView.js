@@ -8,7 +8,8 @@ import {
   ArrowLeft, Plus, Search, X, Trash2, Pencil, BarChart2,
   Users, Calendar, Globe, Building2, ChevronDown, ChevronUp,
   Thermometer, Snowflake, CheckCircle2, MinusCircle,
-  MessageSquarePlus, Trash, CircleDot,
+  MessageSquarePlus, Trash, CircleDot, Share2, Link2,
+  Clock, UserCheck, Filter,
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
@@ -48,6 +49,201 @@ const CHART_COLORS = ['#3e72ae','#e67e22','#27ae60','#e74c3c','#8b5cf6','#14b8a6
 
 const fmt      = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '';
+
+// ── Share Modal ───────────────────────────────────────────────────────────────
+function ShareModal({ pipelineId, pipelineName, onClose }) {
+  const [recipients, setRecipients] = useState([{ email: '', name: '' }]);
+  const [note, setNote]             = useState('');
+  const [saving, setSaving]         = useState(false);
+  const [created, setCreated]       = useState(null);
+
+  const addRow    = () => setRecipients(prev => [...prev, { email: '', name: '' }]);
+  const removeRow = (i) => setRecipients(prev => prev.filter((_, idx) => idx !== i));
+  const setRow    = (i, field, val) => setRecipients(prev => {
+    const next = [...prev];
+    next[i] = { ...next[i], [field]: val };
+    return next;
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const valid = recipients.filter(r => r.email.trim());
+    if (valid.length === 0) { toast.error('Add at least one recipient email'); return; }
+    setSaving(true);
+    try {
+      const res = await api.post(`/pipelines/${pipelineId}/shares`, {
+        recipients: valid,
+        note: note.trim(),
+      });
+      setCreated(res.data.share);
+      toast.success('Share link created and emails sent!');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to create share link');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const shareUrl = created
+    ? `${window.location.origin}/share/pipeline/${created.id}`
+    : null;
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-md">
+        <div className="modal-header">
+          <h2 className="modal-title"><Share2 size={16} /> Share Pipeline</h2>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
+        </div>
+        {created ? (
+          <>
+            <div className="modal-body">
+              <p className="plv-share-success-msg">
+                <CheckCircle2 size={18} style={{ color: '#27ae60' }} />
+                Link created &amp; emails sent to {created.recipients?.length} recipient{created.recipients?.length !== 1 ? 's' : ''}.
+              </p>
+              <div className="plv-share-link-box">
+                <Link2 size={14} />
+                <span className="plv-share-link-url">{shareUrl}</span>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => { navigator.clipboard.writeText(shareUrl); toast.success('Link copied!'); }}
+                >Copy</button>
+              </div>
+              <p className="plv-share-hint">Recipients can view and update leads directly from this link.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={onClose}>Done</button>
+            </div>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Pipeline</label>
+                <div className="plv-share-pipe-name">{pipelineName}</div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Note <span className="plv-optional">(optional)</span></label>
+                <input
+                  className="form-control"
+                  placeholder="Add a message for recipients…"
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Recipients</label>
+                <div className="plv-recipients-list">
+                  {recipients.map((r, i) => (
+                    <div key={i} className="plv-recipient-row">
+                      <input
+                        className="form-control"
+                        type="email"
+                        placeholder="Email address"
+                        value={r.email}
+                        onChange={e => setRow(i, 'email', e.target.value)}
+                        required={i === 0}
+                      />
+                      <input
+                        className="form-control"
+                        placeholder="Name (optional)"
+                        value={r.name}
+                        onChange={e => setRow(i, 'name', e.target.value)}
+                      />
+                      {recipients.length > 1 && (
+                        <button type="button" className="pl-icon-btn pl-icon-delete" onClick={() => removeRow(i)}>
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="btn btn-ghost btn-sm plv-add-recipient-btn" onClick={addRow}>
+                  <Plus size={13} /> Add Recipient
+                </button>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? 'Sending…' : <><Share2 size={14} /> Send &amp; Create Link</>}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Audit Trail Tab ────────────────────────────────────────────────────────────
+function AuditTab({ auditData, auditLoading, onRefresh }) {
+  if (auditLoading) return <div className="plv-loading">Loading audit trail…</div>;
+  if (!auditData)   return null;
+
+  const fmtAuditDate = (d) => d ? new Date(d).toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }) : '—';
+
+  const ACTION_LABELS = { update_lead: 'Updated Lead', add_update: 'Added Note' };
+
+  const renderChanges = (action, changes) => {
+    if (!changes) return null;
+    if (action === 'add_update') {
+      return <span className="plv-audit-change-text">"{changes.update_text}"</span>;
+    }
+    return Object.entries(changes).map(([field, { old: oldVal, new: newVal }]) => (
+      <div key={field} className="plv-audit-field-change">
+        <span className="plv-audit-field">{field.replace(/_/g, ' ')}</span>:&nbsp;
+        <span className="plv-audit-old">{String(oldVal ?? '—')}</span>
+        <span className="plv-audit-arrow"> → </span>
+        <span className="plv-audit-new">{String(newVal ?? '—')}</span>
+      </div>
+    ));
+  };
+
+  return (
+    <div className="plv-audit-tab">
+      <div className="plv-audit-header">
+        <span className="plv-audit-count">{auditData.length} change{auditData.length !== 1 ? 's' : ''} recorded</span>
+        <button className="btn btn-ghost btn-sm" onClick={onRefresh}><Clock size={13} /> Refresh</button>
+      </div>
+      {auditData.length === 0 ? (
+        <div className="pl-empty-state pl-empty-full">
+          <Clock size={36} className="pl-empty-icon" />
+          <p>No changes recorded yet. Changes made via shared links will appear here.</p>
+        </div>
+      ) : (
+        <div className="plv-audit-list">
+          {auditData.map(entry => (
+            <div key={entry.id} className="plv-audit-entry">
+              <div className="plv-audit-left">
+                <div className="plv-audit-who">
+                  <UserCheck size={13} />
+                  <strong>{entry.changed_by_name || entry.changed_by_email || 'Unknown'}</strong>
+                  {entry.changed_by_email && entry.changed_by_name && (
+                    <span className="plv-audit-email">({entry.changed_by_email})</span>
+                  )}
+                </div>
+                <div className="plv-audit-lead-name">{entry.account_name} · {entry.client_name}</div>
+              </div>
+              <div className="plv-audit-center">
+                <span className={`plv-audit-action plv-audit-action-${entry.action}`}>
+                  {ACTION_LABELS[entry.action] || entry.action}
+                </span>
+                <div className="plv-audit-changes">{renderChanges(entry.action, entry.changes)}</div>
+              </div>
+              <div className="plv-audit-right">
+                <Clock size={11} /> {fmtAuditDate(entry.changed_at)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Lead Form Modal ───────────────────────────────────────────────────────────
 function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSaved }) {
@@ -431,22 +627,41 @@ export default function PipelineView() {
   const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState('');
   const [statusFilter, setStatusF]    = useState('');
+  const [bmFilter, setBmFilter]       = useState('');
+  const [industryFilter, setIndF]     = useState('');
   const [tab, setTab]                 = useState('leads');
   const [showLeadModal, setLeadModal] = useState(false);
   const [editLead, setEditLead]       = useState(null);
   const [deleteLead, setDeleteLead]   = useState(null);
+  const [showShareModal, setShareModal] = useState(false);
+  const [auditData, setAuditData]     = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const loadLeads = useCallback(async () => {
     try {
       const params = {};
-      if (search.trim()) params.search = search.trim();
-      if (statusFilter)  params.status = statusFilter;
+      if (search.trim())  params.search              = search.trim();
+      if (statusFilter)   params.status              = statusFilter;
+      if (bmFilter)       params.business_manager_id = bmFilter;
+      if (industryFilter) params.industry_id         = industryFilter;
       const res = await api.get(`/pipelines/${id}/leads`, { params });
       setLeads(res.data.leads);
     } catch {
       toast.error('Failed to load leads');
     }
-  }, [id, search, statusFilter]);
+  }, [id, search, statusFilter, bmFilter, industryFilter]);
+
+  const loadAudit = useCallback(async () => {
+    setAuditLoading(true);
+    try {
+      const res = await api.get(`/pipelines/${id}/audit`);
+      setAuditData(res.data.audit);
+    } catch {
+      toast.error('Failed to load audit trail');
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
     Promise.all([
@@ -465,6 +680,7 @@ export default function PipelineView() {
   }, [id]);
 
   useEffect(() => { if (!loading) loadLeads(); }, [loading, loadLeads]);
+  useEffect(() => { if (tab === 'audit' && auditData === null) loadAudit(); }, [tab, auditData, loadAudit]);
 
   const handleLeadSaved = (saved) => {
     setLeads(prev => {
@@ -522,6 +738,14 @@ export default function PipelineView() {
         />
       )}
 
+      {showShareModal && (
+        <ShareModal
+          pipelineId={id}
+          pipelineName={pipeline.name}
+          onClose={() => setShareModal(false)}
+        />
+      )}
+
       {deleteLead && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setDeleteLead(null)}>
           <div className="modal modal-sm">
@@ -572,19 +796,27 @@ export default function PipelineView() {
         </div>
 
         {/* Tabs */}
-        <div className="plv-tabs">
-          <button className={`plv-tab ${tab === 'leads' ? 'active' : ''}`} onClick={() => setTab('leads')}>
-            <Users size={14} /> Leads
-          </button>
-          <button className={`plv-tab ${tab === 'analytics' ? 'active' : ''}`} onClick={() => setTab('analytics')}>
-            <BarChart2 size={14} /> Analytics
+        <div className="plv-tabs-row">
+          <div className="plv-tabs">
+            <button className={`plv-tab ${tab === 'leads' ? 'active' : ''}`} onClick={() => setTab('leads')}>
+              <Users size={14} /> Leads
+            </button>
+            <button className={`plv-tab ${tab === 'analytics' ? 'active' : ''}`} onClick={() => setTab('analytics')}>
+              <BarChart2 size={14} /> Analytics
+            </button>
+            <button className={`plv-tab ${tab === 'audit' ? 'active' : ''}`} onClick={() => setTab('audit')}>
+              <Clock size={14} /> Audit Trail
+            </button>
+          </div>
+          <button className="btn btn-ghost btn-sm plv-share-btn" onClick={() => setShareModal(true)}>
+            <Share2 size={14} /> Share
           </button>
         </div>
 
         {/* ── LEADS TAB ── */}
         {tab === 'leads' && (
           <>
-            <div className="pl-toolbar">
+            <div className="pl-toolbar plv-toolbar-wrap">
               <div className="users-search">
                 <Search size={14} />
                 <input
@@ -599,6 +831,19 @@ export default function PipelineView() {
                 <option value="">All Statuses</option>
                 {LEAD_STATUS.map(s => <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>)}
               </select>
+              <select className="filter-select" value={bmFilter} onChange={e => setBmFilter(e.target.value)}>
+                <option value="">All Managers</option>
+                {salesManagers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+              <select className="filter-select" value={industryFilter} onChange={e => setIndF(e.target.value)}>
+                <option value="">All Industries</option>
+                {industries.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+              </select>
+              {(statusFilter || bmFilter || industryFilter || search) && (
+                <button className="btn btn-ghost btn-sm" onClick={() => { setSearch(''); setStatusF(''); setBmFilter(''); setIndF(''); }}>
+                  <Filter size={13} /> Clear
+                </button>
+              )}
               <div style={{ flex: 1 }} />
               <button className="btn btn-primary" onClick={() => { setEditLead(null); setLeadModal(true); }}>
                 <Plus size={15} /> Add Lead
@@ -642,6 +887,15 @@ export default function PipelineView() {
 
         {/* ── ANALYTICS TAB ── */}
         {tab === 'analytics' && <AnalyticsTab pipelineId={id} />}
+
+        {/* ── AUDIT TAB ── */}
+        {tab === 'audit' && (
+          <AuditTab
+            auditData={auditData}
+            auditLoading={auditLoading}
+            onRefresh={() => { setAuditData(null); loadAudit(); }}
+          />
+        )}
       </div>
     </>
   );

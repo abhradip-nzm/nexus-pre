@@ -26,6 +26,7 @@ import AllTasks from './pages/AllTasks';
 import AdHocTasks from './pages/AdHocTasks';
 import Pipelines from './pages/Pipelines';
 import PipelineView from './pages/PipelineView';
+import SharedPipeline from './pages/SharedPipeline';
 import Prospects from './pages/Prospects';
 import Notifications from './pages/Notifications';
 import './styles/global.css';
@@ -253,6 +254,9 @@ function App() {
               <AppLayout><Notifications /></AppLayout>
             </ProtectedRoute>
           } />
+
+          {/* Public share route — no auth, no sidebar */}
+          <Route path="/share/pipeline/:token" element={<SharedPipeline />} />
 
           <Route path="/" element={<Landing />} />
           <Route path="/app" element={<DefaultRedirect />} />

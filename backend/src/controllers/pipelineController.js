@@ -168,7 +168,7 @@ const deletePipeline = async (req, res) => {
 const getPipelineLeads = async (req, res) => {
   try {
     const { id } = req.params;
-    const { search = '', status } = req.query;
+    const { search = '', status, business_manager_id, industry_id } = req.query;
     const conditions = [`pl.pipeline_id = $1`];
     const params = [id];
     let idx = 2;
@@ -181,6 +181,14 @@ const getPipelineLeads = async (req, res) => {
     if (status) {
       conditions.push(`pl.status = $${idx++}`);
       params.push(status);
+    }
+    if (business_manager_id) {
+      conditions.push(`pl.business_manager_id = $${idx++}`);
+      params.push(business_manager_id);
+    }
+    if (industry_id) {
+      conditions.push(`pl.industry_id = $${idx++}`);
+      params.push(industry_id);
     }
 
     const result = await query(
