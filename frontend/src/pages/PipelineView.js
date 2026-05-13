@@ -494,9 +494,11 @@ function LeadRow({ lead, onEdit, onDelete }) {
             <span className="plv-na">No updates</span>
           )}
         </td>
-        <td className="plv-td plv-actions-cell">
-          <button className="pl-icon-btn pl-icon-edit" onClick={() => onEdit(lead)} title="Edit"><Pencil size={13} /></button>
-          <button className="pl-icon-btn pl-icon-delete" onClick={() => onDelete(lead)} title="Delete"><Trash2 size={13} /></button>
+        <td className="plv-td">
+          <div className="plv-actions-cell">
+            <button className="pl-icon-btn pl-icon-edit" onClick={() => onEdit(lead)} title="Edit"><Pencil size={13} /></button>
+            <button className="pl-icon-btn pl-icon-delete" onClick={() => onDelete(lead)} title="Delete"><Trash2 size={13} /></button>
+          </div>
         </td>
       </tr>
       {expanded && updCount > 0 && (
