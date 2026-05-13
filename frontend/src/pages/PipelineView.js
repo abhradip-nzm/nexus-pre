@@ -246,7 +246,14 @@ function AuditTab({ auditData, auditLoading, onRefresh }) {
 }
 
 // ── Lead Form Modal ───────────────────────────────────────────────────────────
-function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSaved }) {
+// normalise: updates from DB arrive as plain objects; ensure always an array
+const normaliseUpdates = (raw) => {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') { try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; } }
+  return [];
+};
+
+function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSaved, onUpdatesChanged }) {
   const isEdit = !!lead;
   const [form, setForm] = useState({
     account_name:        lead?.account_name        || '',
@@ -256,13 +263,19 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
     country:             lead?.country             || '',
     status:              lead?.status              || 'hot',
   });
-  const [updates, setUpdates]     = useState(lead?.updates || []);
+  const [updates, setUpdates]     = useState(() => normaliseUpdates(lead?.updates));
   const [newUpdate, setNewUpdate] = useState('');
   const [newDate, setNewDate]     = useState(new Date().toISOString().slice(0, 10));
   const [addingUpd, setAddingUpd] = useState(false);
   const [saving, setSaving]       = useState(false);
 
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }));
+
+  // Push update changes to parent immediately so the table stays in sync
+  const applyUpdates = (next) => {
+    setUpdates(next);
+    if (isEdit && onUpdatesChanged) onUpdatesChanged(lead.id, next);
+  };
 
   const handleAddUpdate = async () => {
     if (!newUpdate.trim()) return;
@@ -273,8 +286,15 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
         update_text: newUpdate.trim(),
         update_date: newDate,
       });
-      setUpdates(prev => [{ ...res.data.update, created_by_name: 'You' }, ...prev]);
+      const entry = {
+        id:              res.data.update.id,
+        update_text:     res.data.update.update_text,
+        update_date:     res.data.update.update_date,
+        created_by_name: 'You',
+      };
+      applyUpdates([entry, ...updates]);
       setNewUpdate('');
+      toast.success('Update added!');
     } catch {
       toast.error('Failed to add update');
     } finally {
@@ -285,7 +305,7 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
   const handleDeleteUpdate = async (uid) => {
     try {
       await api.delete(`/pipeline-lead-updates/${uid}`);
-      setUpdates(prev => prev.filter(u => u.id !== uid));
+      applyUpdates(updates.filter(u => u.id !== uid));
     } catch {
       toast.error('Failed to delete update');
     }
@@ -297,6 +317,27 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
     if (!form.client_name.trim())  { toast.error('Client name is required');  return; }
     setSaving(true);
     try {
+      // Auto-save any pending update text before saving the lead
+      let finalUpdates = [...updates];
+      if (isEdit && newUpdate.trim()) {
+        try {
+          const updRes = await api.post(`/pipeline-leads/${lead.id}/updates`, {
+            update_text: newUpdate.trim(),
+            update_date: newDate,
+          });
+          const entry = {
+            id:              updRes.data.update.id,
+            update_text:     updRes.data.update.update_text,
+            update_date:     updRes.data.update.update_date,
+            created_by_name: 'You',
+          };
+          finalUpdates = [entry, ...finalUpdates];
+          setNewUpdate('');
+        } catch {
+          // non-fatal — proceed with lead save
+        }
+      }
+
       const payload = {
         account_name:        form.account_name.trim(),
         client_name:         form.client_name.trim(),
@@ -309,7 +350,9 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
       if (isEdit) {
         res = await api.put(`/pipeline-leads/${lead.id}`, payload);
         toast.success('Lead updated!');
-        onSaved({ ...res.data.lead, updates });
+        // Merge: prefer DB updates (fresh from server) but fall back to finalUpdates
+        const dbUpdates = normaliseUpdates(res.data.lead?.updates);
+        onSaved({ ...res.data.lead, updates: dbUpdates.length > 0 ? dbUpdates : finalUpdates });
       } else {
         res = await api.post(`/pipelines/${pipelineId}/leads`, payload);
         toast.success('Lead created!');
@@ -420,7 +463,8 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
 // ── Lead Table Row ────────────────────────────────────────────────────────────
 function LeadRow({ lead, onEdit, onDelete }) {
   const [expanded, setExpanded] = useState(false);
-  const updCount = lead.updates?.length || 0;
+  const safeUpdates = Array.isArray(lead.updates) ? lead.updates : [];
+  const updCount = safeUpdates.length;
 
   return (
     <>
@@ -459,8 +503,8 @@ function LeadRow({ lead, onEdit, onDelete }) {
         <tr className="plv-upd-expand-row">
           <td colSpan={7} className="plv-upd-expand-cell">
             <div className="plv-upd-inline-list">
-              {lead.updates.map(u => (
-                <div key={u.id} className="plv-upd-inline-item">
+              {safeUpdates.map((u, i) => (
+                <div key={u.id ?? i} className="plv-upd-inline-item">
                   <span className="plv-upd-inline-date">{fmtShort(u.update_date)}</span>
                   <span className="plv-upd-inline-text">{u.update_text}</span>
                 </div>
@@ -735,6 +779,9 @@ export default function PipelineView() {
           industries={industries}
           onClose={() => { setLeadModal(false); setEditLead(null); }}
           onSaved={handleLeadSaved}
+          onUpdatesChanged={(leadId, newUpdates) => {
+            setLeads(prev => prev.map(l => l.id === leadId ? { ...l, updates: newUpdates } : l));
+          }}
         />
       )}
 

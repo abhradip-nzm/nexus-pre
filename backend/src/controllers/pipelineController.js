@@ -24,7 +24,7 @@ const LEAD_SELECT = `
       FROM pipeline_lead_updates plu
       LEFT JOIN users u ON u.id = plu.created_by
       WHERE plu.lead_id = pl.id
-    ), '[]') AS updates
+    ), '[]'::json) AS updates
   FROM pipeline_leads pl
   LEFT JOIN business_team bt  ON bt.id  = pl.business_manager_id
   LEFT JOIN industries    ind ON ind.id = pl.industry_id
