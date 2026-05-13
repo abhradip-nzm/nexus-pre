@@ -73,18 +73,39 @@ app.use((err, req, res, next) => {
 
 // Start server
 async function start() {
-  try {
-    await runMigrations();
-    await verifyEmailSetup();
-    app.listen(PORT, () => {
-      console.log(`🚀 Nexus Pre API running on port ${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-      console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
+  console.log('🔧 Starting Nexus Pre API...');
+  console.log(`📦 Node.js ${process.version} | ENV: ${process.env.NODE_ENV}`);
+
+  // Validate required env vars before doing anything
+  const required = ['DATABASE_URL', 'JWT_SECRET'];
+  const missing = required.filter(k => !process.env[k]);
+  if (missing.length) {
+    console.error(`❌ Missing required environment variables: ${missing.join(', ')}`);
     process.exit(1);
   }
+
+  try {
+    console.log('🔄 Running database migrations...');
+    await runMigrations();
+    console.log('✅ Migrations complete');
+  } catch (error) {
+    console.error('❌ Migration failed — server cannot start:', error.message);
+    console.error(error.stack);
+    process.exit(1);
+  }
+
+  try {
+    await verifyEmailSetup();
+  } catch (error) {
+    // Email setup failure is non-fatal — log and continue
+    console.warn('⚠️  Email setup check threw unexpectedly:', error.message);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Nexus Pre API running on port ${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+    console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  });
 }
 
 start();
