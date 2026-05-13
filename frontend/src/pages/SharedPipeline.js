@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Search, X, ChevronDown, ChevronUp, Plus, Pencil,
   Thermometer, Snowflake, CheckCircle2, MinusCircle,
-  Globe, Building2, Users, MessageSquarePlus, Trash,
-  Clock, AlertCircle,
+  Users, MessageSquarePlus, Clock,
+  AlertCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
 import './SharedPipeline.css';
 
-const LEAD_STATUS       = ['hot', 'cold', 'onboarded', 'no_requirement'];
+const LEAD_STATUS        = ['hot', 'cold', 'onboarded', 'no_requirement'];
 const LEAD_STATUS_LABELS = { hot: 'Hot', cold: 'Cold', onboarded: 'Onboarded', no_requirement: 'No Requirement' };
 const LEAD_STATUS_ICONS  = {
   hot:            <Thermometer size={11} />,
@@ -50,7 +50,7 @@ function IdentityModal({ onConfirm }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!name.trim()) { toast.error('Please enter your name'); return; }
+    if (!name.trim())  { toast.error('Please enter your name'); return; }
     if (!email.trim() || !email.includes('@')) { toast.error('Please enter a valid email'); return; }
     onConfirm({ name: name.trim(), email: email.trim().toLowerCase() });
   };
@@ -58,36 +58,38 @@ function IdentityModal({ onConfirm }) {
   return (
     <div className="sp-overlay">
       <div className="sp-identity-card">
-        <div className="sp-identity-logo">
-          <span className="sp-logo-text">Nexus Pre</span>
+        <div className="sp-identity-top">
+          <div className="sp-identity-logo-mark">N</div>
+          <h2>Identify Yourself</h2>
+          <p>Please enter your name and email before viewing or editing this pipeline.</p>
         </div>
-        <h2 className="sp-identity-title">Who are you?</h2>
-        <p className="sp-identity-sub">Please identify yourself before viewing or editing this pipeline.</p>
-        <form onSubmit={handleSubmit} className="sp-identity-form">
-          <div className="sp-form-group">
-            <label className="sp-label">Your Name</label>
-            <input
-              className="sp-input"
-              placeholder="e.g. Jane Smith"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="sp-form-group">
-            <label className="sp-label">Your Email</label>
-            <input
-              className="sp-input"
-              type="email"
-              placeholder="e.g. jane@company.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-            />
-          </div>
-          <button type="submit" className="sp-btn-primary">
-            Continue →
-          </button>
-        </form>
+        <div className="sp-identity-body">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="sp-form-group">
+              <label className="sp-label">Your Name</label>
+              <input
+                className="sp-input"
+                placeholder="e.g. Jane Smith"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="sp-form-group">
+              <label className="sp-label">Your Email</label>
+              <input
+                className="sp-input"
+                type="email"
+                placeholder="e.g. jane@company.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
+            </div>
+            <button type="submit" className="sp-btn-primary">
+              Continue →
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -95,17 +97,17 @@ function IdentityModal({ onConfirm }) {
 
 // ── Edit Lead Modal (public) ──────────────────────────────────────────────────
 function EditLeadModal({ lead, token, viewer, onClose, onSaved }) {
-  const [form, setForm]     = useState({
+  const [form, setForm]         = useState({
     account_name: lead.account_name,
     client_name:  lead.client_name,
     country:      lead.country || '',
     status:       lead.status,
   });
-  const [updates, setUpdates]     = useState(lead.updates || []);
-  const [newNote, setNewNote]     = useState('');
-  const [newDate, setNewDate]     = useState(new Date().toISOString().slice(0, 10));
+  const [updates, setUpdates]   = useState(lead.updates || []);
+  const [newNote, setNewNote]   = useState('');
+  const [newDate, setNewDate]   = useState(new Date().toISOString().slice(0, 10));
   const [addingNote, setAddingNote] = useState(false);
-  const [saving, setSaving]       = useState(false);
+  const [saving, setSaving]     = useState(false);
 
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }));
 
@@ -153,11 +155,12 @@ function EditLeadModal({ lead, token, viewer, onClose, onSaved }) {
   return (
     <div className="sp-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="sp-modal">
+        <div className="sp-modal-handle" />
         <div className="sp-modal-header">
           <h3>Edit Lead</h3>
           <button className="sp-icon-btn" onClick={onClose}><X size={18} /></button>
         </div>
-        <form onSubmit={handleSave}>
+        <form onSubmit={handleSave} style={{ display: 'contents' }}>
           <div className="sp-modal-body">
             <div className="sp-form-grid">
               <div className="sp-form-group">
@@ -193,16 +196,21 @@ function EditLeadModal({ lead, token, viewer, onClose, onSaved }) {
                   value={newNote}
                   onChange={e => setNewNote(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddNote())}
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, minWidth: 120 }}
                 />
                 <input
                   type="date"
-                  className="sp-input"
+                  className="sp-input sp-add-note-date"
                   value={newDate}
                   onChange={e => setNewDate(e.target.value)}
-                  style={{ width: 140, flexShrink: 0 }}
                 />
-                <button type="button" className="sp-btn-primary sp-btn-sm" onClick={handleAddNote} disabled={addingNote}>
+                <button
+                  type="button"
+                  className="sp-btn-primary-sm"
+                  onClick={handleAddNote}
+                  disabled={addingNote}
+                  style={{ flexShrink: 0, padding: '9px 14px' }}
+                >
                   {addingNote ? '…' : <Plus size={14} />}
                 </button>
               </div>
@@ -220,7 +228,7 @@ function EditLeadModal({ lead, token, viewer, onClose, onSaved }) {
           </div>
           <div className="sp-modal-footer">
             <button type="button" className="sp-btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="sp-btn-primary" disabled={saving}>
+            <button type="submit" className="sp-btn-primary-sm" disabled={saving} style={{ padding: '9px 20px' }}>
               {saving ? 'Saving…' : 'Save Changes'}
             </button>
           </div>
@@ -230,11 +238,93 @@ function EditLeadModal({ lead, token, viewer, onClose, onSaved }) {
   );
 }
 
-// ── Lead Row ──────────────────────────────────────────────────────────────────
+// ── Lead Card (mobile) ────────────────────────────────────────────────────────
+function SharedLeadCard({ lead, token, viewer, onUpdated }) {
+  const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing]   = useState(false);
+  const updCount = lead.updates?.length || 0;
+  const color    = LEAD_STATUS_COLORS[lead.status];
+
+  return (
+    <div className="sp-lead-card">
+      {/* Top: account + status */}
+      <div className="sp-card-top">
+        <div className="sp-card-main">
+          <div className="sp-card-account">{lead.account_name}</div>
+          <div className="sp-card-client">{lead.client_name}</div>
+        </div>
+        <div className="sp-card-status">
+          <span
+            className="sp-status-pill"
+            style={{ background: color + '18', color, border: `1px solid ${color}40` }}
+          >
+            {LEAD_STATUS_ICONS[lead.status]} {LEAD_STATUS_LABELS[lead.status]}
+          </span>
+        </div>
+      </div>
+
+      {/* Meta: BM, industry, country */}
+      <div className="sp-card-meta">
+        <div className="sp-card-meta-item">
+          <span className="sp-card-meta-label">Business Manager</span>
+          <span className="sp-card-meta-value">{lead.business_manager_name || '—'}</span>
+        </div>
+        <div className="sp-card-meta-item">
+          <span className="sp-card-meta-label">Industry</span>
+          <span className="sp-card-meta-value">{lead.industry_name || '—'}</span>
+        </div>
+        <div className="sp-card-meta-item">
+          <span className="sp-card-meta-label">Country</span>
+          <span className="sp-card-meta-value">{lead.country || '—'}</span>
+        </div>
+      </div>
+
+      {/* Footer: notes toggle + edit */}
+      <div className="sp-card-footer">
+        {updCount > 0 ? (
+          <button className="sp-card-upd-btn" onClick={() => setExpanded(p => !p)}>
+            {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+            {updCount} note{updCount !== 1 ? 's' : ''}
+          </button>
+        ) : (
+          <span style={{ fontSize: 12, color: '#c5cdd8' }}>No notes</span>
+        )}
+        <button className="sp-card-edit-btn" onClick={() => setEditing(true)}>
+          <Pencil size={13} /> Edit
+        </button>
+      </div>
+
+      {/* Expanded notes */}
+      {expanded && updCount > 0 && (
+        <div className="sp-card-notes">
+          {lead.updates.map((u, i) => (
+            <div key={u.id || i} className="sp-card-note-item">
+              <span className="sp-card-note-date">{fmtShort(u.update_date)}</span>
+              <span className="sp-card-note-text">{u.update_text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editing && (
+        <EditLeadModal
+          lead={lead}
+          token={token}
+          viewer={viewer}
+          onClose={() => setEditing(false)}
+          onSaved={(updated) => { onUpdated(updated); setEditing(false); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Lead Row (desktop table) ──────────────────────────────────────────────────
 function SharedLeadRow({ lead, token, viewer, onUpdated }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing]   = useState(false);
   const updCount = lead.updates?.length || 0;
+  const color    = LEAD_STATUS_COLORS[lead.status];
 
   return (
     <>
@@ -243,17 +333,13 @@ function SharedLeadRow({ lead, token, viewer, onUpdated }) {
           <div className="sp-account">{lead.account_name}</div>
           <div className="sp-client-sub">{lead.client_name}</div>
         </td>
-        <td className="sp-td sp-td-hide-sm">{lead.business_manager_name || <span className="sp-na">—</span>}</td>
-        <td className="sp-td sp-td-hide-sm">{lead.industry_name || <span className="sp-na">—</span>}</td>
-        <td className="sp-td sp-td-hide-xs">{lead.country || <span className="sp-na">—</span>}</td>
+        <td className="sp-td">{lead.business_manager_name || <span className="sp-na">—</span>}</td>
+        <td className="sp-td">{lead.industry_name || <span className="sp-na">—</span>}</td>
+        <td className="sp-td">{lead.country || <span className="sp-na">—</span>}</td>
         <td className="sp-td">
           <span
             className="sp-status-pill"
-            style={{
-              background: LEAD_STATUS_COLORS[lead.status] + '18',
-              color: LEAD_STATUS_COLORS[lead.status],
-              border: `1px solid ${LEAD_STATUS_COLORS[lead.status]}40`,
-            }}
+            style={{ background: color + '18', color, border: `1px solid ${color}40` }}
           >
             {LEAD_STATUS_ICONS[lead.status]} {LEAD_STATUS_LABELS[lead.status]}
           </span>
@@ -261,13 +347,12 @@ function SharedLeadRow({ lead, token, viewer, onUpdated }) {
         <td className="sp-td">
           {updCount > 0 ? (
             <button className="sp-upd-expand" onClick={() => setExpanded(p => !p)}>
-              {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-              {updCount}
+              {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />} {updCount}
             </button>
           ) : <span className="sp-na">—</span>}
         </td>
-        <td className="sp-td sp-actions-cell">
-          <button className="sp-edit-btn" onClick={() => setEditing(true)} title="Edit">
+        <td className="sp-td">
+          <button className="sp-edit-btn" onClick={() => setEditing(true)}>
             <Pencil size={13} /> Edit
           </button>
         </td>
@@ -275,7 +360,7 @@ function SharedLeadRow({ lead, token, viewer, onUpdated }) {
 
       {expanded && updCount > 0 && (
         <tr className="sp-upd-expand-row">
-          <td colSpan={7} className="sp-upd-expand-cell">
+          <td colSpan={7} className="sp-td">
             <div className="sp-upd-inline-list">
               {lead.updates.map((u, i) => (
                 <div key={u.id || i} className="sp-upd-inline-item">
@@ -316,7 +401,7 @@ export default function SharedPipeline() {
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
-  const [search, setSearch]     = useState('');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     api.get(`/public/pipeline-share/${token}`)
@@ -357,6 +442,8 @@ export default function SharedPipeline() {
     return acc;
   }, {});
 
+  const guestViewer = viewer || { name: 'Guest', email: '' };
+
   if (loading) return (
     <div className="sp-full-center">
       <div className="sp-loading-spinner" />
@@ -376,10 +463,15 @@ export default function SharedPipeline() {
     <div className="sp-root">
       {!viewer && <IdentityModal onConfirm={handleIdentityConfirm} />}
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="sp-header">
+        <div className="sp-header-bar" />
         <div className="sp-header-inner">
-          <div className="sp-brand">Nexus Pre</div>
+          <div className="sp-brand-wrap">
+            <div className="sp-brand-dot">N</div>
+            <span className="sp-brand-name">Nexus Pre</span>
+          </div>
+          <div className="sp-header-divider" />
           <div className="sp-header-meta">
             <h1 className="sp-pipeline-name">{pipeline.name}</h1>
             <div className="sp-pipeline-sub">
@@ -389,14 +481,20 @@ export default function SharedPipeline() {
               </span>
             </div>
           </div>
+          <span className="sp-shared-badge">
+            <Clock size={10} /> Shared View
+          </span>
         </div>
       </div>
 
+      {/* ── Body ── */}
       <div className="sp-body">
+
         {/* Share note */}
         {share?.note && (
           <div className="sp-note-banner">
-            <MessageSquarePlus size={14} /> {share.note}
+            <span className="sp-note-icon"><MessageSquarePlus size={14} /></span>
+            {share.note}
           </div>
         )}
 
@@ -415,14 +513,28 @@ export default function SharedPipeline() {
         )}
 
         {/* Status summary */}
-        <div className="sp-status-row">
-          {LEAD_STATUS.map(s => (
-            <div key={s} className="sp-stat-pill" style={{ borderColor: LEAD_STATUS_COLORS[s] + '55', background: LEAD_STATUS_COLORS[s] + '10' }}>
-              <span style={{ color: LEAD_STATUS_COLORS[s] }}>{LEAD_STATUS_ICONS[s]}</span>
-              <span style={{ color: LEAD_STATUS_COLORS[s], fontWeight: 600, fontSize: 12 }}>{LEAD_STATUS_LABELS[s]}</span>
-              <strong style={{ fontSize: 16 }}>{statusCounts[s]}</strong>
-            </div>
-          ))}
+        <div className="sp-stats-grid">
+          {LEAD_STATUS.map(s => {
+            const color = LEAD_STATUS_COLORS[s];
+            return (
+              <div
+                key={s}
+                className="sp-stat-card"
+                style={{ borderLeft: `3px solid ${color}` }}
+              >
+                <div
+                  className="sp-stat-icon"
+                  style={{ background: color + '15', color }}
+                >
+                  {LEAD_STATUS_ICONS[s]}
+                </div>
+                <div className="sp-stat-info">
+                  <div className="sp-stat-count" style={{ color }}>{statusCounts[s]}</div>
+                  <div className="sp-stat-label">{LEAD_STATUS_LABELS[s]}</div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Search */}
@@ -438,39 +550,55 @@ export default function SharedPipeline() {
           <span className="sp-lead-count">{filteredLeads.length} lead{filteredLeads.length !== 1 ? 's' : ''}</span>
         </div>
 
-        {/* Table */}
+        {/* Content */}
         {filteredLeads.length === 0 ? (
           <div className="sp-empty">
             <Users size={36} />
             <p>No leads found.</p>
           </div>
         ) : (
-          <div className="sp-table-wrap">
-            <table className="sp-table">
-              <thead>
-                <tr>
-                  <th>Account / Client</th>
-                  <th className="sp-th-hide-sm">Business Manager</th>
-                  <th className="sp-th-hide-sm">Industry</th>
-                  <th className="sp-th-hide-xs">Country</th>
-                  <th>Status</th>
-                  <th>Notes</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLeads.map(lead => (
-                  <SharedLeadRow
-                    key={lead.id}
-                    lead={lead}
-                    token={token}
-                    viewer={viewer || { name: 'Guest', email: '' }}
-                    onUpdated={handleLeadUpdated}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Mobile card layout */}
+            <div className="sp-cards">
+              {filteredLeads.map(lead => (
+                <SharedLeadCard
+                  key={lead.id}
+                  lead={lead}
+                  token={token}
+                  viewer={guestViewer}
+                  onUpdated={handleLeadUpdated}
+                />
+              ))}
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="sp-table-wrap">
+              <table className="sp-table">
+                <thead>
+                  <tr>
+                    <th>Account / Client</th>
+                    <th>Business Manager</th>
+                    <th>Industry</th>
+                    <th>Country</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLeads.map(lead => (
+                    <SharedLeadRow
+                      key={lead.id}
+                      lead={lead}
+                      token={token}
+                      viewer={guestViewer}
+                      onUpdated={handleLeadUpdated}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         <div className="sp-footer">
