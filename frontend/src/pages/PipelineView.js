@@ -456,7 +456,7 @@ export default function PipelineView() {
     ])
       .then(([pRes, btRes, indRes]) => {
         setPipeline(pRes.data.pipeline);
-        const team = btRes.data.members || btRes.data.team || [];
+        const team = Array.isArray(btRes.data) ? btRes.data : (btRes.data.members || btRes.data.team || []);
         setSM(team.filter(m => m.role === 'sales_manager'));
         setIndustries(indRes.data.industries || []);
       })
