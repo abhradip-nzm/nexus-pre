@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell,
 } from 'recharts';
 import {
   ArrowLeft, Plus, Search, X, Trash2, Pencil, BarChart2,
   Users, Calendar, Globe, Building2, ChevronDown, ChevronUp,
-  CircleDot, Thermometer, Snowflake, CheckCircle2, MinusCircle,
-  MessageSquarePlus, Trash,
+  Thermometer, Snowflake, CheckCircle2, MinusCircle,
+  MessageSquarePlus, Trash, CircleDot,
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
@@ -35,43 +35,30 @@ const COUNTRIES = [
   'Uruguay','Uzbekistan','Venezuela','Vietnam','Yemen','Zambia','Zimbabwe',
 ];
 
-const LEAD_STATUS = ['hot', 'cold', 'onboarded', 'no_requirement'];
+const LEAD_STATUS       = ['hot', 'cold', 'onboarded', 'no_requirement'];
 const LEAD_STATUS_LABELS = { hot: 'Hot', cold: 'Cold', onboarded: 'Onboarded', no_requirement: 'No Requirement' };
-const LEAD_STATUS_ICONS = {
-  hot:            <Thermometer size={12} />,
-  cold:           <Snowflake size={12} />,
-  onboarded:      <CheckCircle2 size={12} />,
-  no_requirement: <MinusCircle size={12} />,
+const LEAD_STATUS_ICONS  = {
+  hot:            <Thermometer size={11} />,
+  cold:           <Snowflake size={11} />,
+  onboarded:      <CheckCircle2 size={11} />,
+  no_requirement: <MinusCircle size={11} />,
 };
 const LEAD_STATUS_COLORS = { hot: '#e74c3c', cold: '#3498db', onboarded: '#27ae60', no_requirement: '#95a5a6' };
 const CHART_COLORS = ['#3e72ae','#e67e22','#27ae60','#e74c3c','#8b5cf6','#14b8a6','#f59e0b','#ec4899'];
 
-const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const fmt      = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '';
-
-// ── Lead Update Mini-Form ─────────────────────────────────────────────────────
-function UpdateEntry({ update, onDelete }) {
-  return (
-    <div className="plv-update-entry">
-      <div className="plv-update-date">{fmtShort(update.update_date)}</div>
-      <div className="plv-update-text">{update.update_text}</div>
-      <button className="plv-update-del" onClick={() => onDelete(update.id)} title="Remove">
-        <Trash size={11} />
-      </button>
-    </div>
-  );
-}
 
 // ── Lead Form Modal ───────────────────────────────────────────────────────────
 function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSaved }) {
   const isEdit = !!lead;
   const [form, setForm] = useState({
-    account_name:        lead?.account_name         || '',
-    client_name:         lead?.client_name          || '',
-    business_manager_id: lead?.business_manager_id  || '',
-    industry_id:         lead?.industry_id          || '',
-    country:             lead?.country              || '',
-    status:              lead?.status               || 'hot',
+    account_name:        lead?.account_name        || '',
+    client_name:         lead?.client_name         || '',
+    business_manager_id: lead?.business_manager_id || '',
+    industry_id:         lead?.industry_id         || '',
+    country:             lead?.country             || '',
+    status:              lead?.status              || 'hot',
   });
   const [updates, setUpdates]     = useState(lead?.updates || []);
   const [newUpdate, setNewUpdate] = useState('');
@@ -83,11 +70,7 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
 
   const handleAddUpdate = async () => {
     if (!newUpdate.trim()) return;
-    if (!isEdit) {
-      // will be saved after lead creation via a note; store locally for now
-      toast.error('Save the lead first, then add updates.');
-      return;
-    }
+    if (!isEdit) { toast.error('Save the lead first, then add updates.'); return; }
     setAddingUpd(true);
     try {
       const res = await api.post(`/pipeline-leads/${lead.id}/updates`, {
@@ -144,91 +127,91 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box plv-lead-modal" onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-md">
         <div className="modal-header">
           <h2 className="modal-title">{isEdit ? 'Edit Lead' : 'New Lead'}</h2>
-          <button className="modal-close" onClick={onClose}><X size={18} /></button>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="plv-form">
-          <div className="plv-form-2col">
-            <div className="pl-form-field">
-              <label className="pl-label">Account Name <span className="req">*</span></label>
-              <input className="pl-input" placeholder="Company / Account" value={form.account_name} onChange={e => set('account_name', e.target.value)} />
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body plv-modal-body">
+            <div className="plv-form-grid">
+              <div className="form-group">
+                <label className="form-label">Account Name <span className="req">*</span></label>
+                <input className="form-control" placeholder="Company / Account" value={form.account_name} onChange={e => set('account_name', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Client Name <span className="req">*</span></label>
+                <input className="form-control" placeholder="Contact person" value={form.client_name} onChange={e => set('client_name', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Business Manager</label>
+                <select className="form-control" value={form.business_manager_id} onChange={e => set('business_manager_id', e.target.value)}>
+                  <option value="">— Select Manager —</option>
+                  {salesManagers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Industry</label>
+                <select className="form-control" value={form.industry_id} onChange={e => set('industry_id', e.target.value)}>
+                  <option value="">— Select Industry —</option>
+                  {industries.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Country</label>
+                <select className="form-control" value={form.country} onChange={e => set('country', e.target.value)}>
+                  <option value="">— Select Country —</option>
+                  {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Status</label>
+                <select className="form-control" value={form.status} onChange={e => set('status', e.target.value)}>
+                  {LEAD_STATUS.map(s => <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>)}
+                </select>
+              </div>
             </div>
-            <div className="pl-form-field">
-              <label className="pl-label">Client Name <span className="req">*</span></label>
-              <input className="pl-input" placeholder="Contact person" value={form.client_name} onChange={e => set('client_name', e.target.value)} />
-            </div>
-            <div className="pl-form-field">
-              <label className="pl-label">Business Manager</label>
-              <select className="pl-input" value={form.business_manager_id} onChange={e => set('business_manager_id', e.target.value)}>
-                <option value="">— Select Manager —</option>
-                {salesManagers.map(m => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="pl-form-field">
-              <label className="pl-label">Industry</label>
-              <select className="pl-input" value={form.industry_id} onChange={e => set('industry_id', e.target.value)}>
-                <option value="">— Select Industry —</option>
-                {industries.map(i => (
-                  <option key={i.id} value={i.id}>{i.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="pl-form-field">
-              <label className="pl-label">Country</label>
-              <select className="pl-input" value={form.country} onChange={e => set('country', e.target.value)}>
-                <option value="">— Select Country —</option>
-                {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div className="pl-form-field">
-              <label className="pl-label">Status</label>
-              <select className="pl-input" value={form.status} onChange={e => set('status', e.target.value)}>
-                {LEAD_STATUS.map(s => (
-                  <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>
-                ))}
-              </select>
-            </div>
+
+            {/* Latest Updates — edit mode only */}
+            {isEdit && (
+              <div className="plv-updates-section">
+                <div className="plv-updates-title">
+                  <MessageSquarePlus size={14} /> Latest Updates
+                </div>
+                <div className="plv-add-update-row">
+                  <input
+                    className="form-control"
+                    placeholder="Add an update note…"
+                    value={newUpdate}
+                    onChange={e => setNewUpdate(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddUpdate())}
+                    style={{ flex: 1 }}
+                  />
+                  <input type="date" className="form-control" value={newDate} onChange={e => setNewDate(e.target.value)} style={{ width: 140, flexShrink: 0 }} />
+                  <button type="button" className="btn btn-primary btn-sm" onClick={handleAddUpdate} disabled={addingUpd}>
+                    {addingUpd ? '…' : <Plus size={14} />}
+                  </button>
+                </div>
+                <div className="plv-updates-list">
+                  {updates.length === 0 ? (
+                    <p className="plv-no-updates">No updates yet.</p>
+                  ) : updates.map(u => (
+                    <div key={u.id} className="plv-update-entry">
+                      <span className="plv-update-date">{fmtShort(u.update_date)}</span>
+                      <span className="plv-update-text">{u.update_text}</span>
+                      <button type="button" className="plv-update-del" onClick={() => handleDeleteUpdate(u.id)} title="Remove">
+                        <Trash size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Latest Updates section (edit mode only) */}
-          {isEdit && (
-            <div className="plv-updates-section">
-              <div className="plv-updates-title">
-                <MessageSquarePlus size={14} /> Latest Updates
-              </div>
-              <div className="plv-add-update-row">
-                <input
-                  className="pl-input plv-update-input"
-                  placeholder="Add an update note…"
-                  value={newUpdate}
-                  onChange={e => setNewUpdate(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddUpdate())}
-                />
-                <input type="date" className="pl-input plv-update-date-input" value={newDate} onChange={e => setNewDate(e.target.value)} />
-                <button type="button" className="btn-primary plv-add-upd-btn" onClick={handleAddUpdate} disabled={addingUpd}>
-                  {addingUpd ? '…' : <Plus size={14} />}
-                </button>
-              </div>
-              <div className="plv-updates-list">
-                {updates.length === 0 ? (
-                  <p className="plv-no-updates">No updates yet.</p>
-                ) : (
-                  updates.map(u => (
-                    <UpdateEntry key={u.id} update={u} onDelete={handleDeleteUpdate} />
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="pl-form-actions">
-            <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-primary" disabled={saving}>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Lead'}
             </button>
           </div>
@@ -238,14 +221,14 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
   );
 }
 
-// ── Lead Row expanded updates ─────────────────────────────────────────────────
-function LeadRow({ lead, salesManagers, industries, onEdit, onDelete }) {
+// ── Lead Table Row ────────────────────────────────────────────────────────────
+function LeadRow({ lead, onEdit, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   const updCount = lead.updates?.length || 0;
 
   return (
     <>
-      <tr className={`plv-tr ${lead.status}`}>
+      <tr className="plv-tr">
         <td className="plv-td">
           <div className="plv-account">{lead.account_name}</div>
           <div className="plv-client-sub">{lead.client_name}</div>
@@ -254,28 +237,32 @@ function LeadRow({ lead, salesManagers, industries, onEdit, onDelete }) {
         <td className="plv-td">{lead.industry_name || <span className="plv-na">—</span>}</td>
         <td className="plv-td">{lead.country || <span className="plv-na">—</span>}</td>
         <td className="plv-td">
-          <span className="plv-status-pill" style={{ background: LEAD_STATUS_COLORS[lead.status] + '18', color: LEAD_STATUS_COLORS[lead.status], border: `1px solid ${LEAD_STATUS_COLORS[lead.status]}40` }}>
+          <span
+            className="plv-status-pill"
+            style={{ background: LEAD_STATUS_COLORS[lead.status] + '18', color: LEAD_STATUS_COLORS[lead.status], border: `1px solid ${LEAD_STATUS_COLORS[lead.status]}40` }}
+          >
             {LEAD_STATUS_ICONS[lead.status]} {LEAD_STATUS_LABELS[lead.status]}
           </span>
         </td>
         <td className="plv-td">
-          <button
-            className={`plv-upd-expand ${updCount === 0 ? 'plv-upd-empty' : ''}`}
-            onClick={() => setExpanded(p => !p)}
-          >
-            {updCount > 0 && (expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />)}
-            {updCount} update{updCount !== 1 ? 's' : ''}
-          </button>
+          {updCount > 0 ? (
+            <button className="plv-upd-expand" onClick={() => setExpanded(p => !p)}>
+              {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              {updCount} update{updCount !== 1 ? 's' : ''}
+            </button>
+          ) : (
+            <span className="plv-na">No updates</span>
+          )}
         </td>
         <td className="plv-td plv-actions-cell">
-          <button className="pl-btn-icon" onClick={() => onEdit(lead)} title="Edit"><Pencil size={13} /></button>
-          <button className="pl-btn-icon pl-btn-delete" onClick={() => onDelete(lead)} title="Delete"><Trash2 size={13} /></button>
+          <button className="pl-icon-btn pl-icon-edit" onClick={() => onEdit(lead)} title="Edit"><Pencil size={13} /></button>
+          <button className="pl-icon-btn pl-icon-delete" onClick={() => onDelete(lead)} title="Delete"><Trash2 size={13} /></button>
         </td>
       </tr>
       {expanded && updCount > 0 && (
-        <tr className="plv-upd-row">
-          <td colSpan={7} className="plv-upd-cell">
-            <div className="plv-upd-list-inline">
+        <tr className="plv-upd-expand-row">
+          <td colSpan={7} className="plv-upd-expand-cell">
+            <div className="plv-upd-inline-list">
               {lead.updates.map(u => (
                 <div key={u.id} className="plv-upd-inline-item">
                   <span className="plv-upd-inline-date">{fmtShort(u.update_date)}</span>
@@ -313,124 +300,120 @@ function AnalyticsTab({ pipelineId }) {
 
   return (
     <div className="plv-analytics">
-      {/* Status Breakdown */}
-      <div className="plv-a-section">
-        <div className="plv-a-title"><CircleDot size={15} /> Status Breakdown</div>
-        <div className="plv-a-charts-row">
-          <div className="plv-a-pie-wrap">
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                  {statusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="plv-a-status-list">
-            {LEAD_STATUS.map(s => {
-              const row = data.status_breakdown.find(r => r.status === s);
-              return (
-                <div key={s} className="plv-a-status-row">
-                  <span className="plv-a-dot" style={{ background: LEAD_STATUS_COLORS[s] }} />
-                  <span className="plv-a-slabel">{LEAD_STATUS_LABELS[s]}</span>
-                  <span className="plv-a-sval">{row?.count || 0}</span>
-                </div>
-              );
-            })}
-          </div>
+      <div className="plv-analytics-grid">
+        {/* Status Breakdown */}
+        <div className="plv-a-card plv-a-card-full">
+          <div className="plv-a-title"><CircleDot size={15} /> Status Breakdown</div>
+          {statusData.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
+            <div className="plv-a-status-row">
+              <div style={{ flex: '0 0 260px' }}>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75}>
+                      {statusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="plv-a-legend">
+                {LEAD_STATUS.map(s => {
+                  const row = data.status_breakdown.find(r => r.status === s);
+                  return (
+                    <div key={s} className="plv-a-legend-row">
+                      <span className="plv-a-dot" style={{ background: LEAD_STATUS_COLORS[s] }} />
+                      <span className="plv-a-legend-lbl">{LEAD_STATUS_LABELS[s]}</span>
+                      <span className="plv-a-legend-val">{row?.count || 0}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Industry Distribution */}
-      <div className="plv-a-section">
-        <div className="plv-a-title"><Building2 size={15} /> Industry Distribution</div>
-        {data.industry_distribution.length === 0 ? (
-          <p className="plv-a-empty">No industry data yet.</p>
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data.industry_distribution} margin={{ top: 5, right: 10, left: -10, bottom: 40 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-              <XAxis dataKey="industry" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="count" name="Leads" radius={[4, 4, 0, 0]}>
-                {data.industry_distribution.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+        {/* Industry Distribution */}
+        <div className="plv-a-card">
+          <div className="plv-a-title"><Building2 size={15} /> Industry Distribution</div>
+          {data.industry_distribution.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={data.industry_distribution} margin={{ top: 5, right: 10, left: -15, bottom: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+                <XAxis dataKey="industry" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="count" name="Leads" radius={[4, 4, 0, 0]}>
+                  {data.industry_distribution.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
 
-      {/* Country Distribution */}
-      <div className="plv-a-section">
-        <div className="plv-a-title"><Globe size={15} /> Country Distribution (Top 15)</div>
-        {data.country_distribution.length === 0 ? (
-          <p className="plv-a-empty">No country data yet.</p>
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data.country_distribution} margin={{ top: 5, right: 10, left: -10, bottom: 50 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-              <XAxis dataKey="country" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="count" name="Leads" fill="#3e72ae" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+        {/* Country Distribution */}
+        <div className="plv-a-card">
+          <div className="plv-a-title"><Globe size={15} /> Country Distribution</div>
+          {data.country_distribution.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={data.country_distribution} margin={{ top: 5, right: 10, left: -15, bottom: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+                <XAxis dataKey="country" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="count" name="Leads" fill="#3e72ae" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
 
-      {/* Business Manager Performance */}
-      <div className="plv-a-section">
-        <div className="plv-a-title"><Users size={15} /> Business Manager Performance</div>
-        {data.manager_performance.length === 0 ? (
-          <p className="plv-a-empty">No data yet.</p>
-        ) : (
-          <div className="plv-a-bm-table-wrap">
-            <table className="plv-a-bm-table">
-              <thead>
-                <tr>
-                  <th>Manager</th>
-                  <th>Total</th>
-                  <th style={{ color: LEAD_STATUS_COLORS.hot }}>Hot</th>
-                  <th style={{ color: LEAD_STATUS_COLORS.cold }}>Cold</th>
-                  <th style={{ color: LEAD_STATUS_COLORS.onboarded }}>Onboarded</th>
-                  <th style={{ color: LEAD_STATUS_COLORS.no_requirement }}>No Req.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.manager_performance.map((row, i) => (
-                  <tr key={i}>
-                    <td className="plv-a-bm-name">{row.manager}</td>
-                    <td><strong>{row.total}</strong></td>
-                    <td>{row.hot}</td>
-                    <td>{row.cold}</td>
-                    <td>{row.onboarded}</td>
-                    <td>{row.no_requirement}</td>
+        {/* Monthly Trend */}
+        <div className="plv-a-card">
+          <div className="plv-a-title"><Calendar size={15} /> Monthly Lead Trend</div>
+          {data.monthly_trend.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={data.monthly_trend} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="count" name="New Leads" fill="#6b5ea8" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* BM Performance */}
+        <div className="plv-a-card plv-a-card-full">
+          <div className="plv-a-title"><Users size={15} /> Business Manager Performance</div>
+          {data.manager_performance.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
+            <div className="plv-a-bm-wrap">
+              <table className="plv-a-bm-table">
+                <thead>
+                  <tr>
+                    <th>Manager</th>
+                    <th>Total</th>
+                    <th style={{ color: LEAD_STATUS_COLORS.hot }}>Hot</th>
+                    <th style={{ color: LEAD_STATUS_COLORS.cold }}>Cold</th>
+                    <th style={{ color: LEAD_STATUS_COLORS.onboarded }}>Onboarded</th>
+                    <th style={{ color: LEAD_STATUS_COLORS.no_requirement }}>No Req.</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Monthly Trend */}
-      <div className="plv-a-section">
-        <div className="plv-a-title"><Calendar size={15} /> Monthly Lead Trend</div>
-        {data.monthly_trend.length === 0 ? (
-          <p className="plv-a-empty">No trend data yet.</p>
-        ) : (
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data.monthly_trend} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="count" name="New Leads" fill="#6b5ea8" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
+                </thead>
+                <tbody>
+                  {data.manager_performance.map((row, i) => (
+                    <tr key={i}>
+                      <td className="plv-a-bm-name">{row.manager}</td>
+                      <td><strong>{row.total}</strong></td>
+                      <td>{row.hot}</td>
+                      <td>{row.cold}</td>
+                      <td>{row.onboarded}</td>
+                      <td>{row.no_requirement}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -438,8 +421,8 @@ function AnalyticsTab({ pipelineId }) {
 
 // ── Main Pipeline View ────────────────────────────────────────────────────────
 export default function PipelineView() {
-  const { id }     = useParams();
-  const navigate   = useNavigate();
+  const { id }   = useParams();
+  const navigate = useNavigate();
 
   const [pipeline, setPipeline]       = useState(null);
   const [leads, setLeads]             = useState([]);
@@ -448,7 +431,7 @@ export default function PipelineView() {
   const [loading, setLoading]         = useState(true);
   const [search, setSearch]           = useState('');
   const [statusFilter, setStatusF]    = useState('');
-  const [tab, setTab]                 = useState('leads'); // 'leads' | 'analytics'
+  const [tab, setTab]                 = useState('leads');
   const [showLeadModal, setLeadModal] = useState(false);
   const [editLead, setEditLead]       = useState(null);
   const [deleteLead, setDeleteLead]   = useState(null);
@@ -473,7 +456,8 @@ export default function PipelineView() {
     ])
       .then(([pRes, btRes, indRes]) => {
         setPipeline(pRes.data.pipeline);
-        setSM((btRes.data.members || btRes.data.team || []).filter(m => m.role === 'sales_manager'));
+        const team = btRes.data.members || btRes.data.team || [];
+        setSM(team.filter(m => m.role === 'sales_manager'));
         setIndustries(indRes.data.industries || []);
       })
       .catch(() => toast.error('Failed to load pipeline data'))
@@ -518,7 +502,10 @@ export default function PipelineView() {
   if (!pipeline) return (
     <div className="page-container">
       <Header title="Pipeline not found" />
-      <div className="plv-loading">Pipeline not found. <button className="btn-link" onClick={() => navigate('/pipelines')}>Go back</button></div>
+      <div className="plv-loading">
+        Pipeline not found.{' '}
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/pipelines')}>← Go back</button>
+      </div>
     </div>
   );
 
@@ -526,17 +513,20 @@ export default function PipelineView() {
     <div className="page-container">
       <Header
         title={pipeline.name}
-        subtitle={`${pipeline.lead_count ?? leads.length} lead${(pipeline.lead_count ?? leads.length) !== 1 ? 's' : ''} · ${pipeline.status === 'active' ? '🟢 Active' : '⚫ Inactive'}`}
+        subtitle={`${leads.length} lead${leads.length !== 1 ? 's' : ''} · ${pipeline.status === 'active' ? 'Active' : 'Inactive'}`}
       />
 
       <div className="plv-page">
-        {/* Back + pipeline info bar */}
+        {/* Top bar */}
         <div className="plv-topbar">
-          <button className="plv-back-btn" onClick={() => navigate('/pipelines')}>
-            <ArrowLeft size={15} /> All Pipelines
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/pipelines')}>
+            <ArrowLeft size={14} /> All Pipelines
           </button>
-          <div className="plv-pipe-dates">
+          <div className="plv-pipe-info">
             <Calendar size={13} /> {fmt(pipeline.start_date)} → {fmt(pipeline.end_date)}
+            <span className={`pl-status-badge pl-status-${pipeline.status}`} style={{ marginLeft: 10 }}>
+              {pipeline.status === 'active' ? 'Active' : 'Inactive'}
+            </span>
           </div>
         </div>
 
@@ -544,14 +534,14 @@ export default function PipelineView() {
         <div className="plv-summary-pills">
           {LEAD_STATUS.map(s => (
             <div key={s} className="plv-summary-pill" style={{ borderColor: LEAD_STATUS_COLORS[s] + '55', background: LEAD_STATUS_COLORS[s] + '10' }}>
-              <span style={{ color: LEAD_STATUS_COLORS[s] }}>{LEAD_STATUS_ICONS[s]}</span>
+              <span style={{ color: LEAD_STATUS_COLORS[s], display: 'flex', alignItems: 'center' }}>{LEAD_STATUS_ICONS[s]}</span>
               <span className="plv-sp-label" style={{ color: LEAD_STATUS_COLORS[s] }}>{LEAD_STATUS_LABELS[s]}</span>
-              <span className="plv-sp-val">{statusCounts[s]}</span>
+              <strong className="plv-sp-val">{statusCounts[s]}</strong>
             </div>
           ))}
         </div>
 
-        {/* Tab bar */}
+        {/* Tabs */}
         <div className="plv-tabs">
           <button className={`plv-tab ${tab === 'leads' ? 'active' : ''}`} onClick={() => setTab('leads')}>
             <Users size={14} /> Leads
@@ -565,29 +555,29 @@ export default function PipelineView() {
         {tab === 'leads' && (
           <>
             <div className="pl-toolbar">
-              <div className="search-box">
-                <Search size={14} className="search-icon" />
+              <div className="users-search">
+                <Search size={14} />
                 <input
-                  className="search-input"
+                  className="users-search-input"
                   placeholder="Search leads…"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                 />
-                {search && <button className="search-clear" onClick={() => setSearch('')}><X size={12} /></button>}
+                {search && <button className="search-clear" onClick={() => setSearch('')}><X size={13} /></button>}
               </div>
               <select className="filter-select" value={statusFilter} onChange={e => setStatusF(e.target.value)}>
                 <option value="">All Statuses</option>
                 {LEAD_STATUS.map(s => <option key={s} value={s}>{LEAD_STATUS_LABELS[s]}</option>)}
               </select>
               <div style={{ flex: 1 }} />
-              <button className="btn-primary" onClick={() => { setEditLead(null); setLeadModal(true); }}>
+              <button className="btn btn-primary" onClick={() => { setEditLead(null); setLeadModal(true); }}>
                 <Plus size={15} /> Add Lead
               </button>
             </div>
 
             <div className="plv-table-wrap">
               {leads.length === 0 ? (
-                <div className="pl-empty" style={{ padding: '48px 24px' }}>
+                <div className="pl-empty-state pl-empty-full">
                   <Users size={36} className="pl-empty-icon" />
                   <p>No leads yet. Add your first lead to get started.</p>
                 </div>
@@ -609,8 +599,6 @@ export default function PipelineView() {
                       <LeadRow
                         key={lead.id}
                         lead={lead}
-                        salesManagers={salesManagers}
-                        industries={industries}
                         onEdit={(l) => { setEditLead(l); setLeadModal(true); }}
                         onDelete={setDeleteLead}
                       />
@@ -638,18 +626,20 @@ export default function PipelineView() {
       )}
 
       {deleteLead && (
-        <div className="modal-overlay" onClick={() => setDeleteLead(null)}>
-          <div className="modal-box pl-confirm-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setDeleteLead(null)}>
+          <div className="modal modal-sm">
             <div className="modal-header">
               <h2 className="modal-title">Delete Lead</h2>
-              <button className="modal-close" onClick={() => setDeleteLead(null)}><X size={18} /></button>
+              <button className="btn btn-ghost btn-icon" onClick={() => setDeleteLead(null)}><X size={18} /></button>
             </div>
-            <p className="pl-confirm-text">
-              Delete <strong>{deleteLead.account_name}</strong> ({deleteLead.client_name})? This cannot be undone.
-            </p>
-            <div className="pl-form-actions">
-              <button className="btn-ghost" onClick={() => setDeleteLead(null)}>Cancel</button>
-              <button className="btn-danger" onClick={handleLeadDeleted}>Delete</button>
+            <div className="modal-body">
+              <p className="pl-confirm-text">
+                Delete <strong>{deleteLead.account_name}</strong> ({deleteLead.client_name})? This cannot be undone.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setDeleteLead(null)}>Cancel</button>
+              <button className="btn btn-danger" onClick={handleLeadDeleted}>Delete Lead</button>
             </div>
           </div>
         </div>

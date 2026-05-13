@@ -2,14 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, X, Trash2, Pencil, Eye, GitBranch,
-  Calendar, ToggleLeft, ToggleRight, Users, ChevronRight,
+  Calendar, Users, ChevronRight, Layers,
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 import './Pipelines.css';
-
-const STATUS_COLORS = { active: '#28a745', inactive: '#a0aec0' };
 
 // ── Pipeline Form Modal ───────────────────────────────────────────────────────
 function PipelineModal({ pipeline, onClose, onSaved }) {
@@ -52,48 +50,53 @@ function PipelineModal({ pipeline, onClose, onSaved }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box pl-modal" onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-sm">
         <div className="modal-header">
           <h2 className="modal-title">{isEdit ? 'Edit Pipeline' : 'New Pipeline'}</h2>
-          <button className="modal-close" onClick={onClose}><X size={18} /></button>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="pl-form">
-          <div className="pl-form-field">
-            <label className="pl-label">Pipeline Name <span className="req">*</span></label>
-            <input
-              className="pl-input"
-              placeholder="Enter pipeline name"
-              value={form.name}
-              onChange={e => set('name', e.target.value)}
-              autoFocus
-            />
-          </div>
-          <div className="pl-form-row">
-            <div className="pl-form-field">
-              <label className="pl-label">Start Date</label>
-              <input className="pl-input" type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body pl-modal-body">
+            <div className="form-group">
+              <label className="form-label">Pipeline Name <span className="req">*</span></label>
+              <input
+                className="form-control"
+                placeholder="Enter pipeline name"
+                value={form.name}
+                onChange={e => set('name', e.target.value)}
+                autoFocus
+              />
             </div>
-            <div className="pl-form-field">
-              <label className="pl-label">End Date</label>
-              <input className="pl-input" type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
+            <div className="pl-form-row">
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Start Date</label>
+                <input className="form-control" type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">End Date</label>
+                <input className="form-control" type="date" value={form.end_date} onChange={e => set('end_date', e.target.value)} />
+              </div>
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Status</label>
+              <div className="pl-toggle-row">
+                <button
+                  type="button"
+                  className={`toggle-switch ${form.status === 'active' ? 'on' : 'off'}`}
+                  onClick={() => set('status', form.status === 'active' ? 'inactive' : 'active')}
+                >
+                  <span className="toggle-thumb" />
+                </button>
+                <span className={`pl-toggle-label ${form.status === 'active' ? 'pl-toggle-active' : 'pl-toggle-inactive'}`}>
+                  {form.status === 'active' ? 'Active' : 'Inactive'}
+                </span>
+              </div>
             </div>
           </div>
-          <div className="pl-form-field">
-            <label className="pl-label">Status</label>
-            <div className="pl-toggle-row" onClick={() => set('status', form.status === 'active' ? 'inactive' : 'active')}>
-              {form.status === 'active'
-                ? <ToggleRight size={28} color="#28a745" />
-                : <ToggleLeft  size={28} color="#a0aec0" />
-              }
-              <span className="pl-toggle-label" style={{ color: STATUS_COLORS[form.status] }}>
-                {form.status === 'active' ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-          </div>
-          <div className="pl-form-actions">
-            <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn-primary" disabled={saving}>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Pipeline'}
             </button>
           </div>
@@ -118,20 +121,22 @@ function DeleteConfirm({ pipeline, onClose, onDeleted }) {
     }
   };
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box pl-confirm-box" onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-sm">
         <div className="modal-header">
           <h2 className="modal-title">Delete Pipeline</h2>
-          <button className="modal-close" onClick={onClose}><X size={18} /></button>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
         </div>
-        <p className="pl-confirm-text">
-          Are you sure you want to delete <strong>{pipeline.name}</strong>?
-          This will permanently remove all leads inside it.
-        </p>
-        <div className="pl-form-actions">
-          <button className="btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn-danger" onClick={handle} disabled={deleting}>
-            {deleting ? 'Deleting…' : 'Delete'}
+        <div className="modal-body">
+          <p className="pl-confirm-text">
+            Are you sure you want to delete <strong>{pipeline.name}</strong>?
+            This will permanently remove all leads inside it.
+          </p>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-danger" onClick={handle} disabled={deleting}>
+            {deleting ? 'Deleting…' : 'Delete Pipeline'}
           </button>
         </div>
       </div>
@@ -182,8 +187,8 @@ export default function Pipelines() {
 
   const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-  const active   = pipelines.filter(p => p.status === 'active').length;
-  const inactive = pipelines.filter(p => p.status === 'inactive').length;
+  const active     = pipelines.filter(p => p.status === 'active').length;
+  const inactive   = pipelines.filter(p => p.status === 'inactive').length;
   const totalLeads = pipelines.reduce((s, p) => s + (p.lead_count || 0), 0);
 
   return (
@@ -194,15 +199,15 @@ export default function Pipelines() {
         {/* Stats */}
         <div className="pl-stats">
           <div className="pl-stat">
-            <div className="pl-stat-icon pl-stat-total"><GitBranch size={18} /></div>
+            <div className="pl-stat-icon pl-stat-total"><Layers size={18} /></div>
             <div><div className="pl-stat-val">{pipelines.length}</div><div className="pl-stat-lbl">Total Pipelines</div></div>
           </div>
           <div className="pl-stat">
-            <div className="pl-stat-icon pl-stat-active"><ToggleRight size={18} /></div>
+            <div className="pl-stat-icon pl-stat-active"><GitBranch size={18} /></div>
             <div><div className="pl-stat-val">{active}</div><div className="pl-stat-lbl">Active</div></div>
           </div>
           <div className="pl-stat">
-            <div className="pl-stat-icon pl-stat-inactive"><ToggleLeft size={18} /></div>
+            <div className="pl-stat-icon pl-stat-inactive"><GitBranch size={18} /></div>
             <div><div className="pl-stat-val">{inactive}</div><div className="pl-stat-lbl">Inactive</div></div>
           </div>
           <div className="pl-stat">
@@ -213,15 +218,15 @@ export default function Pipelines() {
 
         {/* Toolbar */}
         <div className="pl-toolbar">
-          <div className="search-box">
-            <Search size={14} className="search-icon" />
+          <div className="users-search">
+            <Search size={14} />
             <input
-              className="search-input"
+              className="users-search-input"
               placeholder="Search pipelines…"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
-            {search && <button className="search-clear" onClick={() => setSearch('')}><X size={12} /></button>}
+            {search && <button className="search-clear" onClick={() => setSearch('')}><X size={13} /></button>}
           </div>
           <select className="filter-select" value={statusFilter} onChange={e => setStatus(e.target.value)}>
             <option value="">All Statuses</option>
@@ -229,19 +234,21 @@ export default function Pipelines() {
             <option value="inactive">Inactive</option>
           </select>
           <div style={{ flex: 1 }} />
-          <button className="btn-primary" onClick={() => { setEdit(null); setShowModal(true); }}>
+          <button className="btn btn-primary" onClick={() => { setEdit(null); setShowModal(true); }}>
             <Plus size={15} /> New Pipeline
           </button>
         </div>
 
         {/* Cards grid */}
         {loading ? (
-          <div className="pl-loading">Loading pipelines…</div>
+          <div className="pl-empty-state">Loading pipelines…</div>
         ) : pipelines.length === 0 ? (
-          <div className="pl-empty">
-            <GitBranch size={40} className="pl-empty-icon" />
+          <div className="pl-empty-state pl-empty-full">
+            <Layers size={40} className="pl-empty-icon" />
             <p>No pipelines found</p>
-            <button className="btn-primary" onClick={() => setShowModal(true)}><Plus size={14} /> Create your first pipeline</button>
+            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+              <Plus size={14} /> Create your first pipeline
+            </button>
           </div>
         ) : (
           <div className="pl-grid">
@@ -250,7 +257,6 @@ export default function Pipelines() {
                 <div className="pl-card-header">
                   <div className="pl-card-title">{pipe.name}</div>
                   <span className={`pl-status-badge pl-status-${pipe.status}`}>
-                    {pipe.status === 'active' ? <ToggleRight size={11} /> : <ToggleLeft size={11} />}
                     {pipe.status === 'active' ? 'Active' : 'Inactive'}
                   </span>
                 </div>
@@ -265,17 +271,13 @@ export default function Pipelines() {
                   </div>
                 </div>
                 <div className="pl-card-actions">
-                  <button
-                    className="pl-btn-view"
-                    onClick={() => navigate(`/pipelines/${pipe.id}`)}
-                  >
-                    <Eye size={13} /> View
-                    <ChevronRight size={13} />
+                  <button className="btn btn-secondary btn-sm pl-view-btn" onClick={() => navigate(`/pipelines/${pipe.id}`)}>
+                    <Eye size={13} /> View <ChevronRight size={13} />
                   </button>
-                  <button className="pl-btn-icon" title="Edit" onClick={() => { setEdit(pipe); setShowModal(true); }}>
+                  <button className="pl-icon-btn pl-icon-edit" title="Edit" onClick={() => { setEdit(pipe); setShowModal(true); }}>
                     <Pencil size={14} />
                   </button>
-                  <button className="pl-btn-icon pl-btn-delete" title="Delete" onClick={() => setDelete(pipe)}>
+                  <button className="pl-icon-btn pl-icon-delete" title="Delete" onClick={() => setDelete(pipe)}>
                     <Trash2 size={14} />
                   </button>
                 </div>
