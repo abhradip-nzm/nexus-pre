@@ -4,6 +4,12 @@ const router  = express.Router();
 const { authenticate, requireSystemAdmin, requireAdmin, requireManager } = require('../middleware/auth');
 const { uploadFile, ALLOWED_TYPES, MAX_SIZE_BYTES } = require('../utils/storage');
 const { getAllAdhocTasks, createAdhocTask, updateAdhocTask, deleteAdhocTask } = require('../controllers/adhocTaskController');
+const {
+  getAllPipelines, getPipeline, createPipeline, updatePipeline, deletePipeline,
+  getPipelineLeads, createLead, updateLead, deleteLead,
+  addLeadUpdate, deleteLeadUpdate,
+  getPipelineAnalytics,
+} = require('../controllers/pipelineController');
 
 // Multer — memory storage, 10 MB limit, allowed types only
 const upload = multer({
@@ -240,6 +246,20 @@ router.post('/transition-forms/:id/fields', authenticate, requireAdmin, addField
 router.put('/transition-forms/:id/fields/reorder', authenticate, requireAdmin, reorderFields);
 router.post('/transition-forms/:id/responses', authenticate, submitFormResponse);
 router.get('/stories/:storyId/form-responses', authenticate, getStoryFormResponses);
+
+// Pipelines (system_admin only)
+router.get('/pipelines',                          authenticate, requireSystemAdmin, getAllPipelines);
+router.get('/pipelines/:id',                      authenticate, requireSystemAdmin, getPipeline);
+router.post('/pipelines',                         authenticate, requireSystemAdmin, createPipeline);
+router.put('/pipelines/:id',                      authenticate, requireSystemAdmin, updatePipeline);
+router.delete('/pipelines/:id',                   authenticate, requireSystemAdmin, deletePipeline);
+router.get('/pipelines/:id/leads',                authenticate, requireSystemAdmin, getPipelineLeads);
+router.post('/pipelines/:id/leads',               authenticate, requireSystemAdmin, createLead);
+router.put('/pipeline-leads/:leadId',             authenticate, requireSystemAdmin, updateLead);
+router.delete('/pipeline-leads/:leadId',          authenticate, requireSystemAdmin, deleteLead);
+router.post('/pipeline-leads/:leadId/updates',    authenticate, requireSystemAdmin, addLeadUpdate);
+router.delete('/pipeline-lead-updates/:updateId', authenticate, requireSystemAdmin, deleteLeadUpdate);
+router.get('/pipelines/:id/analytics',            authenticate, requireSystemAdmin, getPipelineAnalytics);
 
 // Ad-Hoc Tasks (system_admin only)
 router.get('/adhoc-tasks',      authenticate, requireSystemAdmin, getAllAdhocTasks);

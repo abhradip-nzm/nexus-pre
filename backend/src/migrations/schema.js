@@ -614,7 +614,46 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_adhoc_tasks_due_date ON adhoc_tasks(due_date) WHERE due_date IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS idx_adhoc_tasks_story_id ON adhoc_tasks(story_id) WHERE story_id IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS idx_adhoc_tasks_prospect_id ON adhoc_tasks(prospect_id) WHERE prospect_id IS NOT NULL`,
-  `CREATE INDEX IF NOT EXISTS idx_adhoc_tma_user_id ON adhoc_task_member_assignments(user_id)`
+  `CREATE INDEX IF NOT EXISTS idx_adhoc_tma_user_id ON adhoc_task_member_assignments(user_id)`,
+
+  // ── Pipelines ─────────────────────────────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS pipelines (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    start_date DATE,
+    end_date DATE,
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS pipeline_leads (
+    id SERIAL PRIMARY KEY,
+    pipeline_id INTEGER REFERENCES pipelines(id) ON DELETE CASCADE,
+    account_name TEXT NOT NULL,
+    client_name TEXT NOT NULL,
+    business_manager_id INTEGER REFERENCES business_team(id) ON DELETE SET NULL,
+    industry_id INTEGER REFERENCES industries(id) ON DELETE SET NULL,
+    country TEXT,
+    status TEXT DEFAULT 'hot' CHECK (status IN ('hot', 'cold', 'onboarded', 'no_requirement')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS pipeline_lead_updates (
+    id SERIAL PRIMARY KEY,
+    lead_id INTEGER REFERENCES pipeline_leads(id) ON DELETE CASCADE,
+    update_text TEXT NOT NULL,
+    update_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+
+  `CREATE INDEX IF NOT EXISTS idx_pipelines_created_by ON pipelines(created_by)`,
+  `CREATE INDEX IF NOT EXISTS idx_pipeline_leads_pipeline_id ON pipeline_leads(pipeline_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_pipeline_leads_bm_id ON pipeline_leads(business_manager_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_pipeline_lead_updates_lead_id ON pipeline_lead_updates(lead_id)`
 ];
 
 async function runMigrations() {

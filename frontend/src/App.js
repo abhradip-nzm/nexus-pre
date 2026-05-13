@@ -24,6 +24,8 @@ import BusinessTeam from './pages/BusinessTeam';
 import MyTasks from './pages/MyTasks';
 import AllTasks from './pages/AllTasks';
 import AdHocTasks from './pages/AdHocTasks';
+import Pipelines from './pages/Pipelines';
+import PipelineView from './pages/PipelineView';
 import Prospects from './pages/Prospects';
 import Notifications from './pages/Notifications';
 import './styles/global.css';
@@ -226,6 +228,17 @@ function App() {
           <Route path="/adhoc-tasks" element={
             <ProtectedRoute roles={['system_admin']}>
               <AppLayout><AdHocTasks /></AppLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/pipelines" element={
+            <ProtectedRoute roles={['system_admin']}>
+              <AppLayout><Pipelines /></AppLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/pipelines/:id" element={
+            <ProtectedRoute roles={['system_admin']}>
+              <AppLayout><PipelineView /></AppLayout>
             </ProtectedRoute>
           } />
 

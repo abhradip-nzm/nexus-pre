@@ -6,7 +6,7 @@ import {
   ChevronDown, LogOut,
   UsersRound, LayoutGrid, UserCog,
   Calendar as CalendarIcon, Tag as TagIcon, Building2,
-  GitBranch, CalendarCheck, Target, FormInput, ListTodo
+  GitBranch, CalendarCheck, Target, FormInput, ListTodo, Layers
 } from 'lucide-react';
 import { formatRoleName } from '../../utils/helpers';
 import './Sidebar.css';
@@ -35,8 +35,9 @@ function getNavItems(role) {
 }
 
 const adminNavItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/kanban', icon: Kanban, label: 'Kanban Board' },
+  { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/pipelines',  icon: Layers,           label: 'Pipelines',   systemAdminOnly: true },
+  { to: '/kanban',     icon: Kanban,           label: 'Kanban Board' },
   { to: '/all-tasks', icon: CalendarCheck, label: 'All Tasks' },
   { to: '/adhoc-tasks', icon: ListTodo, label: 'Ad-Hoc Tasks', systemAdminOnly: true },
   { to: '/calendar', icon: CalendarIcon, label: 'Calendar' },
