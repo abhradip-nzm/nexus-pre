@@ -192,10 +192,24 @@ export default function Pipelines() {
   const totalLeads = pipelines.reduce((s, p) => s + (p.lead_count || 0), 0);
 
   return (
-    <div className="page-container">
-      <Header title="Pipelines" subtitle="Manage your sales pipelines and track leads" />
+    <>
+      {showModal && (
+        <PipelineModal
+          pipeline={editTarget}
+          onClose={() => { setShowModal(false); setEdit(null); }}
+          onSaved={handleSaved}
+        />
+      )}
+      {deleteTarget && (
+        <DeleteConfirm
+          pipeline={deleteTarget}
+          onClose={() => setDelete(null)}
+          onDeleted={handleDeleted}
+        />
+      )}
 
-      <div className="pl-page">
+      <Header title="Pipelines" subtitle="Manage your sales pipelines and track leads" />
+      <div className="page-content pl-page">
         {/* Stats */}
         <div className="pl-stats">
           <div className="pl-stat">
@@ -286,21 +300,6 @@ export default function Pipelines() {
           </div>
         )}
       </div>
-
-      {showModal && (
-        <PipelineModal
-          pipeline={editTarget}
-          onClose={() => { setShowModal(false); setEdit(null); }}
-          onSaved={handleSaved}
-        />
-      )}
-      {deleteTarget && (
-        <DeleteConfirm
-          pipeline={deleteTarget}
-          onClose={() => setDelete(null)}
-          onDeleted={handleDeleted}
-        />
-      )}
-    </div>
+    </>
   );
 }

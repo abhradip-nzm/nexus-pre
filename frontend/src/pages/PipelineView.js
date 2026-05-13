@@ -493,30 +493,60 @@ export default function PipelineView() {
   }, {});
 
   if (loading) return (
-    <div className="page-container">
+    <>
       <Header title="Pipeline" />
-      <div className="plv-loading">Loading…</div>
-    </div>
+      <div className="page-content plv-loading">Loading…</div>
+    </>
   );
 
   if (!pipeline) return (
-    <div className="page-container">
+    <>
       <Header title="Pipeline not found" />
-      <div className="plv-loading">
+      <div className="page-content plv-loading">
         Pipeline not found.{' '}
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/pipelines')}>← Go back</button>
       </div>
-    </div>
+    </>
   );
 
   return (
-    <div className="page-container">
+    <>
+      {showLeadModal && (
+        <LeadModal
+          lead={editLead}
+          pipelineId={id}
+          salesManagers={salesManagers}
+          industries={industries}
+          onClose={() => { setLeadModal(false); setEditLead(null); }}
+          onSaved={handleLeadSaved}
+        />
+      )}
+
+      {deleteLead && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setDeleteLead(null)}>
+          <div className="modal modal-sm">
+            <div className="modal-header">
+              <h2 className="modal-title">Delete Lead</h2>
+              <button className="btn btn-ghost btn-icon" onClick={() => setDeleteLead(null)}><X size={18} /></button>
+            </div>
+            <div className="modal-body">
+              <p className="pl-confirm-text">
+                Delete <strong>{deleteLead.account_name}</strong> ({deleteLead.client_name})? This cannot be undone.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setDeleteLead(null)}>Cancel</button>
+              <button className="btn btn-danger" onClick={handleLeadDeleted}>Delete Lead</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Header
         title={pipeline.name}
         subtitle={`${leads.length} lead${leads.length !== 1 ? 's' : ''} · ${pipeline.status === 'active' ? 'Active' : 'Inactive'}`}
       />
-
-      <div className="plv-page">
+      <div className="page-content plv-page">
         {/* Top bar */}
         <div className="plv-topbar">
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/pipelines')}>
@@ -613,37 +643,6 @@ export default function PipelineView() {
         {/* ── ANALYTICS TAB ── */}
         {tab === 'analytics' && <AnalyticsTab pipelineId={id} />}
       </div>
-
-      {showLeadModal && (
-        <LeadModal
-          lead={editLead}
-          pipelineId={id}
-          salesManagers={salesManagers}
-          industries={industries}
-          onClose={() => { setLeadModal(false); setEditLead(null); }}
-          onSaved={handleLeadSaved}
-        />
-      )}
-
-      {deleteLead && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setDeleteLead(null)}>
-          <div className="modal modal-sm">
-            <div className="modal-header">
-              <h2 className="modal-title">Delete Lead</h2>
-              <button className="btn btn-ghost btn-icon" onClick={() => setDeleteLead(null)}><X size={18} /></button>
-            </div>
-            <div className="modal-body">
-              <p className="pl-confirm-text">
-                Delete <strong>{deleteLead.account_name}</strong> ({deleteLead.client_name})? This cannot be undone.
-              </p>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setDeleteLead(null)}>Cancel</button>
-              <button className="btn btn-danger" onClick={handleLeadDeleted}>Delete Lead</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
