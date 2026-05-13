@@ -91,13 +91,17 @@
   background: var(--bg-primary);
   border: 1px solid var(--border-light);
   border-radius: 12px;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: visible;
   box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  -webkit-overflow-scrolling: touch;
 }
 .plv-table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: auto;
 }
 .plv-table thead th {
   background: var(--bg-secondary);
@@ -110,6 +114,10 @@
   color: var(--text-muted);
   border-bottom: 1px solid var(--border-light);
   white-space: nowrap;
+}
+/* last header (actions) — minimal width */
+.plv-table thead th:last-child {
+  width: 80px;
 }
 .plv-tr td {
   padding: 11px 14px;
@@ -155,6 +163,8 @@
   display: flex;
   gap: 6px;
   align-items: center;
+  white-space: nowrap;
+  width: 80px;
 }
 .pl-icon-btn {
   width: 28px;
@@ -280,6 +290,29 @@
   text-align: center;
   padding: 12px 0;
 }
+
+/* ── Filter select (toolbar dropdowns) ──────────────────────────────────── */
+.filter-select {
+  height: 36px;
+  padding: 0 28px 0 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23718096' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  min-width: 130px;
+  max-width: 160px;
+  transition: border-color 0.15s;
+  font-family: var(--font-sans);
+}
+.filter-select:focus { border-color: var(--primary); }
 
 /* ── Analytics ───────────────────────────────────────────────────────────── */
 .plv-analytics { }
