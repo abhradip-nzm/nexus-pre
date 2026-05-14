@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import {
   ArrowLeft, Plus, Search, X, Trash2, Pencil, BarChart2,
@@ -667,19 +667,103 @@ function LeadRow({ lead, onEdit, onDelete }) {
   );
 }
 
+// ── Analytics helpers ─────────────────────────────────────────────────────────
+const toIso = (d) => d.toISOString().slice(0, 10);
+
+const PERIOD_OPTIONS = [
+  { value: 'all',        label: 'All Time' },
+  { value: 'this_year',  label: 'This Year' },
+  { value: 'this_q',     label: 'This Quarter' },
+  { value: 'last_6m',    label: 'Last 6 Months' },
+  { value: 'last_3m',    label: 'Last 3 Months' },
+  { value: 'this_month', label: 'This Month' },
+  { value: 'last_month', label: 'Last Month' },
+  { value: 'custom',     label: 'Custom Range' },
+];
+
+const computeDateParams = (period, from = '', to = '') => {
+  const now = new Date();
+  const today = toIso(now);
+  switch (period) {
+    case 'this_year':  return { from_date: `${now.getFullYear()}-01-01`, to_date: today };
+    case 'this_q': {
+      const q = Math.floor(now.getMonth() / 3);
+      return { from_date: toIso(new Date(now.getFullYear(), q * 3, 1)), to_date: today };
+    }
+    case 'last_6m':    return { from_date: toIso(new Date(Date.now() - 180 * 86400000)), to_date: today };
+    case 'last_3m':    return { from_date: toIso(new Date(Date.now() - 90  * 86400000)), to_date: today };
+    case 'this_month': {
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      return { from_date: `${now.getFullYear()}-${m}-01`, to_date: today };
+    }
+    case 'last_month': {
+      const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const e = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { from_date: toIso(s), to_date: toIso(e) };
+    }
+    case 'custom': return {
+      ...(from ? { from_date: from } : {}),
+      ...(to   ? { to_date:   to   } : {}),
+    };
+    default: return {};
+  }
+};
+
+const getPeriodLabel = (period, from, to) => {
+  if (period === 'custom') {
+    if (from && to) return `${from} → ${to}`;
+    if (from) return `From ${from}`;
+    if (to)   return `Up to ${to}`;
+    return 'Custom Range';
+  }
+  return PERIOD_OPTIONS.find(p => p.value === period)?.label || 'All Time';
+};
+
+// Transform raw BM×group data into stacked bar format
+const buildStackedBM = (rawData, groupKey) => {
+  if (!rawData || rawData.length === 0) return { data: [], keys: [] };
+  const groupTotals = {};
+  rawData.forEach(r => { groupTotals[r[groupKey]] = (groupTotals[r[groupKey]] || 0) + r.count; });
+  const topKeys = Object.entries(groupTotals).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k);
+  const managers = [...new Set(rawData.map(r => r.manager))];
+  const stackData = managers.map(manager => {
+    const row = { manager: manager.length > 18 ? manager.slice(0, 16) + '…' : manager };
+    let other = 0;
+    rawData.filter(r => r.manager === manager).forEach(r => {
+      if (topKeys.includes(r[groupKey])) row[r[groupKey]] = (row[r[groupKey]] || 0) + r.count;
+      else other += r.count;
+    });
+    if (other > 0) row['Other'] = other;
+    return row;
+  });
+  const hasOther = stackData.some(r => r['Other'] > 0);
+  return { data: stackData, keys: [...topKeys, ...(hasOther ? ['Other'] : [])] };
+};
+
 // ── Analytics Tab ─────────────────────────────────────────────────────────────
 function AnalyticsTab({ pipelineId, pipelineName }) {
-  const [data, setData]         = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [exporting, setExporting] = useState(false);
-  const analyticsRef            = useRef(null);
+  const [data, setData]             = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [exporting, setExporting]   = useState(false);
+  const [period, setPeriod]         = useState('all');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo]     = useState('');
+  const [appliedParams, setApplied] = useState({});
+  const analyticsRef                = useRef(null);
+
+  // Auto-apply when a preset is picked; only apply custom on button click
+  const handlePeriodChange = (p) => {
+    setPeriod(p);
+    if (p !== 'custom') setApplied(computeDateParams(p));
+  };
 
   useEffect(() => {
-    api.get(`/pipelines/${pipelineId}/analytics`)
+    setLoading(true);
+    api.get(`/pipelines/${pipelineId}/analytics`, { params: appliedParams })
       .then(res => setData(res.data))
       .catch(() => toast.error('Failed to load analytics'))
       .finally(() => setLoading(false));
-  }, [pipelineId]);
+  }, [pipelineId, appliedParams]);
 
   const handleExportPDF = async () => {
     if (!analyticsRef.current) return;
@@ -692,56 +776,47 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
 
       const element = analyticsRef.current;
       const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
+        scale: 2, useCORS: true, logging: false,
         backgroundColor: '#f8fafc',
-        width: element.scrollWidth,
-        height: element.scrollHeight,
+        width: element.scrollWidth, height: element.scrollHeight,
       });
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageW  = pdf.internal.pageSize.getWidth();
-      const pageH  = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const usableW = pageW - margin * 2;
-      const imgH = (canvas.height * usableW) / canvas.width;
+      const imgData  = canvas.toDataURL('image/png');
+      const pdf      = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW    = pdf.internal.pageSize.getWidth();
+      const pageH    = pdf.internal.pageSize.getHeight();
+      const margin   = 10;
+      const usableW  = pageW - margin * 2;
+      const imgH     = (canvas.height * usableW) / canvas.width;
+      const periodLbl = getPeriodLabel(period, customFrom, customTo);
 
-      // Header — matching Dashboard PDF style
-      pdf.setFontSize(15);
-      pdf.setTextColor(62, 114, 174);
+      pdf.setFontSize(15); pdf.setTextColor(62, 114, 174);
       pdf.text(`Nexus Pre — ${pipelineName || 'Pipeline'} Analytics`, margin, margin + 5);
-      pdf.setFontSize(9);
-      pdf.setTextColor(113, 128, 150);
+      pdf.setFontSize(9);  pdf.setTextColor(113, 128, 150);
       const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      pdf.text(`Generated: ${dateStr}`, margin, margin + 11);
+      pdf.text(`Generated: ${dateStr}  |  Period: ${periodLbl}`, margin, margin + 11);
 
       const imgStartY = margin + 16;
       pdf.addImage(imgData, 'PNG', margin, imgStartY, usableW, imgH, '', 'FAST');
-
-      // Multi-page support
       let heightLeft = imgH - (pageH - imgStartY - margin);
       let pageNum = 1;
       while (heightLeft > 0) {
         pdf.addPage();
         pdf.addImage(imgData, 'PNG', margin, imgStartY - pageNum * (pageH - margin * 2), usableW, imgH, '', 'FAST');
-        heightLeft -= (pageH - margin * 2);
-        pageNum++;
+        heightLeft -= (pageH - margin * 2); pageNum++;
       }
-
       const safeName = (pipelineName || 'pipeline').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
       pdf.save(`nexus-${safeName}-analytics-${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (err) {
       console.error('PDF export error:', err);
       toast.error('Failed to export PDF');
-    } finally {
-      setExporting(false);
-    }
+    } finally { setExporting(false); }
   };
 
-  if (loading) return <div className="plv-loading">Loading analytics…</div>;
+  if (loading) return <div className="plv-loading"><div className="plv-spinner" /> Loading analytics…</div>;
   if (!data)   return null;
+
+  const totalLeads = data.status_breakdown.reduce((s, r) => s + r.count, 0);
 
   const statusData = LEAD_STATUS.map(s => ({
     name:  LEAD_STATUS_LABELS[s],
@@ -749,22 +824,84 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
     color: LEAD_STATUS_COLORS[s],
   })).filter(d => d.value > 0);
 
+  const bmIndustry = buildStackedBM(data.bm_industry || [], 'industry');
+  const bmCountry  = buildStackedBM(data.bm_country  || [], 'country');
+
   return (
     <div className="plv-analytics">
-      {/* Analytics header: title + Export PDF button */}
-      <div className="plv-analytics-header">
-        <span className="plv-analytics-title-txt">Pipeline Analytics</span>
+
+      {/* ── Filter + Export bar ── */}
+      <div className="plv-a-filter-bar">
+        <div className="plv-a-filter-group">
+          <Calendar size={14} className="plv-a-filter-icon" />
+          <select
+            className="plv-a-period-select"
+            value={period}
+            onChange={e => handlePeriodChange(e.target.value)}
+          >
+            {PERIOD_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        {period === 'custom' && (
+          <>
+            <input
+              type="date" className="plv-a-date-input"
+              value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+            />
+            <span className="plv-a-range-arrow">→</span>
+            <input
+              type="date" className="plv-a-date-input"
+              value={customTo} onChange={e => setCustomTo(e.target.value)}
+            />
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => setApplied(computeDateParams('custom', customFrom, customTo))}
+              disabled={!customFrom && !customTo}
+            >
+              Apply
+            </button>
+          </>
+        )}
+        <div className="plv-a-filter-spacer" />
         <button
           className="btn btn-secondary btn-sm plv-export-btn"
           onClick={handleExportPDF}
           disabled={exporting}
         >
           <Download size={14} />
-          {exporting ? 'Generating PDF…' : 'Export PDF'}
+          {exporting ? 'Generating…' : 'Export PDF'}
         </button>
       </div>
 
+      {/* ── KPI summary row ── */}
+      <div className="plv-a-kpi-row">
+        <div className="plv-a-kpi-card" style={{ borderLeftColor: '#3e72ae' }}>
+          <div className="plv-a-kpi-icon" style={{ background: '#3e72ae18', color: '#3e72ae' }}>
+            <Users size={18} />
+          </div>
+          <div>
+            <div className="plv-a-kpi-val">{totalLeads}</div>
+            <div className="plv-a-kpi-lbl">Total Leads</div>
+          </div>
+        </div>
+        {LEAD_STATUS.map(s => (
+          <div key={s} className="plv-a-kpi-card" style={{ borderLeftColor: LEAD_STATUS_COLORS[s] }}>
+            <div className="plv-a-kpi-icon" style={{ background: LEAD_STATUS_COLORS[s] + '18', color: LEAD_STATUS_COLORS[s] }}>
+              {LEAD_STATUS_ICONS[s]}
+            </div>
+            <div>
+              <div className="plv-a-kpi-val" style={{ color: LEAD_STATUS_COLORS[s] }}>
+                {data.status_breakdown.find(r => r.status === s)?.count || 0}
+              </div>
+              <div className="plv-a-kpi-lbl">{LEAD_STATUS_LABELS[s]}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── All charts captured for PDF ── */}
       <div ref={analyticsRef} className="plv-analytics-grid">
+
         {/* Status Breakdown */}
         <div className="plv-a-card plv-a-card-full">
           <div className="plv-a-title"><CircleDot size={15} /> Status Breakdown</div>
@@ -773,21 +910,23 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
               <div className="plv-a-pie-wrap">
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
-                    <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75}>
+                    <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} paddingAngle={2}>
                       {statusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip formatter={(val, name) => [`${val} (${totalLeads > 0 ? Math.round(val/totalLeads*100) : 0}%)`, name]} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
               <div className="plv-a-legend">
                 {LEAD_STATUS.map(s => {
-                  const row = data.status_breakdown.find(r => r.status === s);
+                  const cnt = data.status_breakdown.find(r => r.status === s)?.count || 0;
+                  const pct = totalLeads > 0 ? Math.round(cnt / totalLeads * 100) : 0;
                   return (
                     <div key={s} className="plv-a-legend-row">
                       <span className="plv-a-dot" style={{ background: LEAD_STATUS_COLORS[s] }} />
                       <span className="plv-a-legend-lbl">{LEAD_STATUS_LABELS[s]}</span>
-                      <span className="plv-a-legend-val">{row?.count || 0}</span>
+                      <span className="plv-a-legend-pct">{pct}%</span>
+                      <span className="plv-a-legend-val">{cnt}</span>
                     </div>
                   );
                 })}
@@ -801,9 +940,9 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
           <div className="plv-a-title"><Building2 size={15} /> Industry Distribution</div>
           {data.industry_distribution.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
             <div className="plv-chart-scroll">
-              <div style={{ minWidth: Math.max(300, data.industry_distribution.length * 52) }}>
+              <div style={{ minWidth: Math.max(300, data.industry_distribution.length * 54) }}>
                 <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={data.industry_distribution} margin={{ top: 5, right: 10, left: -15, bottom: 55 }}>
+                  <BarChart data={data.industry_distribution} margin={{ top: 5, right: 10, left: -15, bottom: 58 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
                     <XAxis dataKey="industry" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
@@ -823,9 +962,9 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
           <div className="plv-a-title"><Globe size={15} /> Country Distribution</div>
           {data.country_distribution.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
             <div className="plv-chart-scroll">
-              <div style={{ minWidth: Math.max(300, data.country_distribution.length * 52) }}>
+              <div style={{ minWidth: Math.max(300, data.country_distribution.length * 54) }}>
                 <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={data.country_distribution} margin={{ top: 5, right: 10, left: -15, bottom: 55 }}>
+                  <BarChart data={data.country_distribution} margin={{ top: 5, right: 10, left: -15, bottom: 58 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
                     <XAxis dataKey="country" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
                     <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
@@ -843,7 +982,7 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
           <div className="plv-a-title"><Calendar size={15} /> Monthly Lead Trend</div>
           {data.monthly_trend.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
             <div className="plv-chart-scroll">
-              <div style={{ minWidth: Math.max(280, data.monthly_trend.length * 52) }}>
+              <div style={{ minWidth: Math.max(280, data.monthly_trend.length * 60) }}>
                 <ResponsiveContainer width="100%" height={210}>
                   <BarChart data={data.monthly_trend} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
@@ -858,9 +997,9 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
           )}
         </div>
 
-        {/* BM Performance */}
+        {/* Business Manager Charter */}
         <div className="plv-a-card plv-a-card-full">
-          <div className="plv-a-title"><Users size={15} /> Business Manager Performance</div>
+          <div className="plv-a-title"><UserCheck size={15} /> Business Manager Charter</div>
           {data.manager_performance.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
             <div className="plv-a-bm-wrap">
               <table className="plv-a-bm-table">
@@ -868,21 +1007,26 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
                   <tr>
                     <th>Manager</th>
                     <th>Total</th>
-                    <th style={{ color: LEAD_STATUS_COLORS.hot }}>Hot</th>
-                    <th style={{ color: LEAD_STATUS_COLORS.cold }}>Cold</th>
-                    <th style={{ color: LEAD_STATUS_COLORS.onboarded }}>Onboarded</th>
-                    <th style={{ color: LEAD_STATUS_COLORS.no_requirement }}>No Req.</th>
+                    <th style={{ color: LEAD_STATUS_COLORS.hot }}>🔥 Hot</th>
+                    <th style={{ color: LEAD_STATUS_COLORS.cold }}>❄️ Cold</th>
+                    <th style={{ color: LEAD_STATUS_COLORS.onboarded }}>✅ Onboarded</th>
+                    <th style={{ color: LEAD_STATUS_COLORS.no_requirement }}>➖ No Req.</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.manager_performance.map((row, i) => (
                     <tr key={i}>
-                      <td className="plv-a-bm-name">{row.manager}</td>
-                      <td><strong>{row.total}</strong></td>
-                      <td>{row.hot}</td>
-                      <td>{row.cold}</td>
-                      <td>{row.onboarded}</td>
-                      <td>{row.no_requirement}</td>
+                      <td className="plv-a-bm-name">
+                        <div className="plv-a-bm-avatar" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}>
+                          {row.manager[0]}
+                        </div>
+                        {row.manager}
+                      </td>
+                      <td><strong className="plv-a-bm-total">{row.total}</strong></td>
+                      <td><span className="plv-a-bm-cell" style={{ color: LEAD_STATUS_COLORS.hot }}>{row.hot}</span></td>
+                      <td><span className="plv-a-bm-cell" style={{ color: LEAD_STATUS_COLORS.cold }}>{row.cold}</span></td>
+                      <td><span className="plv-a-bm-cell" style={{ color: LEAD_STATUS_COLORS.onboarded }}>{row.onboarded}</span></td>
+                      <td><span className="plv-a-bm-cell" style={{ color: LEAD_STATUS_COLORS.no_requirement }}>{row.no_requirement}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -890,6 +1034,55 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
             </div>
           )}
         </div>
+
+        {/* BM × Industry */}
+        {bmIndustry.data.length > 0 && (
+          <div className="plv-a-card plv-a-card-full">
+            <div className="plv-a-title"><Building2 size={15} /> Manager × Industry Breakdown</div>
+            <div className="plv-chart-scroll">
+              <div style={{ minWidth: Math.max(400, bmIndustry.data.length * 70) }}>
+                <ResponsiveContainer width="100%" height={Math.max(220, bmIndustry.data.length * 46 + 60)}>
+                  <BarChart data={bmIndustry.data} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="manager" width={100} tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Legend iconSize={10} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+                    {bmIndustry.keys.map((k, i) => (
+                      <Bar key={k} dataKey={k} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]}
+                        radius={i === bmIndustry.keys.length - 1 ? [0, 4, 4, 0] : [0, 0, 0, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* BM × Country */}
+        {bmCountry.data.length > 0 && (
+          <div className="plv-a-card plv-a-card-full">
+            <div className="plv-a-title"><Globe size={15} /> Manager × Country Breakdown</div>
+            <div className="plv-chart-scroll">
+              <div style={{ minWidth: Math.max(400, bmCountry.data.length * 70) }}>
+                <ResponsiveContainer width="100%" height={Math.max(220, bmCountry.data.length * 46 + 60)}>
+                  <BarChart data={bmCountry.data} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="manager" width={100} tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Legend iconSize={10} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+                    {bmCountry.keys.map((k, i) => (
+                      <Bar key={k} dataKey={k} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]}
+                        radius={i === bmCountry.keys.length - 1 ? [0, 4, 4, 0] : [0, 0, 0, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

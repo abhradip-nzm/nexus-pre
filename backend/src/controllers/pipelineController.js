@@ -319,69 +319,106 @@ const deleteLeadUpdate = async (req, res) => {
 const getPipelineAnalytics = async (req, res) => {
   try {
     const { id } = req.params;
+    const { from_date, to_date } = req.query;
 
-    const [statusRes, industryRes, countryRes, bmRes, trendRes] = await Promise.all([
+    // Build reusable date filter (appended to every per-lead WHERE clause)
+    const dp = [id];
+    let dateWhere = '';
+    if (from_date) { dp.push(from_date);                    dateWhere += ` AND pl.created_at >= $${dp.length}`; }
+    if (to_date)   { dp.push(to_date + ' 23:59:59.999');    dateWhere += ` AND pl.created_at <= $${dp.length}`; }
+
+    const [statusRes, industryRes, countryRes, bmRes, trendRes, bmIndRes, bmCtyRes] = await Promise.all([
       // Status breakdown
       query(
-        `SELECT status, COUNT(*)::int AS count FROM pipeline_leads WHERE pipeline_id = $1 GROUP BY status`,
-        [id]
+        `SELECT status, COUNT(*)::int AS count
+         FROM pipeline_leads pl WHERE pl.pipeline_id = $1${dateWhere}
+         GROUP BY status`,
+        dp
       ),
       // Industry distribution
       query(
         `SELECT COALESCE(ind.name, 'Unspecified') AS industry, COUNT(pl.id)::int AS count
          FROM pipeline_leads pl
          LEFT JOIN industries ind ON ind.id = pl.industry_id
-         WHERE pl.pipeline_id = $1
+         WHERE pl.pipeline_id = $1${dateWhere}
          GROUP BY COALESCE(ind.name, 'Unspecified')
          ORDER BY count DESC`,
-        [id]
+        dp
       ),
       // Country distribution
       query(
         `SELECT COALESCE(pl.country, 'Unspecified') AS country, COUNT(*)::int AS count
          FROM pipeline_leads pl
-         WHERE pl.pipeline_id = $1
+         WHERE pl.pipeline_id = $1${dateWhere}
          GROUP BY COALESCE(pl.country, 'Unspecified')
-         ORDER BY count DESC
-         LIMIT 15`,
-        [id]
+         ORDER BY count DESC LIMIT 15`,
+        dp
       ),
-      // Business manager performance
+      // Business Manager Charter
       query(
         `SELECT
            COALESCE(bt.name, 'Unassigned') AS manager,
            COUNT(pl.id)::int AS total,
-           SUM(CASE WHEN pl.status = 'hot'           THEN 1 ELSE 0 END)::int AS hot,
-           SUM(CASE WHEN pl.status = 'cold'          THEN 1 ELSE 0 END)::int AS cold,
-           SUM(CASE WHEN pl.status = 'onboarded'     THEN 1 ELSE 0 END)::int AS onboarded,
+           SUM(CASE WHEN pl.status = 'hot'            THEN 1 ELSE 0 END)::int AS hot,
+           SUM(CASE WHEN pl.status = 'cold'           THEN 1 ELSE 0 END)::int AS cold,
+           SUM(CASE WHEN pl.status = 'onboarded'      THEN 1 ELSE 0 END)::int AS onboarded,
            SUM(CASE WHEN pl.status = 'no_requirement' THEN 1 ELSE 0 END)::int AS no_requirement
          FROM pipeline_leads pl
          LEFT JOIN business_team bt ON bt.id = pl.business_manager_id
-         WHERE pl.pipeline_id = $1
+         WHERE pl.pipeline_id = $1${dateWhere}
          GROUP BY COALESCE(bt.name, 'Unassigned')
          ORDER BY total DESC`,
-        [id]
+        dp
       ),
-      // Monthly trend (leads created per month)
+      // Monthly trend
       query(
         `SELECT
            TO_CHAR(DATE_TRUNC('month', pl.created_at), 'Mon YYYY') AS month,
            DATE_TRUNC('month', pl.created_at) AS month_date,
            COUNT(*)::int AS count
          FROM pipeline_leads pl
-         WHERE pl.pipeline_id = $1
+         WHERE pl.pipeline_id = $1${dateWhere}
          GROUP BY DATE_TRUNC('month', pl.created_at)
          ORDER BY month_date ASC`,
-        [id]
+        dp
+      ),
+      // BM × Industry
+      query(
+        `SELECT
+           COALESCE(bt.name, 'Unassigned') AS manager,
+           COALESCE(ind.name, 'Unspecified') AS industry,
+           COUNT(pl.id)::int AS count
+         FROM pipeline_leads pl
+         LEFT JOIN business_team bt  ON bt.id  = pl.business_manager_id
+         LEFT JOIN industries    ind ON ind.id = pl.industry_id
+         WHERE pl.pipeline_id = $1${dateWhere}
+         GROUP BY COALESCE(bt.name, 'Unassigned'), COALESCE(ind.name, 'Unspecified')
+         ORDER BY manager, count DESC`,
+        dp
+      ),
+      // BM × Country
+      query(
+        `SELECT
+           COALESCE(bt.name, 'Unassigned') AS manager,
+           COALESCE(pl.country, 'Unspecified') AS country,
+           COUNT(pl.id)::int AS count
+         FROM pipeline_leads pl
+         LEFT JOIN business_team bt ON bt.id = pl.business_manager_id
+         WHERE pl.pipeline_id = $1${dateWhere}
+         GROUP BY COALESCE(bt.name, 'Unassigned'), COALESCE(pl.country, 'Unspecified')
+         ORDER BY manager, count DESC`,
+        dp
       ),
     ]);
 
     res.json({
-      status_breakdown: statusRes.rows,
+      status_breakdown:      statusRes.rows,
       industry_distribution: industryRes.rows,
-      country_distribution: countryRes.rows,
-      manager_performance: bmRes.rows,
-      monthly_trend: trendRes.rows,
+      country_distribution:  countryRes.rows,
+      manager_performance:   bmRes.rows,
+      monthly_trend:         trendRes.rows,
+      bm_industry:           bmIndRes.rows,
+      bm_country:            bmCtyRes.rows,
     });
   } catch (err) {
     console.error('getPipelineAnalytics error:', err);
