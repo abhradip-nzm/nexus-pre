@@ -50,8 +50,20 @@ const CHART_COLORS = ['#3e72ae','#e67e22','#27ae60','#e74c3c','#8b5cf6','#14b8a6
 const fmt      = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtShort = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '';
 
+// ── Avatar helpers ────────────────────────────────────────────────────────────
+const AVATAR_COLORS = ['#3e72ae','#e67e22','#27ae60','#e74c3c','#8b5cf6','#14b8a6','#f59e0b','#ec4899','#0ea5e9','#f43f5e'];
+const avatarColor = (str = '') => {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+};
+const avatarInitial = (name, email) => {
+  const src = name?.trim() || email?.trim() || '?';
+  return src[0].toUpperCase();
+};
+
 // ── Share Modal ───────────────────────────────────────────────────────────────
-function ShareModal({ pipelineId, pipelineName, onClose }) {
+function ShareModal({ pipelineId, pipelineName, onClose, onCreated }) {
   const [recipients, setRecipients] = useState([{ email: '', name: '' }]);
   const [note, setNote]             = useState('');
   const [saving, setSaving]         = useState(false);
@@ -77,6 +89,7 @@ function ShareModal({ pipelineId, pipelineName, onClose }) {
       });
       setCreated(res.data.share);
       toast.success('Share link created and emails sent!');
+      if (onCreated) onCreated();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to create share link');
     } finally {
@@ -241,6 +254,141 @@ function AuditTab({ auditData, auditLoading, onRefresh }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Share Manage Modal ────────────────────────────────────────────────────────
+function ShareManageModal({ pipelineId, shares, onClose, onDeactivated }) {
+  const [deactivating, setDeactivating] = useState(null);
+  const fmt2 = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+
+  const handleDeactivate = async (shareId) => {
+    setDeactivating(shareId);
+    try {
+      await api.delete(`/pipeline-shares/${shareId}`);
+      toast.success('Share link deactivated');
+      onDeactivated(shareId);
+    } catch {
+      toast.error('Failed to deactivate');
+    } finally {
+      setDeactivating(null);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-md">
+        <div className="modal-header">
+          <h2 className="modal-title"><Users size={16} /> Shared With</h2>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
+        </div>
+        <div className="modal-body plv-manage-modal-body">
+          {shares.length === 0 ? (
+            <div className="pl-empty-state" style={{ padding: '32px 0' }}>
+              <Share2 size={28} className="pl-empty-icon" />
+              <p>No active share links for this pipeline.</p>
+            </div>
+          ) : shares.map(share => {
+            const allR = share.recipients || [];
+            const shareUrl = `${window.location.origin}/share/pipeline/${share.id}`;
+            return (
+              <div key={share.id} className="plv-manage-share-block">
+                <div className="plv-manage-share-meta">
+                  <span className="plv-manage-date"><Clock size={11} /> {fmt2(share.created_at)}</span>
+                  {share.note && <span className="plv-manage-note">"{share.note}"</span>}
+                  <div className="plv-manage-share-actions">
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => { navigator.clipboard.writeText(shareUrl); toast.success('Link copied!'); }}
+                    >
+                      <Link2 size={12} /> Copy Link
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={() => handleDeactivate(share.id)}
+                      disabled={deactivating === share.id}
+                    >
+                      {deactivating === share.id ? 'Removing…' : 'Deactivate'}
+                    </button>
+                  </div>
+                </div>
+                <div className="plv-manage-recipients">
+                  {allR.map(r => (
+                    <div key={r.id} className="plv-manage-recipient">
+                      <div
+                        className="plv-manage-avatar"
+                        style={{ background: avatarColor(r.email) }}
+                        title={r.email}
+                      >
+                        {avatarInitial(r.name, r.email)}
+                      </div>
+                      <div className="plv-manage-rinfo">
+                        {r.name && <span className="plv-manage-rname">{r.name}</span>}
+                        <span className="plv-manage-remail">{r.email}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Shared With Bar ───────────────────────────────────────────────────────────
+function SharedWithBar({ shares, onManage }) {
+  // Flatten all recipients across all active shares
+  const allRecipients = shares.flatMap(s => (s.recipients || []).map(r => ({ ...r, shareId: s.id })));
+  // Deduplicate by email
+  const seen = new Set();
+  const unique = allRecipients.filter(r => { if (seen.has(r.email)) return false; seen.add(r.email); return true; });
+  if (unique.length === 0) return null;
+
+  const visible = unique.slice(0, 5);
+  const extra   = unique.length - visible.length;
+
+  return (
+    <div className="plv-shared-bar">
+      <div className="plv-shared-avatars">
+        {visible.map((r, i) => (
+          <div
+            key={r.email}
+            className="plv-shared-avatar"
+            style={{ background: avatarColor(r.email), zIndex: visible.length - i }}
+            title={r.name ? `${r.name} (${r.email})` : r.email}
+          >
+            {avatarInitial(r.name, r.email)}
+          </div>
+        ))}
+        {extra > 0 && (
+          <div className="plv-shared-avatar plv-shared-avatar-more" title={`${extra} more`}>
+            +{extra}
+          </div>
+        )}
+      </div>
+      <div className="plv-shared-info">
+        <span className="plv-shared-label">
+          Shared with <strong>{unique.length}</strong> {unique.length === 1 ? 'person' : 'people'}
+        </span>
+        <div className="plv-shared-emails">
+          {visible.map(r => (
+            <span key={r.email} className="plv-shared-email-chip">
+              {r.name || r.email}
+            </span>
+          ))}
+          {extra > 0 && <span className="plv-shared-email-chip plv-shared-more-chip">+{extra} more</span>}
+        </div>
+      </div>
+      <button className="btn btn-ghost btn-sm plv-manage-btn" onClick={onManage}>
+        Manage
+      </button>
     </div>
   );
 }
@@ -652,17 +800,21 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
         <div className="plv-a-card">
           <div className="plv-a-title"><Building2 size={15} /> Industry Distribution</div>
           {data.industry_distribution.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={data.industry_distribution} margin={{ top: 5, right: 10, left: -15, bottom: 50 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-                <XAxis dataKey="industry" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
-                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" name="Leads" radius={[4, 4, 0, 0]}>
-                  {data.industry_distribution.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="plv-chart-scroll">
+              <div style={{ minWidth: Math.max(300, data.industry_distribution.length * 52) }}>
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={data.industry_distribution} margin={{ top: 5, right: 10, left: -15, bottom: 55 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+                    <XAxis dataKey="industry" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" name="Leads" radius={[4, 4, 0, 0]}>
+                      {data.industry_distribution.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           )}
         </div>
 
@@ -670,15 +822,19 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
         <div className="plv-a-card">
           <div className="plv-a-title"><Globe size={15} /> Country Distribution</div>
           {data.country_distribution.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={data.country_distribution} margin={{ top: 5, right: 10, left: -15, bottom: 50 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-                <XAxis dataKey="country" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
-                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" name="Leads" fill="#3e72ae" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="plv-chart-scroll">
+              <div style={{ minWidth: Math.max(300, data.country_distribution.length * 52) }}>
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={data.country_distribution} margin={{ top: 5, right: 10, left: -15, bottom: 55 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+                    <XAxis dataKey="country" tick={{ fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" name="Leads" fill="#3e72ae" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           )}
         </div>
 
@@ -686,15 +842,19 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
         <div className="plv-a-card">
           <div className="plv-a-title"><Calendar size={15} /> Monthly Lead Trend</div>
           {data.monthly_trend.length === 0 ? <p className="plv-a-empty">No data yet.</p> : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={data.monthly_trend} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" name="New Leads" fill="#6b5ea8" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="plv-chart-scroll">
+              <div style={{ minWidth: Math.max(280, data.monthly_trend.length * 52) }}>
+                <ResponsiveContainer width="100%" height={210}>
+                  <BarChart data={data.monthly_trend} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" name="New Leads" fill="#6b5ea8" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           )}
         </div>
 
@@ -753,9 +913,11 @@ export default function PipelineView() {
   const [showLeadModal, setLeadModal] = useState(false);
   const [editLead, setEditLead]       = useState(null);
   const [deleteLead, setDeleteLead]   = useState(null);
-  const [showShareModal, setShareModal] = useState(false);
-  const [auditData, setAuditData]     = useState(null);
-  const [auditLoading, setAuditLoading] = useState(false);
+  const [showShareModal, setShareModal]   = useState(false);
+  const [shares, setShares]               = useState([]);
+  const [showManageModal, setManageModal] = useState(false);
+  const [auditData, setAuditData]         = useState(null);
+  const [auditLoading, setAuditLoading]   = useState(false);
 
   const loadLeads = useCallback(async () => {
     try {
@@ -783,6 +945,12 @@ export default function PipelineView() {
     }
   }, [id]);
 
+  const loadShares = useCallback(() => {
+    api.get(`/pipelines/${id}/shares`)
+      .then(res => setShares((res.data.shares || []).filter(s => s.is_active)))
+      .catch(() => {});
+  }, [id]);
+
   useEffect(() => {
     Promise.all([
       api.get(`/pipelines/${id}`),
@@ -798,6 +966,8 @@ export default function PipelineView() {
       .catch(() => toast.error('Failed to load pipeline data'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => { if (!loading) loadShares(); }, [loading, loadShares]);
 
   useEffect(() => { if (!loading) loadLeads(); }, [loading, loadLeads]);
   useEffect(() => { if (tab === 'audit' && auditData === null) loadAudit(); }, [tab, auditData, loadAudit]);
@@ -866,6 +1036,18 @@ export default function PipelineView() {
           pipelineId={id}
           pipelineName={pipeline.name}
           onClose={() => setShareModal(false)}
+          onCreated={loadShares}
+        />
+      )}
+
+      {showManageModal && (
+        <ShareManageModal
+          pipelineId={id}
+          shares={shares}
+          onClose={() => setManageModal(false)}
+          onDeactivated={(shareId) => {
+            setShares(prev => prev.filter(s => s.id !== shareId));
+          }}
         />
       )}
 
@@ -935,6 +1117,11 @@ export default function PipelineView() {
             <Share2 size={14} /> Share
           </button>
         </div>
+
+        {/* Shared-with indicator */}
+        {shares.length > 0 && (
+          <SharedWithBar shares={shares} onManage={() => setManageModal(true)} />
+        )}
 
         {/* ── LEADS TAB ── */}
         {tab === 'leads' && (

@@ -632,6 +632,172 @@
   margin: 0;
 }
 
+/* ── Chart scroll wrapper (fixes bar-chart overflow clipping on mobile) ──── */
+.plv-chart-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  /* Tuck padding so scrollbar doesn't eat card border-radius */
+  margin: 0 -2px;
+  padding: 0 2px 2px;
+}
+/* Hide scrollbar cosmetically on desktop; still scrollable */
+.plv-chart-scroll::-webkit-scrollbar { height: 4px; }
+.plv-chart-scroll::-webkit-scrollbar-track { background: transparent; }
+.plv-chart-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+
+/* ── Shared-with bar ─────────────────────────────────────────────────────── */
+.plv-shared-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #ebf3fc 0%, #f0faf4 100%);
+  border: 1px solid #d0e4f7;
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+.plv-shared-avatars {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.plv-shared-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  margin-left: -8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  cursor: default;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.plv-shared-avatar:first-child { margin-left: 0; }
+.plv-shared-avatar:hover { transform: scale(1.12) translateY(-2px); z-index: 10 !important; }
+.plv-shared-avatar-more {
+  background: #94a3b8;
+  font-size: 10px;
+}
+.plv-shared-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.plv-shared-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.plv-shared-label strong { color: var(--text-primary); }
+.plv-shared-emails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.plv-shared-email-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: #fff;
+  border: 1px solid #d0e4f7;
+  border-radius: 20px;
+  font-size: 11px;
+  color: #3e72ae;
+  font-weight: 500;
+}
+.plv-shared-more-chip {
+  background: #f0f4f8;
+  color: var(--text-muted);
+  border-color: var(--border-light);
+}
+.plv-manage-btn { flex-shrink: 0; }
+
+/* ── Share manage modal ──────────────────────────────────────────────────── */
+.plv-manage-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.plv-manage-share-block {
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.plv-manage-share-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
+  flex-wrap: wrap;
+}
+.plv-manage-date {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.plv-manage-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+  flex: 1;
+}
+.plv-manage-share-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.plv-manage-recipients {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.plv-manage-recipient {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.1s;
+}
+.plv-manage-recipient:last-child { border-bottom: none; }
+.plv-manage-recipient:hover { background: var(--bg-secondary); }
+.plv-manage-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.plv-manage-rinfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.plv-manage-rname  { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.plv-manage-remail { font-size: 12px; color: var(--text-muted); word-break: break-all; }
+
 /* ── Audit trail tab ─────────────────────────────────────────────────────── */
 .plv-audit-tab {
   display: flex;
@@ -723,6 +889,10 @@
 }
 
 @media (max-width: 600px) {
-  .plv-audit-left { flex: 1 1 100%; }
+  .plv-audit-left  { flex: 1 1 100%; }
   .plv-recipient-row { flex-wrap: wrap; }
+  .plv-shared-bar  { gap: 8px; padding: 10px 12px; }
+  .plv-shared-info { width: 100%; }
+  .plv-manage-share-meta  { flex-direction: column; align-items: flex-start; }
+  .plv-manage-share-actions { margin-left: 0; }
 }
