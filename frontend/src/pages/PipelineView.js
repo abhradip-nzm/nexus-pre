@@ -411,11 +411,13 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
     country:             lead?.country             || '',
     status:              lead?.status              || 'hot',
   });
-  const [updates, setUpdates]     = useState(() => normaliseUpdates(lead?.updates));
-  const [newUpdate, setNewUpdate] = useState('');
-  const [newDate, setNewDate]     = useState(new Date().toISOString().slice(0, 10));
-  const [addingUpd, setAddingUpd] = useState(false);
-  const [saving, setSaving]       = useState(false);
+  const [updates, setUpdates]         = useState(() => normaliseUpdates(lead?.updates));
+  const [newUpdate, setNewUpdate]     = useState('');
+  const [newDate, setNewDate]         = useState(new Date().toISOString().slice(0, 10));
+  const [addingUpd, setAddingUpd]     = useState(false);
+  const [editingUpd, setEditingUpd]   = useState(null); // { id, text, date }
+  const [savingUpd, setSavingUpd]     = useState(false);
+  const [saving, setSaving]           = useState(false);
 
   const set = (f, v) => setForm(p => ({ ...p, [f]: v }));
 
@@ -456,6 +458,27 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
       applyUpdates(updates.filter(u => u.id !== uid));
     } catch {
       toast.error('Failed to delete update');
+    }
+  };
+
+  const handleSaveEditUpdate = async () => {
+    if (!editingUpd?.text?.trim()) return;
+    setSavingUpd(true);
+    try {
+      const res = await api.put(`/pipeline-lead-updates/${editingUpd.id}`, {
+        update_text: editingUpd.text.trim(),
+        update_date: editingUpd.date,
+      });
+      applyUpdates(updates.map(u => u.id === editingUpd.id
+        ? { ...u, update_text: res.data.update.update_text, update_date: res.data.update.update_date }
+        : u
+      ));
+      setEditingUpd(null);
+      toast.success('Update saved!');
+    } catch {
+      toast.error('Failed to save update');
+    } finally {
+      setSavingUpd(false);
     }
   };
 
@@ -520,7 +543,7 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
           <h2 className="modal-title">{isEdit ? 'Edit Lead' : 'New Lead'}</h2>
           <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="plv-lead-form">
           <div className="modal-body plv-modal-body">
             <div className="plv-form-grid">
               <div className="form-group">
@@ -585,11 +608,49 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
                     <p className="plv-no-updates">No updates yet.</p>
                   ) : updates.map(u => (
                     <div key={u.id} className="plv-update-entry">
-                      <span className="plv-update-date">{fmtShort(u.update_date)}</span>
-                      <span className="plv-update-text">{u.update_text}</span>
-                      <button type="button" className="plv-update-del" onClick={() => handleDeleteUpdate(u.id)} title="Remove">
-                        <Trash size={11} />
-                      </button>
+                      {editingUpd?.id === u.id ? (
+                        /* ── inline edit mode ── */
+                        <div className="plv-update-edit-row">
+                          <input
+                            className="form-control plv-update-edit-input"
+                            value={editingUpd.text}
+                            onChange={e => setEditingUpd(p => ({ ...p, text: e.target.value }))}
+                            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleSaveEditUpdate())}
+                            autoFocus
+                          />
+                          <input
+                            type="date"
+                            className="form-control plv-update-edit-date"
+                            value={editingUpd.date}
+                            onChange={e => setEditingUpd(p => ({ ...p, date: e.target.value }))}
+                          />
+                          <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveEditUpdate} disabled={savingUpd}>
+                            {savingUpd ? '…' : 'Save'}
+                          </button>
+                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingUpd(null)}>
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        /* ── read mode ── */
+                        <>
+                          <span className="plv-update-date">{fmtShort(u.update_date)}</span>
+                          <span className="plv-update-text">{u.update_text}</span>
+                          <div className="plv-update-actions">
+                            <button
+                              type="button"
+                              className="plv-update-edit"
+                              onClick={() => setEditingUpd({ id: u.id, text: u.update_text, date: u.update_date?.slice(0, 10) || new Date().toISOString().slice(0, 10) })}
+                              title="Edit"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                            <button type="button" className="plv-update-del" onClick={() => handleDeleteUpdate(u.id)} title="Remove">
+                              <Trash size={11} />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>

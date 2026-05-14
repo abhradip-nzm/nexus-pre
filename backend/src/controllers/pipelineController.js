@@ -300,6 +300,24 @@ const addLeadUpdate = async (req, res) => {
   }
 };
 
+// PUT /pipeline-lead-updates/:updateId
+const editLeadUpdate = async (req, res) => {
+  try {
+    const { updateId } = req.params;
+    const { update_text, update_date } = req.body;
+    if (!update_text?.trim()) return res.status(400).json({ error: 'Update text is required' });
+    const result = await query(
+      `UPDATE pipeline_lead_updates SET update_text = $1, update_date = $2 WHERE id = $3 RETURNING *`,
+      [update_text.trim(), update_date || new Date().toISOString().slice(0, 10), updateId]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Update not found' });
+    res.json({ update: result.rows[0] });
+  } catch (err) {
+    console.error('editLeadUpdate error:', err);
+    res.status(500).json({ error: 'Failed to edit update' });
+  }
+};
+
 // DELETE /pipeline-lead-updates/:updateId
 const deleteLeadUpdate = async (req, res) => {
   try {
@@ -456,6 +474,6 @@ const getPipelineAnalytics = async (req, res) => {
 module.exports = {
   getAllPipelines, getPipeline, createPipeline, updatePipeline, deletePipeline,
   getPipelineLeads, createLead, updateLead, deleteLead,
-  addLeadUpdate, deleteLeadUpdate,
+  addLeadUpdate, editLeadUpdate, deleteLeadUpdate,
   getPipelineAnalytics,
 };

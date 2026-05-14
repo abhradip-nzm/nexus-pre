@@ -7,7 +7,7 @@ const { getAllAdhocTasks, createAdhocTask, updateAdhocTask, deleteAdhocTask } = 
 const {
   getAllPipelines, getPipeline, createPipeline, updatePipeline, deletePipeline,
   getPipelineLeads, createLead, updateLead, deleteLead,
-  addLeadUpdate, deleteLeadUpdate,
+  addLeadUpdate, editLeadUpdate, deleteLeadUpdate,
   getPipelineAnalytics,
 } = require('../controllers/pipelineController');
 const {
@@ -269,7 +269,8 @@ router.get('/pipelines/:id/leads',                authenticate, requireSystemAdm
 router.post('/pipelines/:id/leads',               authenticate, requireSystemAdmin, createLead);
 router.put('/pipeline-leads/:leadId',             authenticate, requireSystemAdmin, updateLead);
 router.delete('/pipeline-leads/:leadId',          authenticate, requireSystemAdmin, deleteLead);
-router.post('/pipeline-leads/:leadId/updates',    authenticate, requireSystemAdmin, addLeadUpdate);
+router.post('/pipeline-leads/:leadId/updates',     authenticate, requireSystemAdmin, addLeadUpdate);
+router.put('/pipeline-lead-updates/:updateId',    authenticate, requireSystemAdmin, editLeadUpdate);
 router.delete('/pipeline-lead-updates/:updateId', authenticate, requireSystemAdmin, deleteLeadUpdate);
 router.get('/pipelines/:id/analytics',            authenticate, requireSystemAdmin, getPipelineAnalytics);
 // Pipeline shares (system_admin only)

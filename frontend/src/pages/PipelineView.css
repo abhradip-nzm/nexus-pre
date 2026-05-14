@@ -209,10 +209,22 @@
 .plv-upd-inline-text { color: var(--text-secondary); line-height: 1.5; }
 
 /* ── Lead Modal body ─────────────────────────────────────────────────────── */
+/* Make the form inside the modal a proper flex column so modal-body
+   can scroll and the footer is always pinned at the bottom */
+.plv-lead-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
 .plv-modal-body {
   display: flex;
   flex-direction: column;
   gap: 0;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 .plv-form-grid {
   display: grid;
@@ -246,8 +258,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 180px;
-  overflow-y: auto;
 }
 .plv-update-entry {
   display: flex;
@@ -271,19 +281,54 @@
   color: var(--text-secondary);
   line-height: 1.5;
 }
+.plv-update-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.plv-update-entry:hover .plv-update-actions { opacity: 1; }
+.plv-update-edit,
 .plv-update-del {
   background: none;
   border: none;
   color: var(--text-light);
   cursor: pointer;
-  padding: 2px;
+  padding: 3px;
   border-radius: 4px;
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  transition: color 0.15s;
+  transition: color 0.15s, background 0.15s;
 }
-.plv-update-del:hover { color: var(--error); }
+.plv-update-edit:hover { color: var(--primary); background: var(--primary-light, #ebf3fc); }
+.plv-update-del:hover  { color: var(--error);   background: #fef2f2; }
+
+/* Inline edit row */
+.plv-update-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+.plv-update-edit-input {
+  flex: 1;
+  min-width: 120px;
+  font-size: 12px !important;
+  padding: 5px 8px !important;
+  height: auto !important;
+}
+.plv-update-edit-date {
+  width: 130px;
+  flex-shrink: 0;
+  font-size: 12px !important;
+  padding: 5px 8px !important;
+  height: auto !important;
+}
+
 .plv-no-updates {
   font-size: 12px;
   color: var(--text-light);
