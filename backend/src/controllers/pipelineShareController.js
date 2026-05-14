@@ -303,6 +303,29 @@ const updateSharedLead = async (req, res) => {
   }
 };
 
+// GET /public/pipeline-share/:token/audit
+const getSharedPipelineAudit = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { share, error, status: errStatus } = await validateShare(token);
+    if (error) return res.status(errStatus).json({ error });
+
+    const result = await query(
+      `SELECT pla.*, pl.account_name, pl.client_name
+       FROM pipeline_lead_audit pla
+       JOIN pipeline_leads pl ON pl.id = pla.lead_id
+       WHERE pl.pipeline_id = $1
+       ORDER BY pla.changed_at DESC
+       LIMIT 200`,
+      [share.pipeline_id]
+    );
+    res.json({ audit: result.rows });
+  } catch (err) {
+    console.error('getSharedPipelineAudit error:', err);
+    res.status(500).json({ error: 'Failed to load audit trail' });
+  }
+};
+
 // POST /public/pipeline-share/:token/leads/:leadId/updates
 const addSharedLeadUpdate = async (req, res) => {
   try {
@@ -348,4 +371,5 @@ module.exports = {
   createShare, getShares, deactivateShare,
   getLeadAudit, getPipelineAudit,
   getSharedPipeline, updateSharedLead, addSharedLeadUpdate,
+  getSharedPipelineAudit,
 };

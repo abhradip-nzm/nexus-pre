@@ -14,6 +14,7 @@ const {
   createShare, getShares, deactivateShare,
   getLeadAudit, getPipelineAudit,
   getSharedPipeline, updateSharedLead, addSharedLeadUpdate,
+  getSharedPipelineAudit,
 } = require('../controllers/pipelineShareController');
 
 // Multer — memory storage, 10 MB limit, allowed types only
@@ -253,8 +254,9 @@ router.post('/transition-forms/:id/responses', authenticate, submitFormResponse)
 router.get('/stories/:storyId/form-responses', authenticate, getStoryFormResponses);
 
 // ── Public share routes (no auth) ────────────────────────────────────────────
-router.get('/public/pipeline-share/:token',                       getSharedPipeline);
-router.put('/public/pipeline-share/:token/leads/:leadId',         updateSharedLead);
+router.get('/public/pipeline-share/:token',                        getSharedPipeline);
+router.get('/public/pipeline-share/:token/audit',                  getSharedPipelineAudit);
+router.put('/public/pipeline-share/:token/leads/:leadId',          updateSharedLead);
 router.post('/public/pipeline-share/:token/leads/:leadId/updates', addSharedLeadUpdate);
 
 // Pipelines (system_admin only)
