@@ -315,7 +315,36 @@
 .filter-select:focus { border-color: var(--primary); }
 
 /* ── Analytics ───────────────────────────────────────────────────────────── */
-.plv-analytics { }
+/* Use Noto Sans JP throughout analytics (matching Dashboard PDF export) */
+.plv-analytics {
+  font-family: 'Noto Sans JP', 'Inter', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Analytics header row: label + Export PDF button */
+.plv-analytics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.plv-analytics-title-txt {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'Noto Sans JP', 'Inter', sans-serif;
+}
+.plv-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-family: 'Noto Sans JP', 'Inter', sans-serif;
+}
+
 .plv-analytics-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

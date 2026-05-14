@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -9,7 +9,7 @@ import {
   Users, Calendar, Globe, Building2, ChevronDown, ChevronUp,
   Thermometer, Snowflake, CheckCircle2, MinusCircle,
   MessageSquarePlus, Trash, CircleDot, Share2, Link2,
-  Clock, UserCheck, Filter,
+  Clock, UserCheck, Filter, Download,
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import api from '../utils/api';
@@ -520,9 +520,11 @@ function LeadRow({ lead, onEdit, onDelete }) {
 }
 
 // ── Analytics Tab ─────────────────────────────────────────────────────────────
-function AnalyticsTab({ pipelineId }) {
-  const [data, setData]       = useState(null);
-  const [loading, setLoading] = useState(true);
+function AnalyticsTab({ pipelineId, pipelineName }) {
+  const [data, setData]         = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const analyticsRef            = useRef(null);
 
   useEffect(() => {
     api.get(`/pipelines/${pipelineId}/analytics`)
@@ -530,6 +532,65 @@ function AnalyticsTab({ pipelineId }) {
       .catch(() => toast.error('Failed to load analytics'))
       .finally(() => setLoading(false));
   }, [pipelineId]);
+
+  const handleExportPDF = async () => {
+    if (!analyticsRef.current) return;
+    setExporting(true);
+    try {
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = html2canvasModule.default || html2canvasModule;
+      const jsPDFModule = await import('jspdf');
+      const jsPDF = jsPDFModule.jsPDF || jsPDFModule.default;
+
+      const element = analyticsRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#f8fafc',
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW  = pdf.internal.pageSize.getWidth();
+      const pageH  = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const usableW = pageW - margin * 2;
+      const imgH = (canvas.height * usableW) / canvas.width;
+
+      // Header — matching Dashboard PDF style
+      pdf.setFontSize(15);
+      pdf.setTextColor(62, 114, 174);
+      pdf.text(`Nexus Pre — ${pipelineName || 'Pipeline'} Analytics`, margin, margin + 5);
+      pdf.setFontSize(9);
+      pdf.setTextColor(113, 128, 150);
+      const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      pdf.text(`Generated: ${dateStr}`, margin, margin + 11);
+
+      const imgStartY = margin + 16;
+      pdf.addImage(imgData, 'PNG', margin, imgStartY, usableW, imgH, '', 'FAST');
+
+      // Multi-page support
+      let heightLeft = imgH - (pageH - imgStartY - margin);
+      let pageNum = 1;
+      while (heightLeft > 0) {
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', margin, imgStartY - pageNum * (pageH - margin * 2), usableW, imgH, '', 'FAST');
+        heightLeft -= (pageH - margin * 2);
+        pageNum++;
+      }
+
+      const safeName = (pipelineName || 'pipeline').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      pdf.save(`nexus-${safeName}-analytics-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (err) {
+      console.error('PDF export error:', err);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (loading) return <div className="plv-loading">Loading analytics…</div>;
   if (!data)   return null;
@@ -542,7 +603,20 @@ function AnalyticsTab({ pipelineId }) {
 
   return (
     <div className="plv-analytics">
-      <div className="plv-analytics-grid">
+      {/* Analytics header: title + Export PDF button */}
+      <div className="plv-analytics-header">
+        <span className="plv-analytics-title-txt">Pipeline Analytics</span>
+        <button
+          className="btn btn-secondary btn-sm plv-export-btn"
+          onClick={handleExportPDF}
+          disabled={exporting}
+        >
+          <Download size={14} />
+          {exporting ? 'Generating PDF…' : 'Export PDF'}
+        </button>
+      </div>
+
+      <div ref={analyticsRef} className="plv-analytics-grid">
         {/* Status Breakdown */}
         <div className="plv-a-card plv-a-card-full">
           <div className="plv-a-title"><CircleDot size={15} /> Status Breakdown</div>
@@ -937,7 +1011,7 @@ export default function PipelineView() {
         )}
 
         {/* ── ANALYTICS TAB ── */}
-        {tab === 'analytics' && <AnalyticsTab pipelineId={id} />}
+        {tab === 'analytics' && <AnalyticsTab pipelineId={id} pipelineName={pipeline.name} />}
 
         {/* ── AUDIT TAB ── */}
         {tab === 'audit' && (
