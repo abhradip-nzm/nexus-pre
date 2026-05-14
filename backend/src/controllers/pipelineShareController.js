@@ -290,7 +290,7 @@ const updateSharedLead = async (req, res) => {
     if (Object.keys(changes).length > 0) {
       await query(
         `INSERT INTO pipeline_lead_audit (lead_id, share_id, changed_by_email, changed_by_name, action, changes)
-         VALUES ($1, $2, $3, $4, 'update_lead', $5)`,
+         VALUES ($1, $2, $3, $4, 'lead_updated', $5)`,
         [leadId, token, viewer_email || null, viewer_name || null, JSON.stringify(changes)]
       );
     }
@@ -353,9 +353,9 @@ const addSharedLeadUpdate = async (req, res) => {
     // Record audit
     await query(
       `INSERT INTO pipeline_lead_audit (lead_id, share_id, changed_by_email, changed_by_name, action, changes)
-       VALUES ($1, $2, $3, $4, 'add_update', $5)`,
+       VALUES ($1, $2, $3, $4, 'note_added', $5)`,
       [leadId, token, viewer_email || null, viewer_name || null,
-       JSON.stringify({ update_text: update_text.trim(), update_date: result.rows[0].update_date })]
+       JSON.stringify({ update_text: { new: update_text.trim() }, update_date: { new: result.rows[0].update_date } })]
     );
 
     res.status(201).json({

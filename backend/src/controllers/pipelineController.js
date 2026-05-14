@@ -202,6 +202,18 @@ const getPipelineLeads = async (req, res) => {
   }
 };
 
+// Helper — write an audit entry (non-fatal)
+const writeAudit = async (leadId, user, action, changes) => {
+  try {
+    const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+    await query(
+      `INSERT INTO pipeline_lead_audit (lead_id, share_id, changed_by_email, changed_by_name, action, changes)
+       VALUES ($1, NULL, $2, $3, $4, $5)`,
+      [leadId, user.email, name, action, JSON.stringify(changes)]
+    );
+  } catch (e) { console.warn('[audit]', e.message); }
+};
+
 // POST /pipelines/:id/leads
 const createLead = async (req, res) => {
   try {
@@ -221,6 +233,11 @@ const createLead = async (req, res) => {
       [id, account_name.trim(), client_name.trim(), business_manager_id || null, industry_id || null, country || null, status]
     );
     const full = await query(`${LEAD_SELECT} WHERE pl.id = $1`, [result.rows[0].id]);
+    await writeAudit(result.rows[0].id, req.user, 'lead_created', {
+      account_name: { new: account_name.trim() },
+      client_name:  { new: client_name.trim() },
+      status:       { new: status },
+    });
     res.status(201).json({ lead: full.rows[0] });
   } catch (err) {
     console.error('createLead error:', err);
@@ -233,6 +250,17 @@ const updateLead = async (req, res) => {
   try {
     const { leadId } = req.params;
     const { account_name, client_name, business_manager_id, industry_id, country, status } = req.body;
+
+    // Fetch current state for diffing
+    const currentRes = await query(
+      `SELECT pl.*, bt.name AS bm_name, ind.name AS ind_name
+       FROM pipeline_leads pl
+       LEFT JOIN business_team bt ON bt.id = pl.business_manager_id
+       LEFT JOIN industries ind ON ind.id = pl.industry_id
+       WHERE pl.id = $1`, [leadId]
+    );
+    if (!currentRes.rows[0]) return res.status(404).json({ error: 'Lead not found' });
+    const cur = currentRes.rows[0];
 
     const sets = [];
     const vals = [];
@@ -256,7 +284,41 @@ const updateLead = async (req, res) => {
     await query(`UPDATE pipeline_leads SET ${sets.join(', ')} WHERE id = $${idx}`, vals);
 
     const full = await query(`${LEAD_SELECT} WHERE pl.id = $1`, [leadId]);
-    if (!full.rows[0]) return res.status(404).json({ error: 'Lead not found' });
+
+    // Build human-readable diff for audit
+    const changes = {};
+    const chk = (label, oldVal, newVal) => {
+      if (newVal !== undefined && String(newVal ?? '') !== String(oldVal ?? '')) {
+        changes[label] = { old: oldVal ?? null, new: newVal === '' ? null : newVal };
+      }
+    };
+    chk('account_name',       cur.account_name,       account_name?.trim());
+    chk('client_name',        cur.client_name,        client_name?.trim());
+    chk('status',             cur.status,             status);
+    chk('country',            cur.country,            country === '' ? null : country);
+
+    // Resolve display names for BM and industry
+    if (business_manager_id !== undefined && String(business_manager_id || '') !== String(cur.business_manager_id || '')) {
+      let newBmName = null;
+      if (business_manager_id) {
+        const bmRes = await query('SELECT name FROM business_team WHERE id = $1', [business_manager_id]);
+        newBmName = bmRes.rows[0]?.name || business_manager_id;
+      }
+      changes['business_manager'] = { old: cur.bm_name || null, new: newBmName };
+    }
+    if (industry_id !== undefined && String(industry_id || '') !== String(cur.industry_id || '')) {
+      let newIndName = null;
+      if (industry_id) {
+        const indRes = await query('SELECT name FROM industries WHERE id = $1', [industry_id]);
+        newIndName = indRes.rows[0]?.name || industry_id;
+      }
+      changes['industry'] = { old: cur.ind_name || null, new: newIndName };
+    }
+
+    if (Object.keys(changes).length > 0) {
+      await writeAudit(leadId, req.user, 'lead_updated', changes);
+    }
+
     res.json({ lead: full.rows[0] });
   } catch (err) {
     console.error('updateLead error:', err);
@@ -293,6 +355,10 @@ const addLeadUpdate = async (req, res) => {
        VALUES ($1,$2,$3,$4) RETURNING *`,
       [leadId, update_text.trim(), update_date || new Date().toISOString().slice(0, 10), req.user.id]
     );
+    await writeAudit(leadId, req.user, 'note_added', {
+      update_text: { new: update_text.trim() },
+      update_date: { new: result.rows[0].update_date },
+    });
     res.status(201).json({ update: result.rows[0] });
   } catch (err) {
     console.error('addLeadUpdate error:', err);
@@ -306,11 +372,16 @@ const editLeadUpdate = async (req, res) => {
     const { updateId } = req.params;
     const { update_text, update_date } = req.body;
     if (!update_text?.trim()) return res.status(400).json({ error: 'Update text is required' });
+    const old = await query('SELECT * FROM pipeline_lead_updates WHERE id = $1', [updateId]);
+    if (!old.rows[0]) return res.status(404).json({ error: 'Update not found' });
     const result = await query(
       `UPDATE pipeline_lead_updates SET update_text = $1, update_date = $2 WHERE id = $3 RETURNING *`,
       [update_text.trim(), update_date || new Date().toISOString().slice(0, 10), updateId]
     );
-    if (!result.rows[0]) return res.status(404).json({ error: 'Update not found' });
+    await writeAudit(old.rows[0].lead_id, req.user, 'note_edited', {
+      update_text: { old: old.rows[0].update_text, new: update_text.trim() },
+      update_date: { old: old.rows[0].update_date, new: result.rows[0].update_date },
+    });
     res.json({ update: result.rows[0] });
   } catch (err) {
     console.error('editLeadUpdate error:', err);
@@ -322,8 +393,14 @@ const editLeadUpdate = async (req, res) => {
 const deleteLeadUpdate = async (req, res) => {
   try {
     const { updateId } = req.params;
+    const old = await query('SELECT * FROM pipeline_lead_updates WHERE id = $1', [updateId]);
     const result = await query('DELETE FROM pipeline_lead_updates WHERE id = $1 RETURNING id', [updateId]);
     if (!result.rows[0]) return res.status(404).json({ error: 'Update not found' });
+    if (old.rows[0]) {
+      await writeAudit(old.rows[0].lead_id, req.user, 'note_deleted', {
+        update_text: { old: old.rows[0].update_text },
+      });
+    }
     res.json({ success: true });
   } catch (err) {
     console.error('deleteLeadUpdate error:', err);

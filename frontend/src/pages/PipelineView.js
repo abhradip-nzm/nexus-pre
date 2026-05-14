@@ -192,66 +192,108 @@ function ShareModal({ pipelineId, pipelineName, onClose, onCreated }) {
 
 // ── Audit Trail Tab ────────────────────────────────────────────────────────────
 function AuditTab({ auditData, auditLoading, onRefresh }) {
-  if (auditLoading) return <div className="plv-loading">Loading audit trail…</div>;
+  if (auditLoading) return <div className="plv-loading"><div className="plv-spinner" /> Loading audit trail…</div>;
   if (!auditData)   return null;
 
   const fmtAuditDate = (d) => d ? new Date(d).toLocaleString('en-GB', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   }) : '—';
 
-  const ACTION_LABELS = { update_lead: 'Updated Lead', add_update: 'Added Note' };
+  const ACTION_META = {
+    lead_created: { label: 'Lead Created',   color: '#27ae60', bg: '#eafaf1' },
+    lead_updated: { label: 'Lead Updated',   color: '#2980b9', bg: '#ebf5fb' },
+    note_added:   { label: 'Note Added',     color: '#8b5cf6', bg: '#f5f3ff' },
+    note_edited:  { label: 'Note Edited',    color: '#e67e22', bg: '#fef9ee' },
+    note_deleted: { label: 'Note Deleted',   color: '#e74c3c', bg: '#fef2f2' },
+    // legacy names kept for backward compat
+    update_lead:  { label: 'Lead Updated',   color: '#2980b9', bg: '#ebf5fb' },
+    add_update:   { label: 'Note Added',     color: '#8b5cf6', bg: '#f5f3ff' },
+  };
 
   const renderChanges = (action, changes) => {
     if (!changes) return null;
-    if (action === 'add_update') {
-      return <span className="plv-audit-change-text">"{changes.update_text}"</span>;
-    }
-    return Object.entries(changes).map(([field, { old: oldVal, new: newVal }]) => (
-      <div key={field} className="plv-audit-field-change">
-        <span className="plv-audit-field">{field.replace(/_/g, ' ')}</span>:&nbsp;
-        <span className="plv-audit-old">{String(oldVal ?? '—')}</span>
-        <span className="plv-audit-arrow"> → </span>
-        <span className="plv-audit-new">{String(newVal ?? '—')}</span>
-      </div>
-    ));
+    const parsed = typeof changes === 'string' ? (() => { try { return JSON.parse(changes); } catch { return {}; } })() : changes;
+
+    return Object.entries(parsed).map(([field, val]) => {
+      const oldVal = val?.old;
+      const newVal = val?.new;
+      const label  = field.replace(/_/g, ' ');
+      if (action === 'note_added' && field === 'update_text') {
+        return <div key={field} className="plv-audit-field-change"><span className="plv-audit-new">"{newVal}"</span></div>;
+      }
+      if (action === 'note_deleted' && field === 'update_text') {
+        return <div key={field} className="plv-audit-field-change"><span className="plv-audit-old">"{oldVal}"</span></div>;
+      }
+      if (field === 'update_date') return null; // skip date changes for notes — too noisy
+      return (
+        <div key={field} className="plv-audit-field-change">
+          <span className="plv-audit-field">{label}</span>
+          {oldVal != null && <><span className="plv-audit-old">{String(oldVal)}</span><span className="plv-audit-arrow">→</span></>}
+          {newVal != null && <span className="plv-audit-new">{String(newVal)}</span>}
+        </div>
+      );
+    }).filter(Boolean);
   };
+
+  const isSharedUser = (entry) => !!entry.share_id;
 
   return (
     <div className="plv-audit-tab">
       <div className="plv-audit-header">
-        <span className="plv-audit-count">{auditData.length} change{auditData.length !== 1 ? 's' : ''} recorded</span>
+        <span className="plv-audit-count">{auditData.length} event{auditData.length !== 1 ? 's' : ''} recorded</span>
         <button className="btn btn-ghost btn-sm" onClick={onRefresh}><Clock size={13} /> Refresh</button>
       </div>
       {auditData.length === 0 ? (
         <div className="pl-empty-state pl-empty-full">
           <Clock size={36} className="pl-empty-icon" />
-          <p>No changes recorded yet. Changes made via shared links will appear here.</p>
+          <p>No changes recorded yet. All edits — by you or shared recipients — appear here.</p>
         </div>
       ) : (
         <div className="plv-audit-list">
-          {auditData.map(entry => (
-            <div key={entry.id} className="plv-audit-entry">
-              <div className="plv-audit-left">
-                <div className="plv-audit-who">
-                  <UserCheck size={13} />
-                  <strong>{entry.changed_by_name || entry.changed_by_email || 'Unknown'}</strong>
-                  {entry.changed_by_email && entry.changed_by_name && (
-                    <span className="plv-audit-email">({entry.changed_by_email})</span>
-                  )}
+          {auditData.map(entry => {
+            const meta = ACTION_META[entry.action] || { label: entry.action, color: '#718096', bg: '#f7f8f9' };
+            const who  = entry.changed_by_name || entry.changed_by_email || 'Unknown';
+            return (
+              <div key={entry.id} className="plv-audit-entry">
+                {/* Left: avatar + who */}
+                <div className="plv-audit-left">
+                  <div className="plv-audit-avatar-row">
+                    <div
+                      className="plv-audit-avatar"
+                      style={{ background: isSharedUser(entry) ? '#8b5cf6' : '#3e72ae' }}
+                      title={isSharedUser(entry) ? 'Shared user' : 'Admin'}
+                    >
+                      {who[0]?.toUpperCase()}
+                    </div>
+                    <div className="plv-audit-who-info">
+                      <span className="plv-audit-who-name">{who}</span>
+                      {entry.changed_by_email && entry.changed_by_name && (
+                        <span className="plv-audit-email">{entry.changed_by_email}</span>
+                      )}
+                      {isSharedUser(entry) && <span className="plv-audit-source-badge">via share link</span>}
+                    </div>
+                  </div>
+                  <div className="plv-audit-lead-name">
+                    {entry.account_name}{entry.client_name ? ` · ${entry.client_name}` : ''}
+                  </div>
                 </div>
-                <div className="plv-audit-lead-name">{entry.account_name} · {entry.client_name}</div>
+                {/* Center: action + changes */}
+                <div className="plv-audit-center">
+                  <span
+                    className="plv-audit-action"
+                    style={{ color: meta.color, background: meta.bg }}
+                  >
+                    {meta.label}
+                  </span>
+                  <div className="plv-audit-changes">{renderChanges(entry.action, entry.changes)}</div>
+                </div>
+                {/* Right: timestamp */}
+                <div className="plv-audit-right">
+                  <Clock size={11} /> {fmtAuditDate(entry.changed_at)}
+                </div>
               </div>
-              <div className="plv-audit-center">
-                <span className={`plv-audit-action plv-audit-action-${entry.action}`}>
-                  {ACTION_LABELS[entry.action] || entry.action}
-                </span>
-                <div className="plv-audit-changes">{renderChanges(entry.action, entry.changes)}</div>
-              </div>
-              <div className="plv-audit-right">
-                <Clock size={11} /> {fmtAuditDate(entry.changed_at)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -261,7 +303,9 @@ function AuditTab({ auditData, auditLoading, onRefresh }) {
 // ── Share Manage Modal ────────────────────────────────────────────────────────
 function ShareManageModal({ pipelineId, shares, onClose, onDeactivated }) {
   const [deactivating, setDeactivating] = useState(null);
-  const fmt2 = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  }) : '—';
 
   const handleDeactivate = async (shareId) => {
     setDeactivating(shareId);
@@ -289,15 +333,19 @@ function ShareManageModal({ pipelineId, shares, onClose, onDeactivated }) {
               <Share2 size={28} className="pl-empty-icon" />
               <p>No active share links for this pipeline.</p>
             </div>
-          ) : shares.map(share => {
-            const allR = share.recipients || [];
+          ) : shares.map((share, idx) => {
+            const allR    = Array.isArray(share.recipients) ? share.recipients : [];
             const shareUrl = `${window.location.origin}/share/pipeline/${share.id}`;
             return (
               <div key={share.id} className="plv-manage-share-block">
-                <div className="plv-manage-share-meta">
-                  <span className="plv-manage-date"><Clock size={11} /> {fmt2(share.created_at)}</span>
-                  {share.note && <span className="plv-manage-note">"{share.note}"</span>}
-                  <div className="plv-manage-share-actions">
+                {/* Header row */}
+                <div className="plv-manage-share-header">
+                  <div className="plv-manage-share-title">
+                    <span className="plv-manage-share-num">Link {idx + 1}</span>
+                    <span className="plv-manage-date"><Clock size={11} /> {fmtDate(share.created_at)}</span>
+                    {share.note && <span className="plv-manage-note">"{share.note}"</span>}
+                  </div>
+                  <div className="plv-manage-share-btns">
                     <button
                       className="btn btn-ghost btn-sm"
                       onClick={() => { navigator.clipboard.writeText(shareUrl); toast.success('Link copied!'); }}
@@ -313,23 +361,34 @@ function ShareManageModal({ pipelineId, shares, onClose, onDeactivated }) {
                     </button>
                   </div>
                 </div>
-                <div className="plv-manage-recipients">
-                  {allR.map(r => (
-                    <div key={r.id} className="plv-manage-recipient">
-                      <div
-                        className="plv-manage-avatar"
-                        style={{ background: avatarColor(r.email) }}
-                        title={r.email}
-                      >
-                        {avatarInitial(r.name, r.email)}
-                      </div>
-                      <div className="plv-manage-rinfo">
-                        {r.name && <span className="plv-manage-rname">{r.name}</span>}
-                        <span className="plv-manage-remail">{r.email}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {/* Recipients */}
+                {allR.length === 0 ? (
+                  <div className="plv-manage-no-recipients">No recipients recorded.</div>
+                ) : (
+                  <div className="plv-manage-recipients">
+                    {allR.map(r => {
+                      const displayName  = r.name?.trim() || '';
+                      const displayEmail = r.email?.trim() || '';
+                      const initial = displayName ? displayName[0].toUpperCase()
+                                    : displayEmail ? displayEmail[0].toUpperCase() : '?';
+                      return (
+                        <div key={r.id ?? r.email} className="plv-manage-recipient">
+                          <div className="plv-manage-avatar" style={{ background: avatarColor(displayEmail) }}>
+                            {initial}
+                          </div>
+                          <div className="plv-manage-rinfo">
+                            <span className="plv-manage-rname">
+                              {displayName || displayEmail}
+                            </span>
+                            {displayName && displayEmail && (
+                              <span className="plv-manage-remail">{displayEmail}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
