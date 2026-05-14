@@ -710,6 +710,50 @@ select.sp-input {
   .sp-bar-label { width: 180px; }
 }
 
+/* ── Stacked status bar rows ─────────────────────────────────────── */
+.sp-stacked-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+}
+.sp-stacked-track {
+  flex: 1;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  background: var(--sp-bg);
+}
+.sp-stacked-seg {
+  height: 100%;
+  transition: width 0.4s ease;
+  min-width: 3px;
+}
+.sp-stacked-total {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sp-text);
+  min-width: 26px;
+  text-align: right;
+}
+.sp-stacked-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--sp-border-lt);
+}
+.sp-stacked-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--sp-text-muted);
+  font-weight: 500;
+}
+
 /* ── Audit trail section ─────────────────────────────────────────── */
 .sp-audit {
   display: flex;

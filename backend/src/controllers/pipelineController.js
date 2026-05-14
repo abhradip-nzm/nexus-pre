@@ -327,7 +327,7 @@ const getPipelineAnalytics = async (req, res) => {
     if (from_date) { dp.push(from_date);                    dateWhere += ` AND pl.created_at >= $${dp.length}`; }
     if (to_date)   { dp.push(to_date + ' 23:59:59.999');    dateWhere += ` AND pl.created_at <= $${dp.length}`; }
 
-    const [statusRes, industryRes, countryRes, bmRes, trendRes, bmIndRes, bmCtyRes] = await Promise.all([
+    const [statusRes, industryRes, countryRes, bmRes, trendRes, bmIndRes, bmCtyRes, indStatusRes, ctyStatusRes] = await Promise.all([
       // Status breakdown
       query(
         `SELECT status, COUNT(*)::int AS count
@@ -409,6 +409,31 @@ const getPipelineAnalytics = async (req, res) => {
          ORDER BY manager, count DESC`,
         dp
       ),
+      // Industry × Status
+      query(
+        `SELECT
+           COALESCE(ind.name, 'Unspecified') AS industry,
+           pl.status,
+           COUNT(pl.id)::int AS count
+         FROM pipeline_leads pl
+         LEFT JOIN industries ind ON ind.id = pl.industry_id
+         WHERE pl.pipeline_id = $1${dateWhere}
+         GROUP BY COALESCE(ind.name, 'Unspecified'), pl.status
+         ORDER BY industry, count DESC`,
+        dp
+      ),
+      // Country × Status
+      query(
+        `SELECT
+           COALESCE(pl.country, 'Unspecified') AS country,
+           pl.status,
+           COUNT(pl.id)::int AS count
+         FROM pipeline_leads pl
+         WHERE pl.pipeline_id = $1${dateWhere}
+         GROUP BY COALESCE(pl.country, 'Unspecified'), pl.status
+         ORDER BY country, count DESC`,
+        dp
+      ),
     ]);
 
     res.json({
@@ -419,6 +444,8 @@ const getPipelineAnalytics = async (req, res) => {
       monthly_trend:         trendRes.rows,
       bm_industry:           bmIndRes.rows,
       bm_country:            bmCtyRes.rows,
+      industry_status:       indStatusRes.rows,
+      country_status:        ctyStatusRes.rows,
     });
   } catch (err) {
     console.error('getPipelineAnalytics error:', err);

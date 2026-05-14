@@ -719,6 +719,31 @@ const getPeriodLabel = (period, from, to) => {
   return PERIOD_OPTIONS.find(p => p.value === period)?.label || 'All Time';
 };
 
+// Transform industry/country × status rows into stacked bar format (status as stack keys)
+const buildStatusGrouped = (rawData, groupKey) => {
+  if (!rawData || rawData.length === 0) return { data: [], keys: [] };
+  const groups = {};
+  rawData.forEach(r => {
+    const name = r[groupKey];
+    if (!groups[name]) groups[name] = { hot: 0, cold: 0, onboarded: 0, no_requirement: 0, total: 0 };
+    groups[name][r.status] = (groups[name][r.status] || 0) + r.count;
+    groups[name].total += r.count;
+  });
+  const data = Object.entries(groups)
+    .sort((a, b) => b[1].total - a[1].total)
+    .slice(0, 12)
+    .map(([name, counts]) => ({
+      name: name.length > 22 ? name.slice(0, 20) + '…' : name,
+      hot:            counts.hot,
+      cold:           counts.cold,
+      onboarded:      counts.onboarded,
+      no_requirement: counts.no_requirement,
+    }));
+  // Only include statuses that appear at least once
+  const keys = ['hot', 'cold', 'onboarded', 'no_requirement'].filter(k => data.some(d => d[k] > 0));
+  return { data, keys };
+};
+
 // Transform raw BM×group data into stacked bar format
 const buildStackedBM = (rawData, groupKey) => {
   if (!rawData || rawData.length === 0) return { data: [], keys: [] };
@@ -824,8 +849,10 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
     color: LEAD_STATUS_COLORS[s],
   })).filter(d => d.value > 0);
 
-  const bmIndustry = buildStackedBM(data.bm_industry || [], 'industry');
-  const bmCountry  = buildStackedBM(data.bm_country  || [], 'country');
+  const bmIndustry    = buildStackedBM(data.bm_industry     || [], 'industry');
+  const bmCountry     = buildStackedBM(data.bm_country      || [], 'country');
+  const indByStatus   = buildStatusGrouped(data.industry_status || [], 'industry');
+  const ctyByStatus   = buildStatusGrouped(data.country_status  || [], 'country');
 
   return (
     <div className="plv-analytics">
@@ -1075,6 +1102,64 @@ function AnalyticsTab({ pipelineId, pipelineName }) {
                     {bmCountry.keys.map((k, i) => (
                       <Bar key={k} dataKey={k} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]}
                         radius={i === bmCountry.keys.length - 1 ? [0, 4, 4, 0] : [0, 0, 0, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Industry × Status */}
+        {indByStatus.data.length > 0 && (
+          <div className="plv-a-card plv-a-card-full">
+            <div className="plv-a-title"><Building2 size={15} /> Industry → Status Contribution</div>
+            <div className="plv-chart-scroll">
+              <div style={{ minWidth: Math.max(400, indByStatus.data.length * 70) }}>
+                <ResponsiveContainer width="100%" height={Math.max(220, indByStatus.data.length * 46 + 60)}>
+                  <BarChart data={indByStatus.data} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(val, name) => [val, LEAD_STATUS_LABELS[name] || name]} />
+                    <Legend
+                      iconSize={10}
+                      wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+                      formatter={(value) => LEAD_STATUS_LABELS[value] || value}
+                    />
+                    {indByStatus.keys.map((k, i) => (
+                      <Bar key={k} dataKey={k} stackId="a" fill={LEAD_STATUS_COLORS[k]}
+                        name={k}
+                        radius={i === indByStatus.keys.length - 1 ? [0, 4, 4, 0] : [0, 0, 0, 0]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Country × Status */}
+        {ctyByStatus.data.length > 0 && (
+          <div className="plv-a-card plv-a-card-full">
+            <div className="plv-a-title"><Globe size={15} /> Country → Status Contribution</div>
+            <div className="plv-chart-scroll">
+              <div style={{ minWidth: Math.max(400, ctyByStatus.data.length * 70) }}>
+                <ResponsiveContainer width="100%" height={Math.max(220, ctyByStatus.data.length * 46 + 60)}>
+                  <BarChart data={ctyByStatus.data} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f2f5" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(val, name) => [val, LEAD_STATUS_LABELS[name] || name]} />
+                    <Legend
+                      iconSize={10}
+                      wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+                      formatter={(value) => LEAD_STATUS_LABELS[value] || value}
+                    />
+                    {ctyByStatus.keys.map((k, i) => (
+                      <Bar key={k} dataKey={k} stackId="a" fill={LEAD_STATUS_COLORS[k]}
+                        name={k}
+                        radius={i === ctyByStatus.keys.length - 1 ? [0, 4, 4, 0] : [0, 0, 0, 0]} />
                     ))}
                   </BarChart>
                 </ResponsiveContainer>

@@ -435,24 +435,44 @@ export default function SharedPipeline() {
   // Compute analytics client-side from the loaded leads (no extra API)
   const analytics = useMemo(() => {
     const total = leads.length;
-    const industryMap = {};
-    const countryMap  = {};
-    const bmMap       = {};
+    const industryMap    = {};
+    const countryMap     = {};
+    const bmMap          = {};
+    const industryStatus = {};
+    const countryStatus  = {};
+
     leads.forEach(l => {
       const ind = l.industry_name || 'Unspecified';
       const cty = l.country       || 'Unspecified';
       const bm  = l.business_manager_name || 'Unassigned';
+      const st  = l.status;
+
       industryMap[ind] = (industryMap[ind] || 0) + 1;
       countryMap[cty]  = (countryMap[cty]  || 0) + 1;
       bmMap[bm]        = (bmMap[bm]        || 0) + 1;
+
+      if (!industryStatus[ind]) industryStatus[ind] = { hot: 0, cold: 0, onboarded: 0, no_requirement: 0, total: 0 };
+      if (!countryStatus[cty])  countryStatus[cty]  = { hot: 0, cold: 0, onboarded: 0, no_requirement: 0, total: 0 };
+      if (st) { industryStatus[ind][st]++; industryStatus[ind].total++; }
+      if (st) { countryStatus[cty][st]++;  countryStatus[cty].total++;  }
     });
+
     const sortSlice = (obj, n = 8) =>
       Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n).map(([name, count]) => ({ name, count }));
+
+    const sortStatusSlice = (obj, n = 10) =>
+      Object.entries(obj)
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, n)
+        .map(([name, counts]) => ({ name, ...counts }));
+
     return {
       total,
-      industryDist: sortSlice(industryMap),
-      countryDist:  sortSlice(countryMap),
-      bmDist:       sortSlice(bmMap, 12),
+      industryDist:   sortSlice(industryMap),
+      countryDist:    sortSlice(countryMap),
+      bmDist:         sortSlice(bmMap, 12),
+      industryStatus: sortStatusSlice(industryStatus),
+      countryStatus:  sortStatusSlice(countryStatus),
     };
   }, [leads]);
 
@@ -734,6 +754,68 @@ export default function SharedPipeline() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Industry × Status */}
+            {analytics.industryStatus.length > 0 && (
+              <div className="sp-a-card">
+                <div className="sp-a-title"><Building2 size={14} /> Industry → Status Contribution</div>
+                {analytics.industryStatus.map((item, i) => (
+                  <div key={i} className="sp-stacked-row">
+                    <span className="sp-bar-label">{item.name}</span>
+                    <div className="sp-stacked-track">
+                      {LEAD_STATUS.map(s => item[s] > 0 && (
+                        <div
+                          key={s}
+                          className="sp-stacked-seg"
+                          style={{ width: `${item[s] / item.total * 100}%`, background: LEAD_STATUS_COLORS[s] }}
+                          title={`${LEAD_STATUS_LABELS[s]}: ${item[s]}`}
+                        />
+                      ))}
+                    </div>
+                    <span className="sp-stacked-total">{item.total}</span>
+                  </div>
+                ))}
+                <div className="sp-stacked-legend">
+                  {LEAD_STATUS.map(s => (
+                    <span key={s} className="sp-stacked-legend-item">
+                      <span className="sp-bar-dot" style={{ background: LEAD_STATUS_COLORS[s] }} />
+                      {LEAD_STATUS_LABELS[s]}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Country × Status */}
+            {analytics.countryStatus.length > 0 && (
+              <div className="sp-a-card">
+                <div className="sp-a-title"><Globe size={14} /> Country → Status Contribution</div>
+                {analytics.countryStatus.map((item, i) => (
+                  <div key={i} className="sp-stacked-row">
+                    <span className="sp-bar-label">{item.name}</span>
+                    <div className="sp-stacked-track">
+                      {LEAD_STATUS.map(s => item[s] > 0 && (
+                        <div
+                          key={s}
+                          className="sp-stacked-seg"
+                          style={{ width: `${item[s] / item.total * 100}%`, background: LEAD_STATUS_COLORS[s] }}
+                          title={`${LEAD_STATUS_LABELS[s]}: ${item[s]}`}
+                        />
+                      ))}
+                    </div>
+                    <span className="sp-stacked-total">{item.total}</span>
+                  </div>
+                ))}
+                <div className="sp-stacked-legend">
+                  {LEAD_STATUS.map(s => (
+                    <span key={s} className="sp-stacked-legend-item">
+                      <span className="sp-bar-dot" style={{ background: LEAD_STATUS_COLORS[s] }} />
+                      {LEAD_STATUS_LABELS[s]}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
