@@ -648,20 +648,35 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
                 <div className="plv-updates-title">
                   <MessageSquarePlus size={14} /> Latest Updates
                 </div>
-                <div className="plv-add-update-row">
-                  <input
-                    className="form-control"
+
+                {/* Add new note */}
+                <div className="plv-add-update-wrap">
+                  <textarea
+                    className="form-control plv-update-textarea"
                     placeholder="Add an update note…"
+                    rows={3}
                     value={newUpdate}
                     onChange={e => setNewUpdate(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddUpdate())}
-                    style={{ flex: 1 }}
                   />
-                  <input type="date" className="form-control" value={newDate} onChange={e => setNewDate(e.target.value)} style={{ width: 140, flexShrink: 0 }} />
-                  <button type="button" className="btn btn-primary btn-sm" onClick={handleAddUpdate} disabled={addingUpd}>
-                    {addingUpd ? '…' : <Plus size={14} />}
-                  </button>
+                  <div className="plv-add-update-footer">
+                    <input
+                      type="date"
+                      className="form-control plv-update-date-input"
+                      value={newDate}
+                      onChange={e => setNewDate(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={handleAddUpdate}
+                      disabled={addingUpd || !newUpdate.trim()}
+                    >
+                      {addingUpd ? '…' : <><Plus size={13} /> Add Note</>}
+                    </button>
+                  </div>
                 </div>
+
+                {/* Existing updates list */}
                 <div className="plv-updates-list">
                   {updates.length === 0 ? (
                     <p className="plv-no-updates">No updates yet.</p>
@@ -669,26 +684,30 @@ function LeadModal({ lead, pipelineId, salesManagers, industries, onClose, onSav
                     <div key={u.id} className="plv-update-entry">
                       {editingUpd?.id === u.id ? (
                         /* ── inline edit mode ── */
-                        <div className="plv-update-edit-row">
-                          <input
-                            className="form-control plv-update-edit-input"
+                        <div className="plv-update-edit-wrap">
+                          <textarea
+                            className="form-control plv-update-textarea"
+                            rows={3}
                             value={editingUpd.text}
                             onChange={e => setEditingUpd(p => ({ ...p, text: e.target.value }))}
-                            onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleSaveEditUpdate())}
                             autoFocus
                           />
-                          <input
-                            type="date"
-                            className="form-control plv-update-edit-date"
-                            value={editingUpd.date}
-                            onChange={e => setEditingUpd(p => ({ ...p, date: e.target.value }))}
-                          />
-                          <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveEditUpdate} disabled={savingUpd}>
-                            {savingUpd ? '…' : 'Save'}
-                          </button>
-                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingUpd(null)}>
-                            Cancel
-                          </button>
+                          <div className="plv-update-edit-footer">
+                            <input
+                              type="date"
+                              className="form-control plv-update-date-input"
+                              value={editingUpd.date}
+                              onChange={e => setEditingUpd(p => ({ ...p, date: e.target.value }))}
+                            />
+                            <div className="plv-update-edit-actions">
+                              <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveEditUpdate} disabled={savingUpd}>
+                                {savingUpd ? '…' : 'Save'}
+                              </button>
+                              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingUpd(null)}>
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         /* ── read mode ── */

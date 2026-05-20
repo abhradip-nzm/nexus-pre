@@ -249,37 +249,81 @@
   font-weight: 700;
   color: var(--text-primary);
 }
-.plv-add-update-row {
+
+/* ── Add note textarea block ─────────────────────────────────────────────── */
+.plv-add-update-wrap {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 10px 12px;
 }
+.plv-update-textarea {
+  resize: vertical;
+  min-height: 72px;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  padding: 8px 10px !important;
+  font-family: var(--font-sans) !important;
+  border-radius: 8px !important;
+}
+.plv-add-update-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.plv-update-date-input {
+  width: 140px;
+  flex-shrink: 0;
+  font-size: 12px !important;
+  padding: 6px 8px !important;
+}
+
+/* ── Updates list — scrollable, capped height ────────────────────────────── */
 .plv-updates-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px; /* room for scrollbar */
 }
+.plv-updates-list::-webkit-scrollbar { width: 4px; }
+.plv-updates-list::-webkit-scrollbar-track { background: transparent; }
+.plv-updates-list::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 2px; }
+
 .plv-update-entry {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 8px 10px;
   background: var(--bg-secondary);
-  border-radius: 7px;
+  border-radius: 8px;
   border: 1px solid var(--border-light);
+  transition: border-color 0.12s;
+  flex-shrink: 0; /* don't squash entries */
 }
+.plv-update-entry:hover { border-color: var(--border-medium, #c8d4e6); }
 .plv-update-date {
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
-  min-width: 52px;
-  padding-top: 2px;
+  min-width: 50px;
+  padding-top: 3px;
+  font-weight: 600;
 }
 .plv-update-text {
   flex: 1;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: 0;
 }
 .plv-update-actions {
   display: flex;
@@ -288,6 +332,7 @@
   flex-shrink: 0;
   opacity: 0;
   transition: opacity 0.15s;
+  padding-top: 1px;
 }
 .plv-update-entry:hover .plv-update-actions { opacity: 1; }
 .plv-update-edit,
@@ -309,27 +354,23 @@
 .plv-update-edit:hover { color: #2980b9; background: #ebf5fb; }
 .plv-update-del:hover  { color: #e74c3c; background: #fef2f2; }
 
-/* Inline edit row */
-.plv-update-edit-row {
+/* ── Inline edit textarea block ──────────────────────────────────────────── */
+.plv-update-edit-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.plv-update-edit-footer {
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: 100%;
+  gap: 8px;
   flex-wrap: wrap;
 }
-.plv-update-edit-input {
-  flex: 1;
-  min-width: 120px;
-  font-size: 12px !important;
-  padding: 5px 8px !important;
-  height: auto !important;
-}
-.plv-update-edit-date {
-  width: 130px;
-  flex-shrink: 0;
-  font-size: 12px !important;
-  padding: 5px 8px !important;
-  height: auto !important;
+.plv-update-edit-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
 }
 
 .plv-no-updates {
@@ -612,11 +653,10 @@
 
   /* Reduce modal padding */
   .modal-body { padding: 16px; }
-  .plv-add-update-row { flex-wrap: wrap; }
-  .plv-add-update-row .form-control[type="date"] {
-    width: 100%;
-    flex-shrink: 1;
-  }
+  /* On small screens, stack date input below button */
+  .plv-add-update-footer { flex-wrap: wrap; }
+  .plv-update-date-input { width: 100%; }
+  .plv-update-edit-footer { flex-wrap: wrap; }
 }
 
 /* ── Tabs row with Share button ──────────────────────────────────────────── */
